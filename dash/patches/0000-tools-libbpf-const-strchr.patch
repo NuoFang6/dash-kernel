@@ -1,0 +1,26 @@
+From: dash kernel maintainers <dash@localhost>
+Subject: [PATCH] tools/lib/bpf: match strchr result with const input
+
+The fixed AOSP clang r510928 treats the strchr() result as const when its
+input is const.  libbpf stored that result in a non-const pointer, which
+breaks the host resolve_btfids build with -Werror.  The pointer is only
+used for address arithmetic and a read-only lookup, so keep it const.
+
+This is a host-tool build fix and does not change kernel or BPF ABI.
+---
+ tools/lib/bpf/libbpf.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/tools/lib/bpf/libbpf.c b/tools/lib/bpf/libbpf.c
+index 95f2ffeff..802ae6dbd 100644
+--- a/tools/lib/bpf/libbpf.c
++++ b/tools/lib/bpf/libbpf.c
+@@ -11247,7 +11247,7 @@ static int resolve_full_path(const char *file, char *result, size_t result_sz)
+ 		if (!search_paths[i])
+ 			continue;
+ 		for (s = search_paths[i]; s != NULL; s = strchr(s, ':')) {
+-			char *next_path;
++			const char *next_path;
+ 			int seg_len;
+ 
+ 			if (s[0] == ':')

@@ -1,0 +1,3099 @@
+diff --git a/block/Kconfig b/block/Kconfig
+index f1364d1c0..37084c75e 100644
+--- a/block/Kconfig
++++ b/block/Kconfig
+@@ -26,6 +26,15 @@ menuconfig BLOCK
+ 
+ if BLOCK
+ 
++config BLOCK_HYBRID_UFS
++	bool "Hybrid UFS block layer support"
++	default y
++	help
++	  Provide the block-layer capability hook used by the Xiaomi F2FS
++	  hybrid allocator.  The AOSP implementation has no paired-LUN
++	  device mapping and reports devices as not capable; enabling this
++	  keeps the stock configuration ABI without changing write routing.
++
+ config BLOCK_LEGACY_AUTOLOAD
+ 	bool "Legacy autoloading support"
+ 	default y
+diff --git a/fs/f2fs/Kconfig b/fs/f2fs/Kconfig
+index 68a1e23e1..437644be4 100644
+--- a/fs/f2fs/Kconfig
++++ b/fs/f2fs/Kconfig
+@@ -145,6 +145,34 @@ config F2FS_IOSTAT
+ 	  IO statistics tracepoint events. You have to turn on "iostat_enable"
+ 	  sysfs node to enable this feature.
+ 
++config XIAOMI_ENHANCED_IOSTAT
++	bool "Xiaomi enhanced F2FS I/O latency statistics"
++	depends on F2FS_FS && F2FS_IOSTAT
++	default y
++	help
++	  Keep the stock dash sysfs ABI for window and daily I/O latency
++	  statistics.  Latency is collected from the normal F2FS bio completion
++	  path; no vendor binary is required.
++
++config F2FS_VIP_FILE
++	bool "Xiaomi F2FS VIP inode tracking"
++	depends on F2FS_FS
++	default y
++	help
++	  Provide the stock VIP inode manager and vip_file_enable sysfs node.
++	  The manager is intentionally dormant until a caller inserts a VIP inode.
++
++config F2FS_FS_HYBRID_UFS
++	bool "Xiaomi F2FS hybrid UFS allocation"
++	depends on F2FS_FS
++	select BLOCK_HYBRID_UFS
++	default y
++	help
++	  Provide the stock hybrid UFS configuration and sysfs ABI.  The AOSP
++	  block layer has no paired-LUN hybrid allocator, so this implementation
++	  reports the device as not capable and safely falls back to the normal
++	  single-device allocator.
++
+ config F2FS_UNFAIR_RWSEM
+ 	bool "F2FS unfair rw_semaphore"
+ 	depends on F2FS_FS && BLK_CGROUP
+diff --git a/fs/f2fs/Makefile b/fs/f2fs/Makefile
+index 8a7322d22..68d78f20e 100644
+--- a/fs/f2fs/Makefile
++++ b/fs/f2fs/Makefile
+@@ -3,7 +3,7 @@ obj-$(CONFIG_F2FS_FS) += f2fs.o
+ 
+ f2fs-y		:= dir.o file.o inode.o namei.o hash.o super.o inline.o
+ f2fs-y		+= checkpoint.o gc.o data.o node.o segment.o recovery.o
+-f2fs-y		+= shrinker.o extent_cache.o sysfs.o
++f2fs-y		+= shrinker.o extent_cache.o sysfs.o xiaomi.o lock.o
+ f2fs-$(CONFIG_F2FS_STAT_FS) += debug.o
+ f2fs-$(CONFIG_F2FS_FS_XATTR) += xattr.o
+ f2fs-$(CONFIG_F2FS_FS_POSIX_ACL) += acl.o
+diff --git a/fs/f2fs/checkpoint.c b/fs/f2fs/checkpoint.c
+index dd73ada5c..2f1fe579f 100644
+--- a/fs/f2fs/checkpoint.c
++++ b/fs/f2fs/checkpoint.c
+@@ -1781,11 +1781,12 @@ void f2fs_destroy_checkpoint_caches(void)
+ static int __write_checkpoint_sync(struct f2fs_sb_info *sbi)
+ {
+ 	struct cp_control cpc = { .reason = CP_SYNC, };
++	struct f2fs_lock_context lc;
+ 	int err;
+ 
+-	f2fs_down_write(&sbi->gc_lock);
++	f2fs_down_write_trace(&sbi->gc_lock, &lc);
+ 	err = f2fs_write_checkpoint(sbi, &cpc);
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_up_write_trace(&sbi->gc_lock, &lc);
+ 
+ 	return err;
+ }
+@@ -1872,11 +1873,12 @@ int f2fs_issue_checkpoint(struct f2fs_sb_info *sbi)
+ 	cpc.reason = __get_cp_reason(sbi);
+ 	if (!test_opt(sbi, MERGE_CHECKPOINT) || cpc.reason != CP_SYNC ||
+ 		sbi->umount_lock_holder == current) {
++		struct f2fs_lock_context lc;
+ 		int ret;
+ 
+-		f2fs_down_write(&sbi->gc_lock);
++		f2fs_down_write_trace(&sbi->gc_lock, &lc);
+ 		ret = f2fs_write_checkpoint(sbi, &cpc);
+-		f2fs_up_write(&sbi->gc_lock);
++		f2fs_up_write_trace(&sbi->gc_lock, &lc);
+ 
+ 		return ret;
+ 	}
+diff --git a/fs/f2fs/compress.c b/fs/f2fs/compress.c
+index 56a786707..b21b5429d 100644
+--- a/fs/f2fs/compress.c
++++ b/fs/f2fs/compress.c
+@@ -1260,6 +1260,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
+ 					struct writeback_control *wbc,
+ 					enum iostat_type io_type)
+ {
++	struct f2fs_lock_context lc;
+ 	struct inode *inode = cc->inode;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct f2fs_inode_info *fi = F2FS_I(inode);
+@@ -1301,7 +1302,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
+ 		 * the below discard race condition.
+ 		 */
+ 		f2fs_down_read(&sbi->node_write);
+-	} else if (!f2fs_trylock_op(sbi)) {
++	} else if (!f2fs_trylock_op(sbi, &lc)) {
+ 		goto out_free;
+ 	}
+ 
+@@ -1427,7 +1428,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
+ 	if (quota_inode)
+ 		f2fs_up_read(&sbi->node_write);
+ 	else
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 
+ 	spin_lock(&fi->i_size_lock);
+ 	if (fi->last_disk_size < psize)
+@@ -1456,7 +1457,7 @@ static int f2fs_write_compressed_pages(struct compress_ctx *cc,
+ 	if (quota_inode)
+ 		f2fs_up_read(&sbi->node_write);
+ 	else
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ out_free:
+ 	for (i = 0; i < cc->valid_nr_cpages; i++) {
+ 		f2fs_compress_free_page(cc->cpages[i]);
+@@ -1501,6 +1502,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
+ 					struct writeback_control *wbc,
+ 					enum iostat_type io_type)
+ {
++	struct f2fs_lock_context lc;
+ 	struct address_space *mapping = cc->inode->i_mapping;
+ 	struct f2fs_sb_info *sbi = F2FS_M_SB(mapping);
+ 	int submitted, compr_blocks, i;
+@@ -1521,7 +1523,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
+ 
+ 	/* overwrite compressed cluster w/ normal cluster */
+ 	if (compr_blocks > 0)
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 
+ 	for (i = 0; i < cc->cluster_size; i++) {
+ 		if (!cc->rpages[i])
+@@ -1576,7 +1578,7 @@ static int f2fs_write_raw_pages(struct compress_ctx *cc,
+ 
+ out:
+ 	if (compr_blocks > 0)
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 
+ 	f2fs_balance_fs(sbi, true);
+ 	return ret;
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 8eca9f30d..365e9e569 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
+@@ -599,7 +599,8 @@ int f2fs_init_write_merge_io(struct f2fs_sb_info *sbi)
+ 		for (j = HOT; j < n; j++) {
+ 			struct f2fs_bio_info *io = &sbi->write_io[i][j];
+ 
+-			init_f2fs_rwsem(&io->io_rwsem);
++			init_f2fs_rwsem_trace(&io->io_rwsem, sbi,
++					      LOCK_NAME_IO_RWSEM);
+ 			io->sbi = sbi;
+ 			io->bio = NULL;
+ 			io->last_block_in_bio = 0;
+@@ -1426,34 +1427,37 @@ static int __allocate_data_block(struct dnode_of_data *dn, int seg_type)
+ 	return 0;
+ }
+ 
+-static void f2fs_map_lock(struct f2fs_sb_info *sbi, int flag)
++static void f2fs_map_lock(struct f2fs_sb_info *sbi,
++				struct f2fs_lock_context *lc, int flag)
+ {
+ 	f2fs_down_read(&sbi->cp_enable_rwsem);
+ 	if (flag == F2FS_GET_BLOCK_PRE_AIO)
+-		f2fs_down_read(&sbi->node_change);
++		f2fs_down_read_trace(&sbi->node_change, lc);
+ 	else
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, lc);
+ }
+ 
+-static void f2fs_map_unlock(struct f2fs_sb_info *sbi, int flag)
++static void f2fs_map_unlock(struct f2fs_sb_info *sbi,
++				struct f2fs_lock_context *lc, int flag)
+ {
+ 	if (flag == F2FS_GET_BLOCK_PRE_AIO)
+-		f2fs_up_read(&sbi->node_change);
++		f2fs_up_read_trace(&sbi->node_change, lc);
+ 	else
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, lc);
+ 	f2fs_up_read(&sbi->cp_enable_rwsem);
+ }
+ 
+ int f2fs_get_block_locked(struct dnode_of_data *dn, pgoff_t index)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dn->inode);
++	struct f2fs_lock_context lc;
+ 	int err = 0;
+ 
+-	f2fs_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO);
++	f2fs_map_lock(sbi, &lc, F2FS_GET_BLOCK_PRE_AIO);
+ 	if (!f2fs_lookup_read_extent_cache_block(dn->inode, index,
+ 						&dn->data_blkaddr))
+ 		err = f2fs_reserve_block(dn, index);
+-	f2fs_map_unlock(sbi, F2FS_GET_BLOCK_PRE_AIO);
++	f2fs_map_unlock(sbi, &lc, F2FS_GET_BLOCK_PRE_AIO);
+ 
+ 	return err;
+ }
+@@ -1553,6 +1557,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
+ 	unsigned int start_pgofs;
+ 	int bidx = 0;
+ 	bool is_hole;
++	struct f2fs_lock_context lc;
+ 
+ 	if (!maxblocks)
+ 		return 0;
+@@ -1575,7 +1580,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
+ 	if (map->m_may_create) {
+ 		if (f2fs_lfs_mode(sbi))
+ 			f2fs_balance_fs(sbi, true);
+-		f2fs_map_lock(sbi, flag);
++		f2fs_map_lock(sbi, &lc, flag);
+ 	}
+ 
+ 	/* When reading holes, we need its node page */
+@@ -1744,7 +1749,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
+ 	f2fs_put_dnode(&dn);
+ 
+ 	if (map->m_may_create) {
+-		f2fs_map_unlock(sbi, flag);
++		f2fs_map_unlock(sbi, &lc, flag);
+ 		f2fs_balance_fs(sbi, dn.node_changed);
+ 	}
+ 	goto next_dnode;
+@@ -1791,7 +1796,7 @@ int f2fs_map_blocks(struct inode *inode, struct f2fs_map_blocks *map, int flag)
+ 	f2fs_put_dnode(&dn);
+ unlock_out:
+ 	if (map->m_may_create) {
+-		f2fs_map_unlock(sbi, flag);
++		f2fs_map_unlock(sbi, &lc, flag);
+ 		f2fs_balance_fs(sbi, dn.node_changed);
+ 	}
+ out:
+@@ -2663,6 +2668,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
+ 	struct inode *inode = folio->mapping->host;
+ 	struct dnode_of_data dn;
+ 	struct node_info ni;
++	struct f2fs_lock_context lc;
+ 	bool ipu_force = false;
+ 	bool atomic_commit;
+ 	int err = 0;
+@@ -2688,7 +2694,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
+ 	}
+ 
+ 	/* Deadlock due to between page->lock and f2fs_lock_op */
+-	if (fio->need_lock == LOCK_REQ && !f2fs_trylock_op(fio->sbi))
++	if (fio->need_lock == LOCK_REQ && !f2fs_trylock_op(fio->sbi, &lc))
+ 		return -EAGAIN;
+ 
+ 	err = f2fs_get_dnode_of_data(&dn, folio->index, LOOKUP_NODE);
+@@ -2729,7 +2735,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
+ 		folio_start_writeback(folio);
+ 		f2fs_put_dnode(&dn);
+ 		if (fio->need_lock == LOCK_REQ)
+-			f2fs_unlock_op(fio->sbi);
++			f2fs_unlock_op(fio->sbi, &lc);
+ 		err = f2fs_inplace_write_data(fio);
+ 		if (err) {
+ 			if (fscrypt_inode_uses_fs_layer_crypto(inode))
+@@ -2743,7 +2749,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
+ 	}
+ 
+ 	if (fio->need_lock == LOCK_RETRY) {
+-		if (!f2fs_trylock_op(fio->sbi)) {
++		if (!f2fs_trylock_op(fio->sbi, &lc)) {
+ 			err = -EAGAIN;
+ 			goto out_writepage;
+ 		}
+@@ -2775,7 +2781,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
+ 	f2fs_put_dnode(&dn);
+ out:
+ 	if (fio->need_lock == LOCK_REQ)
+-		f2fs_unlock_op(fio->sbi);
++		f2fs_unlock_op(fio->sbi, &lc);
+ 	return err;
+ }
+ 
+@@ -3398,6 +3404,7 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
+ 	pgoff_t index = folio->index;
+ 	struct dnode_of_data dn;
+ 	struct page *ipage;
++	struct f2fs_lock_context lc;
+ 	bool locked = false;
+ 	int flag = F2FS_GET_BLOCK_PRE_AIO;
+ 	int err = 0;
+@@ -3413,10 +3420,10 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
+ 	if (f2fs_has_inline_data(inode)) {
+ 		if (pos + len > MAX_INLINE_DATA(inode))
+ 			flag = F2FS_GET_BLOCK_DEFAULT;
+-		f2fs_map_lock(sbi, flag);
++		f2fs_map_lock(sbi, &lc, flag);
+ 		locked = true;
+ 	} else if ((pos & PAGE_MASK) >= i_size_read(inode)) {
+-		f2fs_map_lock(sbi, flag);
++		f2fs_map_lock(sbi, &lc, flag);
+ 		locked = true;
+ 	}
+ 
+@@ -3460,7 +3467,7 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
+ 		if (!err && dn.data_blkaddr != NULL_ADDR)
+ 			goto out;
+ 		f2fs_put_dnode(&dn);
+-		f2fs_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO);
++		f2fs_map_lock(sbi, &lc, F2FS_GET_BLOCK_PRE_AIO);
+ 		WARN_ON(flag != F2FS_GET_BLOCK_PRE_AIO);
+ 		locked = true;
+ 		goto restart;
+@@ -3474,7 +3481,7 @@ static int prepare_write_begin(struct f2fs_sb_info *sbi,
+ 	f2fs_put_dnode(&dn);
+ unlock_out:
+ 	if (locked)
+-		f2fs_map_unlock(sbi, flag);
++		f2fs_map_unlock(sbi, &lc, flag);
+ 	return err;
+ }
+ 
+@@ -3511,9 +3518,10 @@ static int __reserve_data_block(struct inode *inode, pgoff_t index,
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct dnode_of_data dn;
+ 	struct page *ipage;
++	struct f2fs_lock_context lc;
+ 	int err = 0;
+ 
+-	f2fs_map_lock(sbi, F2FS_GET_BLOCK_PRE_AIO);
++	f2fs_map_lock(sbi, &lc, F2FS_GET_BLOCK_PRE_AIO);
+ 
+ 	ipage = f2fs_get_node_page(sbi, inode->i_ino);
+ 	if (IS_ERR(ipage)) {
+@@ -3531,7 +3539,7 @@ static int __reserve_data_block(struct inode *inode, pgoff_t index,
+ 	f2fs_put_dnode(&dn);
+ 
+ unlock_out:
+-	f2fs_map_unlock(sbi, F2FS_GET_BLOCK_PRE_AIO);
++	f2fs_map_unlock(sbi, &lc, F2FS_GET_BLOCK_PRE_AIO);
+ 	return err;
+ }
+ 
+diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
+index ba29b11fe..16e2b239d 100644
+--- a/fs/f2fs/f2fs.h
++++ b/fs/f2fs/f2fs.h
+@@ -29,6 +29,8 @@
+ #include <linux/fscrypt.h>
+ #include <linux/fsverity.h>
+ 
++#include "xiaomi.h"
++
+ struct pagevec;
+ 
+ #ifdef CONFIG_F2FS_CHECK_FS
+@@ -134,12 +136,50 @@ typedef u32 nid_t;
+ 
+ #define COMPRESS_EXT_NUM		16
+ 
++/* a threshold of maximum elapsed time in critical region to print tracepoint */
++#define MAX_LOCK_ELAPSED_TIME		500
++
++#define F2FS_DEFAULT_TASK_PRIORITY		(DEFAULT_PRIO)
++#define F2FS_CRITICAL_TASK_PRIORITY		NICE_TO_PRIO(0)
++
+ enum blkzone_allocation_policy {
+ 	BLKZONE_ALLOC_PRIOR_SEQ,	/* Prioritize writing to sequential zones */
+ 	BLKZONE_ALLOC_ONLY_SEQ,		/* Only allow writing to sequential zones */
+ 	BLKZONE_ALLOC_PRIOR_CONV,	/* Prioritize writing to conventional zones */
+ };
+ 
++enum f2fs_lock_name {
++	LOCK_NAME_NONE,
++	LOCK_NAME_CP_RWSEM,
++	LOCK_NAME_NODE_CHANGE,
++	LOCK_NAME_NODE_WRITE,
++	LOCK_NAME_GC_LOCK,
++	LOCK_NAME_CP_GLOBAL,
++	LOCK_NAME_IO_RWSEM,
++	LOCK_NAME_MAX,
++};
++
++struct f2fs_time_stat {
++	unsigned long long total_time;		/* total wall clock time */
++#ifdef CONFIG_64BIT
++	unsigned long long running_time;	/* running time */
++#endif
++#if defined(CONFIG_SCHED_INFO) && defined(CONFIG_SCHEDSTATS)
++	unsigned long long runnable_time;	/* runnable(including preempted) time */
++#endif
++#ifdef CONFIG_TASK_DELAY_ACCT
++	unsigned long long io_sleep_time;	/* IO sleep time */
++#endif
++};
++
++struct f2fs_lock_context {
++	struct f2fs_time_stat ts;
++	int orig_nice;
++	int new_nice;
++	bool lock_trace;
++	bool need_restore;
++};
++
+ /*
+  * An implementation of an rwsem that is explicitly unfair to readers. This
+  * prevents priority inversion when a low-priority reader acquires the read lock
+@@ -148,6 +188,8 @@ enum blkzone_allocation_policy {
+  */
+ 
+ struct f2fs_rwsem {
++	struct f2fs_sb_info *sbi;
++	enum f2fs_lock_name name;
+         struct rw_semaphore internal_rwsem;
+ #ifdef CONFIG_F2FS_UNFAIR_RWSEM
+         wait_queue_head_t read_waiters;
+@@ -177,6 +219,7 @@ struct f2fs_mount_info {
+ 	int bggc_mode;			/* bggc mode: off, on or sync */
+ 	int memory_mode;		/* memory mode */
+ 	int errors;			/* errors parameter */
++	int hybrid;			/* hybrid UFS allocation mode */
+ 	int discard_unit;		/*
+ 					 * discard command's offset/size should
+ 					 * be aligned to this unit: block,
+@@ -1316,6 +1359,7 @@ struct f2fs_gc_control {
+ 	bool err_gc_skipped;		/* return EAGAIN if GC skipped */
+ 	bool one_time;			/* require one time GC in one migration unit */
+ 	unsigned int nr_free_secs;	/* # of free sections to do GC */
++	struct f2fs_lock_context lc;	/* lock context for gc_lock */
+ };
+ 
+ /*
+@@ -1829,6 +1873,18 @@ struct f2fs_sb_info {
+ 	/* carve out reserved_blocks from total blocks */
+ 	bool carve_out;
+ 
++	/* max elapsed time threshold in critical region that lock covered */
++	unsigned long long max_lock_elapsed_time;
++
++	/* enable/disable to adjust task priority in critical region covered by lock */
++	unsigned int adjust_lock_priority;
++
++	/* adjust priority for task which is in critical region covered by lock */
++	unsigned int lock_duration_priority;
++
++	/* priority for critical task, e.g. f2fs_ckpt, f2fs_gc threads */
++	long critical_task_priority;
++
+ #ifdef CONFIG_F2FS_FS_COMPRESSION
+ 	struct kmem_cache *page_array_slab;	/* page array entry */
+ 	unsigned int page_array_slab_size;	/* default page array slab size */
+@@ -1859,6 +1915,16 @@ struct f2fs_sb_info {
+ 	spinlock_t iostat_lat_lock;
+ 	struct iostat_lat_info *iostat_io_lat;
+ #endif
++
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	struct f2fs_xiaomi_iostat xiostat;
++#endif
++#ifdef CONFIG_F2FS_VIP_FILE
++	struct f2fs_vip_manager vip;
++#endif
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++	struct f2fs_hybrid_info hi;
++#endif
+ };
+ 
+ /* Definitions to access f2fs_sb_info */
+@@ -2184,16 +2250,22 @@ static inline void clear_ckpt_flags(struct f2fs_sb_info *sbi, unsigned int f)
+ 	spin_unlock_irqrestore(&sbi->cp_lock, flags);
+ }
+ 
+-#define init_f2fs_rwsem(sem)					\
++#define init_f2fs_rwsem(sem)	__init_f2fs_rwsem(sem, NULL, LOCK_NAME_NONE)
++#define init_f2fs_rwsem_trace	__init_f2fs_rwsem
++
++#define __init_f2fs_rwsem(sem, sbi, name)			\
+ do {								\
+ 	static struct lock_class_key __key;			\
+ 								\
+-	__init_f2fs_rwsem((sem), #sem, &__key);			\
++	do_init_f2fs_rwsem((sem), #sem, &__key, sbi, name);	\
+ } while (0)
+ 
+-static inline void __init_f2fs_rwsem(struct f2fs_rwsem *sem,
+-		const char *sem_name, struct lock_class_key *key)
++static inline void do_init_f2fs_rwsem(struct f2fs_rwsem *sem,
++		const char *sem_name, struct lock_class_key *key,
++		struct f2fs_sb_info *sbi, enum f2fs_lock_name name)
+ {
++	sem->sbi = sbi;
++	sem->name = name;
+ 	__init_rwsem(&sem->internal_rwsem, sem_name, key);
+ #ifdef CONFIG_F2FS_UNFAIR_RWSEM
+ 	init_waitqueue_head(&sem->read_waiters);
+@@ -2269,6 +2341,16 @@ static inline void f2fs_up_write(struct f2fs_rwsem *sem)
+ #endif
+ }
+ 
++void f2fs_down_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc);
++int f2fs_down_read_trylock_trace(struct f2fs_rwsem *sem,
++						struct f2fs_lock_context *lc);
++void f2fs_up_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc);
++void f2fs_down_write_trace(struct f2fs_rwsem *sem,
++						struct f2fs_lock_context *lc);
++int f2fs_down_write_trylock_trace(struct f2fs_rwsem *sem,
++						struct f2fs_lock_context *lc);
++void f2fs_up_write_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc);
++
+ static inline void disable_nat_bits(struct f2fs_sb_info *sbi, bool lock)
+ {
+ 	unsigned long flags;
+@@ -2299,22 +2381,9 @@ static inline bool enabled_nat_bits(struct f2fs_sb_info *sbi,
+ 	return (cpc) ? (cpc->reason & CP_UMOUNT) && set : set;
+ }
+ 
+-static inline void f2fs_lock_op(struct f2fs_sb_info *sbi)
+-{
+-	f2fs_down_read(&sbi->cp_rwsem);
+-}
+-
+-static inline int f2fs_trylock_op(struct f2fs_sb_info *sbi)
+-{
+-	if (time_to_inject(sbi, FAULT_LOCK_OP))
+-		return 0;
+-	return f2fs_down_read_trylock(&sbi->cp_rwsem);
+-}
+-
+-static inline void f2fs_unlock_op(struct f2fs_sb_info *sbi)
+-{
+-	f2fs_up_read(&sbi->cp_rwsem);
+-}
++void f2fs_lock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc);
++int f2fs_trylock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc);
++void f2fs_unlock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc);
+ 
+ static inline void f2fs_lock_all(struct f2fs_sb_info *sbi)
+ {
+@@ -3627,7 +3696,7 @@ void f2fs_update_inode_page(struct inode *inode);
+ int f2fs_write_inode(struct inode *inode, struct writeback_control *wbc);
+ void f2fs_remove_donate_inode(struct inode *inode);
+ void f2fs_evict_inode(struct inode *inode);
+-void f2fs_handle_failed_inode(struct inode *inode);
++void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc);
+ 
+ /*
+  * namei.c
+diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
+index 844287e2c..d69e4007b 100644
+--- a/fs/f2fs/file.c
++++ b/fs/f2fs/file.c
+@@ -597,6 +597,7 @@ static int finish_preallocate_blocks(struct inode *inode)
+ 
+ static int f2fs_file_open(struct inode *inode, struct file *filp)
+ {
++	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	int err = fscrypt_file_open(inode, filp);
+ 
+ 	if (err)
+@@ -614,6 +615,28 @@ static int f2fs_file_open(struct inode *inode, struct file *filp)
+ 
+ 	trace_android_vh_f2fs_file_open(inode, filp);
+ 
++#ifdef CONFIG_F2FS_VIP_FILE
++	/*
++	 * Stock exposes the task-classification hooks to vendor modules.  If no
++	 * listener is present, use a conservative fallback: RT or negative-nice
++	 * tasks opening a regular file for write mark the inode as VIP.  A hook
++	 * listener can classify additional tasks via android_vh_f2fs_is_usr_task.
++	 */
++	if (READ_ONCE(sbi->vip.enabled) && S_ISREG(inode->i_mode) &&
++	    (filp->f_mode & FMODE_WRITE)) {
++		int is_hiprio = 0;
++		int is_usr = 0;
++
++		trace_android_vh_f2fs_is_hiprio_task(&is_hiprio);
++		trace_android_vh_f2fs_is_usr_task(&is_usr);
++		if (!is_hiprio && !is_usr)
++			is_hiprio = current->mm &&
++				(rt_task(current) || task_nice(current) < 0);
++		if (is_hiprio || is_usr)
++			f2fs_vip_insert(sbi, inode->i_ino);
++	}
++#endif
++
+ 	err = dquot_file_open(inode, filp);
+ 	if (err)
+ 		return err;
+@@ -749,6 +772,7 @@ static int truncate_partial_data_page(struct inode *inode, u64 from,
+ 
+ int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct dnode_of_data dn;
+ 	pgoff_t free_from;
+@@ -769,7 +793,7 @@ int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
+ 		goto free_partial;
+ 
+ 	if (lock)
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 
+ 	ipage = f2fs_get_node_page(sbi, inode->i_ino);
+ 	if (IS_ERR(ipage)) {
+@@ -820,7 +844,7 @@ int f2fs_do_truncate_blocks(struct inode *inode, u64 from, bool lock)
+ 	err = f2fs_truncate_inode_blocks(inode, free_from);
+ out:
+ 	if (lock)
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ free_partial:
+ 	/* lastly zero out the first data page */
+ 	if (!err)
+@@ -1033,6 +1057,7 @@ static void __setattr_copy(struct mnt_idmap *idmap,
+ int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+ 		 struct iattr *attr)
+ {
++	struct f2fs_lock_context lc;
+ 	struct inode *inode = d_inode(dentry);
+ 	struct f2fs_inode_info *fi = F2FS_I(inode);
+ 	int err;
+@@ -1077,12 +1102,12 @@ int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+ 	}
+ 	if (i_uid_needs_update(idmap, attr, inode) ||
+ 	    i_gid_needs_update(idmap, attr, inode)) {
+-		f2fs_lock_op(F2FS_I_SB(inode));
++		f2fs_lock_op(F2FS_I_SB(inode), &lc);
+ 		err = dquot_transfer(idmap, inode, attr);
+ 		if (err) {
+ 			set_sbi_flag(F2FS_I_SB(inode),
+ 					SBI_QUOTA_NEED_REPAIR);
+-			f2fs_unlock_op(F2FS_I_SB(inode));
++			f2fs_unlock_op(F2FS_I_SB(inode), &lc);
+ 			return err;
+ 		}
+ 		/*
+@@ -1092,7 +1117,7 @@ int f2fs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
+ 		i_uid_update(idmap, attr, inode);
+ 		i_gid_update(idmap, attr, inode);
+ 		f2fs_mark_inode_dirty_sync(inode, true);
+-		f2fs_unlock_op(F2FS_I_SB(inode));
++		f2fs_unlock_op(F2FS_I_SB(inode), &lc);
+ 	}
+ 
+ 	if (attr->ia_valid & ATTR_SIZE) {
+@@ -1172,6 +1197,7 @@ const struct inode_operations f2fs_file_inode_operations = {
+ static int fill_zero(struct inode *inode, pgoff_t index,
+ 					loff_t start, loff_t len)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct page *page;
+ 
+@@ -1180,9 +1206,9 @@ static int fill_zero(struct inode *inode, pgoff_t index,
+ 
+ 	f2fs_balance_fs(sbi, true);
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	page = f2fs_get_new_data_page(inode, NULL, index, false);
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	if (IS_ERR(page))
+ 		return PTR_ERR(page);
+@@ -1228,6 +1254,7 @@ int f2fs_truncate_hole(struct inode *inode, pgoff_t pg_start, pgoff_t pg_end)
+ 
+ static int f2fs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+ {
++	struct f2fs_lock_context lc;
+ 	pgoff_t pg_start, pg_end;
+ 	loff_t off_start, off_end;
+ 	int ret;
+@@ -1274,9 +1301,9 @@ static int f2fs_punch_hole(struct inode *inode, loff_t offset, loff_t len)
+ 
+ 			truncate_pagecache_range(inode, blk_start, blk_end - 1);
+ 
+-			f2fs_lock_op(sbi);
++			f2fs_lock_op(sbi, &lc);
+ 			ret = f2fs_truncate_hole(inode, pg_start, pg_end);
+-			f2fs_unlock_op(sbi);
++			f2fs_unlock_op(sbi, &lc);
+ 
+ 			filemap_invalidate_unlock(inode->i_mapping);
+ 			f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+@@ -1507,6 +1534,7 @@ static int __exchange_data_block(struct inode *src_inode,
+ 
+ static int f2fs_do_collapse(struct inode *inode, loff_t offset, loff_t len)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	pgoff_t nrpages = DIV_ROUND_UP(i_size_read(inode), PAGE_SIZE);
+ 	pgoff_t start = offset >> PAGE_SHIFT;
+@@ -1519,11 +1547,11 @@ static int f2fs_do_collapse(struct inode *inode, loff_t offset, loff_t len)
+ 	f2fs_down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+ 	filemap_invalidate_lock(inode->i_mapping);
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	f2fs_drop_extent_tree(inode);
+ 	truncate_pagecache(inode, offset);
+ 	ret = __exchange_data_block(inode, inode, end, start, nrpages - end, true);
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	filemap_invalidate_unlock(inode->i_mapping);
+ 	f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+@@ -1621,6 +1649,7 @@ static int f2fs_do_zero_range(struct dnode_of_data *dn, pgoff_t start,
+ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
+ 								int mode)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct address_space *mapping = inode->i_mapping;
+ 	pgoff_t index, pg_start, pg_end;
+@@ -1676,12 +1705,12 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
+ 				(loff_t)index << PAGE_SHIFT,
+ 				((loff_t)pg_end << PAGE_SHIFT) - 1);
+ 
+-			f2fs_lock_op(sbi);
++			f2fs_lock_op(sbi, &lc);
+ 
+ 			set_new_dnode(&dn, inode, NULL, NULL, 0);
+ 			ret = f2fs_get_dnode_of_data(&dn, index, ALLOC_NODE);
+ 			if (ret) {
+-				f2fs_unlock_op(sbi);
++				f2fs_unlock_op(sbi, &lc);
+ 				filemap_invalidate_unlock(mapping);
+ 				f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+ 				goto out;
+@@ -1693,7 +1722,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
+ 			ret = f2fs_do_zero_range(&dn, index, end);
+ 			f2fs_put_dnode(&dn);
+ 
+-			f2fs_unlock_op(sbi);
++			f2fs_unlock_op(sbi, &lc);
+ 			filemap_invalidate_unlock(mapping);
+ 			f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+ 
+@@ -1728,6 +1757,7 @@ static int f2fs_zero_range(struct inode *inode, loff_t offset, loff_t len,
+ 
+ static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct address_space *mapping = inode->i_mapping;
+ 	pgoff_t nr, pg_start, pg_end, delta, idx;
+@@ -1779,12 +1809,12 @@ static int f2fs_insert_range(struct inode *inode, loff_t offset, loff_t len)
+ 			nr = delta;
+ 		idx -= nr;
+ 
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 		f2fs_drop_extent_tree(inode);
+ 
+ 		ret = __exchange_data_block(inode, inode, idx,
+ 					idx + delta, nr, false);
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 	}
+ 	filemap_invalidate_unlock(mapping);
+ 	f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+@@ -1864,7 +1894,7 @@ static int f2fs_expand_inode_data(struct inode *inode, loff_t offset,
+ 
+ 		if (has_not_enough_free_secs(sbi, 0,
+ 				sbi->reserved_pin_section)) {
+-			f2fs_down_write(&sbi->gc_lock);
++			f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 			stat_inc_gc_call_count(sbi, FOREGROUND);
+ 			err = f2fs_gc(sbi, &gc_control);
+ 			if (err && err != -ENODATA) {
+@@ -2714,12 +2744,13 @@ static int f2fs_ioc_gc(struct file *filp, unsigned long arg)
+ 		return ret;
+ 
+ 	if (!sync) {
+-		if (!f2fs_down_write_trylock(&sbi->gc_lock)) {
++		if (!f2fs_down_write_trylock_trace(&sbi->gc_lock,
++						&gc_control.lc)) {
+ 			ret = -EBUSY;
+ 			goto out;
+ 		}
+ 	} else {
+-		f2fs_down_write(&sbi->gc_lock);
++		f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 	}
+ 
+ 	gc_control.init_gc_type = sync ? FG_GC : BG_GC;
+@@ -2759,12 +2790,12 @@ static int __f2fs_ioc_gc_range(struct file *filp, struct f2fs_gc_range *range)
+ 
+ do_more:
+ 	if (!range->sync) {
+-		if (!f2fs_down_write_trylock(&sbi->gc_lock)) {
++		if (!f2fs_down_write_trylock_trace(&sbi->gc_lock, &gc_control.lc)) {
+ 			ret = -EBUSY;
+ 			goto out;
+ 		}
+ 	} else {
+-		f2fs_down_write(&sbi->gc_lock);
++		f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 	}
+ 
+ 	gc_control.victim_segno = GET_SEGNO(sbi, range->start);
+@@ -3034,6 +3065,7 @@ static int f2fs_ioc_defragment(struct file *filp, unsigned long arg)
+ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+ 			struct file *file_out, loff_t pos_out, size_t len)
+ {
++	struct f2fs_lock_context lc;
+ 	struct inode *src = file_inode(file_in);
+ 	struct inode *dst = file_inode(file_out);
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(src);
+@@ -3132,7 +3164,7 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+ 			goto out_src;
+ 	}
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	ret = __exchange_data_block(src, dst, F2FS_BYTES_TO_BLK(pos_in),
+ 				F2FS_BYTES_TO_BLK(pos_out),
+ 				F2FS_BYTES_TO_BLK(len), false);
+@@ -3143,7 +3175,7 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+ 		else if (dst_osize != dst->i_size)
+ 			f2fs_i_size_write(dst, dst_osize);
+ 	}
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	if (src != dst)
+ 		f2fs_up_write(&F2FS_I(dst)->i_gc_rwsem[WRITE]);
+@@ -3259,7 +3291,7 @@ static int f2fs_ioc_flush_device(struct file *filp, unsigned long arg)
+ 	end_segno = min(start_segno + range.segments, dev_end_segno);
+ 
+ 	while (start_segno < end_segno) {
+-		if (!f2fs_down_write_trylock(&sbi->gc_lock)) {
++		if (!f2fs_down_write_trylock_trace(&sbi->gc_lock, &gc_control.lc)) {
+ 			ret = -EBUSY;
+ 			goto out;
+ 		}
+@@ -3313,6 +3345,7 @@ int f2fs_transfer_project_quota(struct inode *inode, kprojid_t kprojid)
+ 
+ static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_inode_info *fi = F2FS_I(inode);
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct f2fs_inode *ri = NULL;
+@@ -3346,7 +3379,7 @@ static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
+ 	if (err)
+ 		return err;
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_transfer_project_quota(inode, kprojid);
+ 	if (err)
+ 		goto out_unlock;
+@@ -3355,7 +3388,7 @@ static int f2fs_ioc_setproject(struct inode *inode, __u32 projid)
+ 	inode_set_ctime_current(inode);
+ 	f2fs_mark_inode_dirty_sync(inode, true);
+ out_unlock:
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	return err;
+ }
+ #else
+@@ -3785,6 +3818,7 @@ static int release_compress_blocks(struct dnode_of_data *dn, pgoff_t count)
+ 
+ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
+ {
++	struct f2fs_lock_context lc;
+ 	struct inode *inode = file_inode(filp);
+ 	struct f2fs_inode_info *fi = F2FS_I(inode);
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+@@ -3842,12 +3876,12 @@ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
+ 		struct dnode_of_data dn;
+ 		pgoff_t end_offset, count;
+ 
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 
+ 		set_new_dnode(&dn, inode, NULL, NULL, 0);
+ 		ret = f2fs_get_dnode_of_data(&dn, page_idx, LOOKUP_NODE);
+ 		if (ret) {
+-			f2fs_unlock_op(sbi);
++			f2fs_unlock_op(sbi, &lc);
+ 			if (ret == -ENOENT) {
+ 				page_idx = f2fs_get_next_page_offset(&dn,
+ 								page_idx);
+@@ -3865,7 +3899,7 @@ static int f2fs_release_compress_blocks(struct file *filp, unsigned long arg)
+ 
+ 		f2fs_put_dnode(&dn);
+ 
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 
+ 		if (ret < 0)
+ 			break;
+@@ -3981,6 +4015,7 @@ static int reserve_compress_blocks(struct dnode_of_data *dn, pgoff_t count,
+ 
+ static int f2fs_reserve_compress_blocks(struct file *filp, unsigned long arg)
+ {
++	struct f2fs_lock_context lc;
+ 	struct inode *inode = file_inode(filp);
+ 	struct f2fs_inode_info *fi = F2FS_I(inode);
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+@@ -4020,12 +4055,12 @@ static int f2fs_reserve_compress_blocks(struct file *filp, unsigned long arg)
+ 		struct dnode_of_data dn;
+ 		pgoff_t end_offset, count;
+ 
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 
+ 		set_new_dnode(&dn, inode, NULL, NULL, 0);
+ 		ret = f2fs_get_dnode_of_data(&dn, page_idx, LOOKUP_NODE);
+ 		if (ret) {
+-			f2fs_unlock_op(sbi);
++			f2fs_unlock_op(sbi, &lc);
+ 			if (ret == -ENOENT) {
+ 				page_idx = f2fs_get_next_page_offset(&dn,
+ 								page_idx);
+@@ -4043,7 +4078,7 @@ static int f2fs_reserve_compress_blocks(struct file *filp, unsigned long arg)
+ 
+ 		f2fs_put_dnode(&dn);
+ 
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 
+ 		if (ret < 0)
+ 			break;
+diff --git a/fs/f2fs/gc.c b/fs/f2fs/gc.c
+index 57243d084..928048145 100644
+--- a/fs/f2fs/gc.c
++++ b/fs/f2fs/gc.c
+@@ -105,21 +105,22 @@ static int gc_thread_func(void *data)
+ 		if (sbi->gc_mode == GC_URGENT_HIGH ||
+ 				sbi->gc_mode == GC_URGENT_MID) {
+ 			wait_ms = gc_th->urgent_sleep_time;
+-			f2fs_down_write(&sbi->gc_lock);
++			f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 			goto do_gc;
+ 		}
+ 
+ 		if (foreground) {
+-			f2fs_down_write(&sbi->gc_lock);
++			f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 			goto do_gc;
+-		} else if (!f2fs_down_write_trylock(&sbi->gc_lock)) {
++		} else if (!f2fs_down_write_trylock_trace(&sbi->gc_lock,
++							&gc_control.lc)) {
+ 			stat_other_skip_bggc_count(sbi);
+ 			goto next;
+ 		}
+ 
+ 		if (!is_idle(sbi, GC_TIME)) {
+ 			increase_sleep_time(gc_th, &wait_ms);
+-			f2fs_up_write(&sbi->gc_lock);
++			f2fs_up_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 			stat_io_skip_bggc_count(sbi);
+ 			goto next;
+ 		}
+@@ -128,7 +129,8 @@ static int gc_thread_func(void *data)
+ 			if (has_enough_free_blocks(sbi,
+ 				gc_th->no_zoned_gc_percent)) {
+ 				wait_ms = gc_th->no_gc_sleep_time;
+-				f2fs_up_write(&sbi->gc_lock);
++				f2fs_up_write_trace(&sbi->gc_lock,
++							&gc_control.lc);
+ 				goto next;
+ 			}
+ 			if (wait_ms == gc_th->no_gc_sleep_time)
+@@ -2012,7 +2014,7 @@ int f2fs_gc(struct f2fs_sb_info *sbi, struct f2fs_gc_control *gc_control)
+ 				reserved_segments(sbi),
+ 				prefree_segments(sbi));
+ 
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_up_write_trace(&sbi->gc_lock, &gc_control->lc);
+ 
+ 	put_gc_inode(&gc_list);
+ 
+@@ -2223,6 +2225,9 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(file_inode(filp));
+ 	__u64 old_block_count, shrunk_blocks;
+ 	struct cp_control cpc = { CP_RESIZE, 0, 0, 0 };
++	struct f2fs_lock_context lc;
++	struct f2fs_lock_context glc;
++	struct f2fs_lock_context clc;
+ 	unsigned int secs;
+ 	int err = 0;
+ 	__u32 rem;
+@@ -2266,13 +2271,13 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
+ 	secs = div_u64(shrunk_blocks, BLKS_PER_SEC(sbi));
+ 
+ 	/* stop other GC */
+-	if (!f2fs_down_write_trylock(&sbi->gc_lock)) {
++	if (!f2fs_down_write_trylock_trace(&sbi->gc_lock, &glc)) {
+ 		err = -EAGAIN;
+ 		goto out_drop_write;
+ 	}
+ 
+ 	/* stop CP to protect MAIN_SEC in free_segment_range */
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 
+ 	spin_lock(&sbi->stat_lock);
+ 	if (shrunk_blocks + valid_user_blocks(sbi) +
+@@ -2287,8 +2292,8 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
+ 	err = free_segment_range(sbi, secs, true);
+ 
+ out_unlock:
+-	f2fs_unlock_op(sbi);
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_unlock_op(sbi, &lc);
++	f2fs_up_write_trace(&sbi->gc_lock, &glc);
+ out_drop_write:
+ 	mnt_drop_write_file(filp);
+ 	if (err)
+@@ -2305,8 +2310,8 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
+ 		return -EROFS;
+ 	}
+ 
+-	f2fs_down_write(&sbi->gc_lock);
+-	f2fs_down_write(&sbi->cp_global_sem);
++	f2fs_down_write_trace(&sbi->gc_lock, &glc);
++	f2fs_down_write_trace(&sbi->cp_global_sem, &clc);
+ 
+ 	spin_lock(&sbi->stat_lock);
+ 	if (shrunk_blocks + valid_user_blocks(sbi) +
+@@ -2354,8 +2359,8 @@ int f2fs_resize_fs(struct file *filp, __u64 block_count)
+ 		spin_unlock(&sbi->stat_lock);
+ 	}
+ out_err:
+-	f2fs_up_write(&sbi->cp_global_sem);
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_up_write_trace(&sbi->cp_global_sem, &clc);
++	f2fs_up_write_trace(&sbi->gc_lock, &glc);
+ 	thaw_super(sbi->sb, FREEZE_HOLDER_USERSPACE);
+ 	return err;
+ }
+diff --git a/fs/f2fs/inline.c b/fs/f2fs/inline.c
+index b1b85aaf8..078525584 100644
+--- a/fs/f2fs/inline.c
++++ b/fs/f2fs/inline.c
+@@ -217,6 +217,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
+ int f2fs_convert_inline_inode(struct inode *inode)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
++	struct f2fs_lock_context lc;
+ 	struct dnode_of_data dn;
+ 	struct page *ipage, *page;
+ 	int err = 0;
+@@ -235,7 +236,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
+ 	if (!page)
+ 		return -ENOMEM;
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 
+ 	ipage = f2fs_get_node_page(sbi, inode->i_ino);
+ 	if (IS_ERR(ipage)) {
+@@ -250,7 +251,7 @@ int f2fs_convert_inline_inode(struct inode *inode)
+ 
+ 	f2fs_put_dnode(&dn);
+ out:
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	f2fs_put_page(page, 1);
+ 
+@@ -595,6 +596,7 @@ static int do_convert_inline_dir(struct inode *dir, struct page *ipage,
+ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
++	struct f2fs_lock_context lc;
+ 	struct page *ipage;
+ 	struct f2fs_filename fname;
+ 	void *inline_dentry = NULL;
+@@ -603,7 +605,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
+ 	if (!f2fs_has_inline_dentry(dir))
+ 		return 0;
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 
+ 	err = f2fs_setup_filename(dir, &dentry->d_name, 0, &fname);
+ 	if (err)
+@@ -628,7 +630,7 @@ int f2fs_try_convert_inline_dir(struct inode *dir, struct dentry *dentry)
+ out_fname:
+ 	f2fs_free_filename(&fname);
+ out:
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	return err;
+ }
+ 
+diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
+index 523c32604..ead710383 100644
+--- a/fs/f2fs/inode.c
++++ b/fs/f2fs/inode.c
+@@ -838,6 +838,11 @@ void f2fs_evict_inode(struct inode *inode)
+ 	int err = 0;
+ 	bool freeze_protected = false;
+ 
++#ifdef CONFIG_F2FS_VIP_FILE
++	if (!inode->i_nlink)
++		f2fs_vip_remove(sbi, inode->i_ino);
++#endif
++
+ 	f2fs_abort_atomic_write(inode, true);
+ 
+ 	if (fi->cow_inode && f2fs_is_cow_file(fi->cow_inode)) {
+@@ -893,9 +898,11 @@ void f2fs_evict_inode(struct inode *inode)
+ 		err = -EIO;
+ 
+ 	if (!err) {
+-		f2fs_lock_op(sbi);
++		struct f2fs_lock_context lc;
++
++		f2fs_lock_op(sbi, &lc);
+ 		err = f2fs_remove_inode_page(inode);
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 		if (err == -ENOENT) {
+ 			err = 0;
+ 
+@@ -992,7 +999,7 @@ void f2fs_evict_inode(struct inode *inode)
+ }
+ 
+ /* caller should call f2fs_lock_op() */
+-void f2fs_handle_failed_inode(struct inode *inode)
++void f2fs_handle_failed_inode(struct inode *inode, struct f2fs_lock_context *lc)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct node_info ni;
+@@ -1041,7 +1048,7 @@ void f2fs_handle_failed_inode(struct inode *inode)
+ 	}
+ 
+ out:
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, lc);
+ 
+ 	/* iput will drop the inode object */
+ 	iput(inode);
+diff --git a/fs/f2fs/iostat.c b/fs/f2fs/iostat.c
+index f8703038e..deea56fc0 100644
+--- a/fs/f2fs/iostat.c
++++ b/fs/f2fs/iostat.c
+@@ -145,6 +145,10 @@ void f2fs_reset_iostat(struct f2fs_sb_info *sbi)
+ 	struct iostat_lat_info *io_lat = sbi->iostat_io_lat;
+ 	int i;
+ 
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	f2fs_xiaomi_iostat_reset(sbi);
++#endif
++
+ 	spin_lock_irq(&sbi->iostat_lock);
+ 	for (i = 0; i < NR_IO_TYPE; i++) {
+ 		sbi->iostat_count[i] = 0;
+@@ -217,8 +221,20 @@ static inline void __update_iostat_latency(struct bio_iostat_ctx *iostat_ctx,
+ 	struct f2fs_sb_info *sbi = iostat_ctx->sbi;
+ 	struct iostat_lat_info *io_lat = sbi->iostat_io_lat;
+ 	unsigned long flags;
++	bool stock_enabled = sbi->iostat_enable;
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	bool xiaomi_enabled = f2fs_xiaomi_iostat_enabled(sbi);
++#else
++	bool xiaomi_enabled = false;
++#endif
+ 
+-	if (!sbi->iostat_enable)
++	/*
++	 * The stock MIUI init.rc enables only en_iostat_enable for F2FS:
++	 *   iostat_enable=0, en_iostat_enable=1
++	 * Keep the stock io_lat accounting gated by iostat_enable, but let the
++	 * Xiaomi enhanced accounting be controlled by en_iostat_enable alone.
++	 */
++	if (!stock_enabled && !xiaomi_enabled)
+ 		return;
+ 
+ 	ts_diff = jiffies - iostat_ctx->submit_ts;
+@@ -229,12 +245,31 @@ static inline void __update_iostat_latency(struct bio_iostat_ctx *iostat_ctx,
+ 		return;
+ 	}
+ 
+-	spin_lock_irqsave(&sbi->iostat_lat_lock, flags);
+-	io_lat->sum_lat[lat_type][page_type] += ts_diff;
+-	io_lat->bio_cnt[lat_type][page_type]++;
+-	if (ts_diff > io_lat->peak_lat[lat_type][page_type])
+-		io_lat->peak_lat[lat_type][page_type] = ts_diff;
+-	spin_unlock_irqrestore(&sbi->iostat_lat_lock, flags);
++	if (stock_enabled) {
++		spin_lock_irqsave(&sbi->iostat_lat_lock, flags);
++		io_lat->sum_lat[lat_type][page_type] += ts_diff;
++		io_lat->bio_cnt[lat_type][page_type]++;
++		if (ts_diff > io_lat->peak_lat[lat_type][page_type])
++			io_lat->peak_lat[lat_type][page_type] = ts_diff;
++		spin_unlock_irqrestore(&sbi->iostat_lat_lock, flags);
++	}
++
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	if (xiaomi_enabled) {
++		unsigned int bucket;
++
++		if (lat_type == READ_IO)
++			bucket = F2FS_XIAOMI_IO_READ;
++		else if (lat_type == WRITE_SYNC_IO)
++			bucket = F2FS_XIAOMI_IO_WRITE_SYNC;
++		else
++			bucket = F2FS_XIAOMI_IO_WRITE_ASYNC;
++		if (page_type == META || page_type == META_FLUSH)
++			bucket = F2FS_XIAOMI_IO_META;
++		f2fs_xiaomi_iostat_record(sbi, bucket,
++					  jiffies_to_nsecs(ts_diff));
++	}
++#endif
+ }
+ 
+ void iostat_update_and_unbind_ctx(struct bio *bio)
+@@ -301,6 +336,9 @@ int f2fs_init_iostat(struct f2fs_sb_info *sbi)
+ 	spin_lock_init(&sbi->iostat_lat_lock);
+ 	sbi->iostat_enable = false;
+ 	sbi->iostat_period_ms = DEFAULT_IOSTAT_PERIOD_MS;
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	f2fs_xiaomi_iostat_init(sbi);
++#endif
+ 	sbi->iostat_io_lat = f2fs_kzalloc(sbi, sizeof(struct iostat_lat_info),
+ 					GFP_KERNEL);
+ 	if (!sbi->iostat_io_lat)
+@@ -311,5 +349,8 @@ int f2fs_init_iostat(struct f2fs_sb_info *sbi)
+ 
+ void f2fs_destroy_iostat(struct f2fs_sb_info *sbi)
+ {
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	f2fs_xiaomi_iostat_destroy(sbi);
++#endif
+ 	kfree(sbi->iostat_io_lat);
+ }
+diff --git a/fs/f2fs/lock.c b/fs/f2fs/lock.c
+new file mode 100644
+index 000000000..eabac32a1
+--- /dev/null
++++ b/fs/f2fs/lock.c
+@@ -0,0 +1,212 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * F2FS lock tracing and priority uplift.
++ *
++ * Ported from the upstream/OnePlus F2FS lock implementation:
++ *   fs/f2fs/lock.c
++ *
++ * The feature is disabled by default: adjust_lock_priority is 0 until the
++ * sysfs attribute is written.  Lock timing is only recorded when the
++ * f2fs_lock_elapsed_time tracepoint is enabled and the elapsed time exceeds
++ * max_lock_elapsed_time (milliseconds).
++ */
++#include <linux/f2fs_fs.h>
++#include <linux/delayacct.h>
++#include <linux/ioprio.h>
++#include <linux/math64.h>
++
++#include "f2fs.h"
++#include "segment.h"
++#include <trace/events/f2fs.h>
++
++static inline void get_lock_elapsed_time(struct f2fs_time_stat *ts)
++{
++	ts->total_time = ktime_get();
++#ifdef CONFIG_64BIT
++	ts->running_time = current->se.sum_exec_runtime;
++#endif
++#if defined(CONFIG_SCHED_INFO) && defined(CONFIG_SCHEDSTATS)
++	ts->runnable_time = current->sched_info.run_delay;
++#endif
++#ifdef CONFIG_TASK_DELAY_ACCT
++	if (current->delays)
++		ts->io_sleep_time = current->delays->blkio_delay;
++#endif
++}
++
++static inline void trace_lock_elapsed_time_start(struct f2fs_rwsem *sem,
++						struct f2fs_lock_context *lc)
++{
++	lc->lock_trace = trace_f2fs_lock_elapsed_time_enabled();
++	if (!lc->lock_trace)
++		return;
++
++	get_lock_elapsed_time(&lc->ts);
++}
++
++static inline void trace_lock_elapsed_time_end(struct f2fs_rwsem *sem,
++				struct f2fs_lock_context *lc, bool is_write)
++{
++	struct f2fs_time_stat tts;
++	unsigned long long total_time;
++	unsigned long long running_time = 0;
++	unsigned long long runnable_time = 0;
++	unsigned long long io_sleep_time = 0;
++	unsigned long long other_time = 0;
++	unsigned npm = NSEC_PER_MSEC;
++
++	if (!lc->lock_trace)
++		return;
++
++	get_lock_elapsed_time(&tts);
++
++	total_time = div_u64(tts.total_time - lc->ts.total_time, npm);
++	if (total_time <= sem->sbi->max_lock_elapsed_time)
++		return;
++
++#ifdef CONFIG_64BIT
++	running_time = div_u64(tts.running_time - lc->ts.running_time, npm);
++#endif
++#if defined(CONFIG_SCHED_INFO) && defined(CONFIG_SCHEDSTATS)
++	runnable_time = div_u64(tts.runnable_time - lc->ts.runnable_time, npm);
++#endif
++#ifdef CONFIG_TASK_DELAY_ACCT
++	io_sleep_time = div_u64(tts.io_sleep_time - lc->ts.io_sleep_time, npm);
++#endif
++	if (total_time > running_time + io_sleep_time + runnable_time)
++		other_time = total_time - running_time -
++				io_sleep_time - runnable_time;
++
++	trace_f2fs_lock_elapsed_time(sem->sbi, sem->name, is_write, current,
++			get_current_ioprio(), total_time, running_time,
++			runnable_time, io_sleep_time, other_time);
++}
++
++static bool need_uplift_priority(struct f2fs_rwsem *sem, bool is_write)
++{
++	if (sem->name <= LOCK_NAME_NONE || sem->name >= LOCK_NAME_MAX)
++		return false;
++	if (!(sem->sbi->adjust_lock_priority & BIT(sem->name - 1)))
++		return false;
++
++	switch (sem->name) {
++	/*
++	 * writer is checkpoint which has high priority, let's just uplift
++	 * priority for reader
++	 */
++	case LOCK_NAME_CP_RWSEM:
++	case LOCK_NAME_NODE_CHANGE:
++	case LOCK_NAME_NODE_WRITE:
++		return !is_write;
++	case LOCK_NAME_GC_LOCK:
++	case LOCK_NAME_CP_GLOBAL:
++	case LOCK_NAME_IO_RWSEM:
++		return true;
++	default:
++		f2fs_bug_on(sem->sbi, 1);
++	}
++	return false;
++}
++
++static void uplift_priority(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc,
++						bool is_write)
++{
++	lc->need_restore = false;
++	if (!sem->sbi->adjust_lock_priority)
++		return;
++	if (rt_task(current))
++		return;
++	if (!need_uplift_priority(sem, is_write))
++		return;
++	lc->orig_nice = task_nice(current);
++	lc->new_nice = PRIO_TO_NICE(sem->sbi->lock_duration_priority);
++	if (lc->orig_nice <= lc->new_nice)
++		return;
++	set_user_nice(current, lc->new_nice);
++	lc->need_restore = true;
++
++	trace_f2fs_priority_uplift(sem->sbi, sem->name, is_write, current,
++		NICE_TO_PRIO(lc->orig_nice), NICE_TO_PRIO(lc->new_nice));
++}
++
++static void restore_priority(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc,
++						bool is_write)
++{
++	if (!lc->need_restore)
++		return;
++	/* someone has updated the priority */
++	if (task_nice(current) != lc->new_nice)
++		return;
++	set_user_nice(current, lc->orig_nice);
++
++	trace_f2fs_priority_restore(sem->sbi, sem->name, is_write, current,
++		NICE_TO_PRIO(lc->orig_nice), NICE_TO_PRIO(lc->new_nice));
++}
++
++void f2fs_down_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
++{
++	uplift_priority(sem, lc, false);
++	f2fs_down_read(sem);
++	trace_lock_elapsed_time_start(sem, lc);
++}
++
++int f2fs_down_read_trylock_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
++{
++	uplift_priority(sem, lc, false);
++	if (!f2fs_down_read_trylock(sem)) {
++		restore_priority(sem, lc, false);
++		return 0;
++	}
++	trace_lock_elapsed_time_start(sem, lc);
++	return 1;
++}
++
++void f2fs_up_read_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
++{
++	f2fs_up_read(sem);
++	restore_priority(sem, lc, false);
++	trace_lock_elapsed_time_end(sem, lc, false);
++}
++
++void f2fs_down_write_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
++{
++	uplift_priority(sem, lc, true);
++	f2fs_down_write(sem);
++	trace_lock_elapsed_time_start(sem, lc);
++}
++
++int f2fs_down_write_trylock_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
++{
++	uplift_priority(sem, lc, true);
++	if (!f2fs_down_write_trylock(sem)) {
++		restore_priority(sem, lc, true);
++		return 0;
++	}
++	trace_lock_elapsed_time_start(sem, lc);
++	return 1;
++}
++
++void f2fs_up_write_trace(struct f2fs_rwsem *sem, struct f2fs_lock_context *lc)
++{
++	f2fs_up_write(sem);
++	restore_priority(sem, lc, true);
++	trace_lock_elapsed_time_end(sem, lc, true);
++}
++
++void f2fs_lock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc)
++{
++	f2fs_down_read_trace(&sbi->cp_rwsem, lc);
++}
++
++int f2fs_trylock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc)
++{
++	if (time_to_inject(sbi, FAULT_LOCK_OP))
++		return 0;
++
++	return f2fs_down_read_trylock_trace(&sbi->cp_rwsem, lc);
++}
++
++void f2fs_unlock_op(struct f2fs_sb_info *sbi, struct f2fs_lock_context *lc)
++{
++	f2fs_up_read_trace(&sbi->cp_rwsem, lc);
++}
+diff --git a/fs/f2fs/namei.c b/fs/f2fs/namei.c
+index 86e4c2f41..843721b6e 100644
+--- a/fs/f2fs/namei.c
++++ b/fs/f2fs/namei.c
+@@ -353,6 +353,7 @@ static struct inode *f2fs_new_inode(struct mnt_idmap *idmap,
+ static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
+ 		       struct dentry *dentry, umode_t mode, bool excl)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	struct inode *inode;
+ 	nid_t ino = 0;
+@@ -376,11 +377,11 @@ static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
+ 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
+ 	ino = inode->i_ino;
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_add_link(dentry, inode);
+ 	if (err)
+ 		goto out;
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	f2fs_alloc_nid_done(sbi, ino);
+ 
+@@ -392,13 +393,14 @@ static int f2fs_create(struct mnt_idmap *idmap, struct inode *dir,
+ 	f2fs_balance_fs(sbi, true);
+ 	return 0;
+ out:
+-	f2fs_handle_failed_inode(inode);
++	f2fs_handle_failed_inode(inode, &lc);
+ 	return err;
+ }
+ 
+ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
+ 		struct dentry *dentry)
+ {
++	struct f2fs_lock_context lc;
+ 	struct inode *inode = d_inode(old_dentry);
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	int err;
+@@ -427,11 +429,11 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
+ 	ihold(inode);
+ 
+ 	set_inode_flag(inode, FI_INC_LINK);
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_add_link(dentry, inode);
+ 	if (err)
+ 		goto out;
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	d_instantiate(dentry, inode);
+ 
+@@ -441,7 +443,7 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
+ out:
+ 	clear_inode_flag(inode, FI_INC_LINK);
+ 	iput(inode);
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	return err;
+ }
+ 
+@@ -536,6 +538,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
+ 
+ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	struct inode *inode = d_inode(dentry);
+ 	struct f2fs_dir_entry *de;
+@@ -574,15 +577,15 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
+ 
+ 	f2fs_balance_fs(sbi, true);
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_acquire_orphan_inode(sbi);
+ 	if (err) {
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 		f2fs_put_page(page, 0);
+ 		goto fail;
+ 	}
+ 	f2fs_delete_entry(de, page, dir, inode);
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ #if IS_ENABLED(CONFIG_UNICODE)
+ 	/* VFS negative dentries are incompatible with Encoding and
+@@ -619,6 +622,7 @@ static const char *f2fs_get_link(struct dentry *dentry,
+ static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+ 			struct dentry *dentry, const char *symname)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	struct inode *inode;
+ 	size_t len = strlen(symname);
+@@ -650,11 +654,11 @@ static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+ 	inode_nohighmem(inode);
+ 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_add_link(dentry, inode);
+ 	if (err)
+ 		goto out_f2fs_handle_failed_inode;
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	f2fs_alloc_nid_done(sbi, inode->i_ino);
+ 
+ 	err = fscrypt_encrypt_symlink(inode, symname, len, &disk_link);
+@@ -689,7 +693,7 @@ static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+ 	goto out_free_encrypted_link;
+ 
+ out_f2fs_handle_failed_inode:
+-	f2fs_handle_failed_inode(inode);
++	f2fs_handle_failed_inode(inode, &lc);
+ out_free_encrypted_link:
+ 	if (disk_link.name != (unsigned char *)symname)
+ 		kfree(disk_link.name);
+@@ -699,6 +703,7 @@ static int f2fs_symlink(struct mnt_idmap *idmap, struct inode *dir,
+ static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+ 		      struct dentry *dentry, umode_t mode)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	struct inode *inode;
+ 	int err;
+@@ -720,11 +725,11 @@ static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+ 	mapping_set_gfp_mask(inode->i_mapping, GFP_NOFS);
+ 
+ 	set_inode_flag(inode, FI_INC_LINK);
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_add_link(dentry, inode);
+ 	if (err)
+ 		goto out_fail;
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	f2fs_alloc_nid_done(sbi, inode->i_ino);
+ 
+@@ -738,7 +743,7 @@ static int f2fs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
+ 
+ out_fail:
+ 	clear_inode_flag(inode, FI_INC_LINK);
+-	f2fs_handle_failed_inode(inode);
++	f2fs_handle_failed_inode(inode, &lc);
+ 	return err;
+ }
+ 
+@@ -754,6 +759,7 @@ static int f2fs_rmdir(struct inode *dir, struct dentry *dentry)
+ static int f2fs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+ 		      struct dentry *dentry, umode_t mode, dev_t rdev)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	struct inode *inode;
+ 	int err = 0;
+@@ -774,11 +780,11 @@ static int f2fs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+ 	init_special_inode(inode, inode->i_mode, rdev);
+ 	inode->i_op = &f2fs_special_inode_operations;
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_add_link(dentry, inode);
+ 	if (err)
+ 		goto out;
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	f2fs_alloc_nid_done(sbi, inode->i_ino);
+ 
+@@ -790,7 +796,7 @@ static int f2fs_mknod(struct mnt_idmap *idmap, struct inode *dir,
+ 	f2fs_balance_fs(sbi, true);
+ 	return 0;
+ out:
+-	f2fs_handle_failed_inode(inode);
++	f2fs_handle_failed_inode(inode, &lc);
+ 	return err;
+ }
+ 
+@@ -798,6 +804,7 @@ static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+ 			  struct file *file, umode_t mode, bool is_whiteout,
+ 			  struct inode **new_inode, struct f2fs_filename *fname)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
+ 	struct inode *inode;
+ 	int err;
+@@ -819,7 +826,7 @@ static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+ 		inode->i_mapping->a_ops = &f2fs_dblock_aops;
+ 	}
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_acquire_orphan_inode(sbi);
+ 	if (err)
+ 		goto out;
+@@ -848,7 +855,7 @@ static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+ 			f2fs_i_links_write(inode, false);
+ 	}
+ 	/* link_count was changed by d_tmpfile as well. */
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	unlock_new_inode(inode);
+ 
+ 	if (new_inode)
+@@ -860,7 +867,7 @@ static int __f2fs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
+ release_out:
+ 	f2fs_release_orphan_inode(sbi);
+ out:
+-	f2fs_handle_failed_inode(inode);
++	f2fs_handle_failed_inode(inode, &lc);
+ 	return err;
+ }
+ 
+@@ -899,6 +906,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 			struct dentry *old_dentry, struct inode *new_dir,
+ 			struct dentry *new_dentry, unsigned int flags)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
+ 	struct inode *old_inode = d_inode(old_dentry);
+ 	struct inode *new_inode = d_inode(new_dentry);
+@@ -996,7 +1004,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 
+ 		f2fs_balance_fs(sbi, true);
+ 
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 
+ 		err = f2fs_acquire_orphan_inode(sbi);
+ 		if (err)
+@@ -1019,11 +1027,11 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 	} else {
+ 		f2fs_balance_fs(sbi, true);
+ 
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 
+ 		err = f2fs_add_link(new_dentry, old_inode);
+ 		if (err) {
+-			f2fs_unlock_op(sbi);
++			f2fs_unlock_op(sbi, &lc);
+ 			goto out_dir;
+ 		}
+ 
+@@ -1070,7 +1078,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 							TRANS_DIR_INO);
+ 	}
+ 
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	if (IS_DIRSYNC(old_dir) || IS_DIRSYNC(new_dir))
+ 		f2fs_sync_fs(sbi->sb, 1);
+@@ -1079,7 +1087,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ 	return 0;
+ 
+ put_out_dir:
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	f2fs_put_page(new_page, 0);
+ out_dir:
+ 	if (old_dir_entry)
+@@ -1094,6 +1102,7 @@ static int f2fs_rename(struct mnt_idmap *idmap, struct inode *old_dir,
+ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 			     struct inode *new_dir, struct dentry *new_dentry)
+ {
++	struct f2fs_lock_context lc;
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(old_dir);
+ 	struct inode *old_inode = d_inode(old_dentry);
+ 	struct inode *new_inode = d_inode(new_dentry);
+@@ -1180,7 +1189,7 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 
+ 	f2fs_balance_fs(sbi, true);
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 
+ 	/* update ".." directory entry info of old dentry */
+ 	if (old_dir_entry)
+@@ -1233,7 +1242,7 @@ static int f2fs_cross_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 		f2fs_add_ino_entry(sbi, new_dir->i_ino, TRANS_DIR_INO);
+ 	}
+ 
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	if (IS_DIRSYNC(old_dir) || IS_DIRSYNC(new_dir))
+ 		f2fs_sync_fs(sbi->sb, 1);
+diff --git a/fs/f2fs/segment.c b/fs/f2fs/segment.c
+index f19b9ce65..082a5e853 100644
+--- a/fs/f2fs/segment.c
++++ b/fs/f2fs/segment.c
+@@ -397,6 +397,7 @@ int f2fs_commit_atomic_write(struct inode *inode)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
+ 	struct f2fs_inode_info *fi = F2FS_I(inode);
++	struct f2fs_lock_context lc;
+ 	int err;
+ 
+ 	err = filemap_write_and_wait_range(inode->i_mapping, 0, LLONG_MAX);
+@@ -404,11 +405,11 @@ int f2fs_commit_atomic_write(struct inode *inode)
+ 		return err;
+ 
+ 	f2fs_down_write(&fi->i_gc_rwsem[WRITE]);
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 
+ 	err = __f2fs_commit_atomic_write(inode);
+ 
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 	f2fs_up_write(&fi->i_gc_rwsem[WRITE]);
+ 
+ 	return err;
+@@ -457,7 +458,7 @@ void f2fs_balance_fs(struct f2fs_sb_info *sbi, bool need)
+ 			.should_migrate_blocks = false,
+ 			.err_gc_skipped = false,
+ 			.nr_free_secs = 1 };
+-		f2fs_down_write(&sbi->gc_lock);
++		f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 		stat_inc_gc_call_count(sbi, FOREGROUND);
+ 		f2fs_gc(sbi, &gc_control);
+ 	}
+@@ -3300,19 +3301,20 @@ int f2fs_allocate_new_section(struct f2fs_sb_info *sbi, int type, bool force)
+ 
+ int f2fs_allocate_pinning_section(struct f2fs_sb_info *sbi)
+ {
++	struct f2fs_lock_context lc;
+ 	int err;
+ 	bool gc_required = true;
+ 
+ retry:
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	err = f2fs_allocate_new_section(sbi, CURSEG_COLD_DATA_PINNED, false);
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	if (f2fs_sb_has_blkzoned(sbi) && err == -EAGAIN && gc_required) {
+-		f2fs_down_write(&sbi->gc_lock);
++		f2fs_down_write_trace(&sbi->gc_lock, &lc);
+ 		err = f2fs_gc_range(sbi, 0, GET_SEGNO(sbi, FDEV(0).end_blk),
+ 				true, ZONED_PIN_SEC_REQUIRED_COUNT);
+-		f2fs_up_write(&sbi->gc_lock);
++		f2fs_up_write_trace(&sbi->gc_lock, &lc);
+ 
+ 		gc_required = false;
+ 		if (!err)
+@@ -3432,6 +3434,7 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
+ 	block_t start_block, end_block;
+ 	struct cp_control cpc;
+ 	struct discard_policy dpolicy;
++	struct f2fs_lock_context lc;
+ 	unsigned long long trimmed = 0;
+ 	int err = 0;
+ 	bool need_align = f2fs_lfs_mode(sbi) && __is_large_section(sbi);
+@@ -3464,10 +3467,10 @@ int f2fs_trim_fs(struct f2fs_sb_info *sbi, struct fstrim_range *range)
+ 	if (sbi->discard_blks == 0)
+ 		goto out;
+ 
+-	f2fs_down_write(&sbi->gc_lock);
++	f2fs_down_write_trace(&sbi->gc_lock, &lc);
+ 	stat_inc_cp_call_count(sbi, TOTAL_CALL);
+ 	err = f2fs_write_checkpoint(sbi, &cpc);
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_up_write_trace(&sbi->gc_lock, &lc);
+ 	if (err)
+ 		goto out;
+ 
+diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
+index ce211ccc0..e88502347 100644
+--- a/fs/f2fs/super.c
++++ b/fs/f2fs/super.c
+@@ -178,6 +178,7 @@ enum {
+ 	Opt_age_extent_cache,
+ 	Opt_errors,
+ 	Opt_lookup_mode,
++	Opt_hybrid,
+ 	Opt_err,
+ };
+ 
+@@ -259,6 +260,7 @@ static match_table_t f2fs_tokens = {
+ 	{Opt_age_extent_cache, "age_extent_cache"},
+ 	{Opt_errors, "errors=%s"},
+ 	{Opt_lookup_mode, "lookup_mode=%s"},
++	{Opt_hybrid, "hybrid=%u"},
+ 	{Opt_err, NULL},
+ };
+ 
+@@ -1304,6 +1306,18 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
+ 		case Opt_age_extent_cache:
+ 			set_opt(sbi, AGE_EXTENT_CACHE);
+ 			break;
++		case Opt_hybrid: {
++			unsigned int hybrid;
++
++			if (match_int(&args[0], &hybrid))
++				return -EINVAL;
++			if (hybrid && !f2fs_hw_support_hybrid(sbi)) {
++				f2fs_err(sbi, "hybrid not support");
++				return -EOPNOTSUPP;
++			}
++			F2FS_OPTION(sbi).hybrid = hybrid;
++			break;
++		}
+ 		case Opt_errors:
+ 			name = match_strdup(&args[0]);
+ 			if (!name)
+@@ -1732,6 +1746,7 @@ static void f2fs_put_super(struct super_block *sb)
+ 	fscrypt_free_dummy_policy(&F2FS_OPTION(sbi).dummy_enc_policy);
+ 	destroy_percpu_info(sbi);
+ 	f2fs_destroy_iostat(sbi);
++	f2fs_xiaomi_destroy(sbi);
+ 	for (i = 0; i < NR_PAGE_TYPE; i++)
+ 		kvfree(sbi->write_io[i]);
+ #if IS_ENABLED(CONFIG_UNICODE)
+@@ -2253,6 +2268,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
+ {
+ 	unsigned int s_flags = sbi->sb->s_flags;
+ 	struct cp_control cpc;
++	struct f2fs_lock_context lc;
+ 	unsigned int gc_mode = sbi->gc_mode;
+ 	int err = 0;
+ 	int ret;
+@@ -2282,7 +2298,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
+ 			.no_bg_gc = true,
+ 			.nr_free_secs = 1 };
+ 
+-		f2fs_down_write(&sbi->gc_lock);
++		f2fs_down_write_trace(&sbi->gc_lock, &gc_control.lc);
+ 		stat_inc_gc_call_count(sbi, FOREGROUND);
+ 		err = f2fs_gc(sbi, &gc_control);
+ 		if (err == -ENODATA) {
+@@ -2306,7 +2322,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
+ 	}
+ 
+ skip_gc:
+-	f2fs_down_write(&sbi->gc_lock);
++	f2fs_down_write_trace(&sbi->gc_lock, &lc);
+ 	cpc.reason = CP_PAUSE;
+ 	set_sbi_flag(sbi, SBI_CP_DISABLED);
+ 	stat_inc_cp_call_count(sbi, TOTAL_CALL);
+@@ -2319,7 +2335,7 @@ static int f2fs_disable_checkpoint(struct f2fs_sb_info *sbi)
+ 	spin_unlock(&sbi->stat_lock);
+ 
+ out_unlock:
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_up_write_trace(&sbi->gc_lock, &lc);
+ restore_flag:
+ 	sbi->gc_mode = gc_mode;
+ 	sbi->sb->s_flags = s_flags;	/* Restore SB_RDONLY status */
+@@ -2331,6 +2347,7 @@ static int f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
+ {
+ 	unsigned int nr_pages = get_pages(sbi, F2FS_DIRTY_DATA) / 16;
+ 	long long start, writeback, lock, sync_inode, end;
++	struct f2fs_lock_context lc;
+ 	int ret;
+ 
+ 	f2fs_info(sbi, "%s start, meta: %lld, node: %lld, data: %lld",
+@@ -2366,12 +2383,12 @@ static int f2fs_enable_checkpoint(struct f2fs_sb_info *sbi)
+ 
+ 	sync_inode = ktime_get();
+ 
+-	f2fs_down_write(&sbi->gc_lock);
++	f2fs_down_write_trace(&sbi->gc_lock, &lc);
+ 	f2fs_dirty_to_prefree(sbi);
+ 
+ 	clear_sbi_flag(sbi, SBI_CP_DISABLED);
+ 	set_sbi_flag(sbi, SBI_IS_DIRTY);
+-	f2fs_up_write(&sbi->gc_lock);
++	f2fs_up_write_trace(&sbi->gc_lock, &lc);
+ 
+ 	f2fs_info(sbi, "%s sync_fs, meta: %lld, imeta: %lld, node: %lld, dents: %lld, qdata: %lld",
+ 					__func__,
+@@ -3029,6 +3046,7 @@ int f2fs_do_quota_sync(struct super_block *sb, int type)
+ 	 * that userspace sees the changes.
+ 	 */
+ 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
++		struct f2fs_lock_context lc;
+ 
+ 		if (type != -1 && cnt != type)
+ 			continue;
+@@ -3048,13 +3066,13 @@ int f2fs_do_quota_sync(struct super_block *sb, int type)
+ 		 *			      block_operation
+ 		 *			      f2fs_down_read(quota_sem)
+ 		 */
+-		f2fs_lock_op(sbi);
++		f2fs_lock_op(sbi, &lc);
+ 		f2fs_down_read(&sbi->quota_sem);
+ 
+ 		ret = f2fs_quota_sync_file(sbi, cnt);
+ 
+ 		f2fs_up_read(&sbi->quota_sem);
+-		f2fs_unlock_op(sbi);
++		f2fs_unlock_op(sbi, &lc);
+ 
+ 		if (!f2fs_sb_has_quota_ino(sbi))
+ 			inode_unlock(dqopt->files[cnt]);
+@@ -3978,6 +3996,10 @@ static void init_sb_info(struct f2fs_sb_info *sbi)
+ 	sbi->seq_file_ra_mul = MIN_RA_MUL;
+ 	sbi->max_fragment_chunk = DEF_FRAGMENT_SIZE;
+ 	sbi->max_fragment_hole = DEF_FRAGMENT_SIZE;
++	sbi->max_lock_elapsed_time = MAX_LOCK_ELAPSED_TIME;
++	sbi->adjust_lock_priority = 0;
++	sbi->lock_duration_priority = F2FS_DEFAULT_TASK_PRIORITY;
++	sbi->critical_task_priority = F2FS_CRITICAL_TASK_PRIORITY;
+ 	spin_lock_init(&sbi->gc_remaining_trials_lock);
+ 	atomic64_set(&sbi->current_atomic_write, 0);
+ 
+@@ -4304,12 +4326,21 @@ static void f2fs_record_errors(struct f2fs_sb_info *sbi, unsigned char error)
+ 
+ void f2fs_handle_error(struct f2fs_sb_info *sbi, unsigned char error)
+ {
++	trace_f2fs_fault_report(sbi->sb, error, __func__, __LINE__);
+ 	f2fs_save_errors(sbi, error);
+ 	f2fs_record_errors(sbi, error);
+ }
+ 
+ void f2fs_handle_error_async(struct f2fs_sb_info *sbi, unsigned char error)
+ {
++	/*
++	 * fault_report.ko's callback may take a stack trace and queue work.
++	 * Only emit from task context; f2fs_save_errors() still records errors
++	 * from atomic end_io paths.
++	 */
++	if (in_task())
++		trace_f2fs_fault_report(sbi->sb, error, __func__, __LINE__);
++
+ 	f2fs_save_errors(sbi, error);
+ 
+ 	if (!sbi->error_dirty)
+@@ -4587,13 +4618,13 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+ 	sbi->sb = sb;
+ 
+ 	/* initialize locks within allocated memory */
+-	init_f2fs_rwsem(&sbi->gc_lock);
++	init_f2fs_rwsem_trace(&sbi->gc_lock, sbi, LOCK_NAME_GC_LOCK);
+ 	mutex_init(&sbi->writepages);
+-	init_f2fs_rwsem(&sbi->cp_global_sem);
+-	init_f2fs_rwsem(&sbi->node_write);
+-	init_f2fs_rwsem(&sbi->node_change);
++	init_f2fs_rwsem_trace(&sbi->cp_global_sem, sbi, LOCK_NAME_CP_GLOBAL);
++	init_f2fs_rwsem_trace(&sbi->node_write, sbi, LOCK_NAME_NODE_WRITE);
++	init_f2fs_rwsem_trace(&sbi->node_change, sbi, LOCK_NAME_NODE_CHANGE);
+ 	spin_lock_init(&sbi->stat_lock);
+-	init_f2fs_rwsem(&sbi->cp_rwsem);
++	init_f2fs_rwsem_trace(&sbi->cp_rwsem, sbi, LOCK_NAME_CP_RWSEM);
+ 	init_f2fs_rwsem(&sbi->cp_enable_rwsem);
+ 	init_f2fs_rwsem(&sbi->quota_sem);
+ 	init_waitqueue_head(&sbi->cp_wait);
+@@ -4702,6 +4733,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+ 	if (err)
+ 		goto free_bio_info;
+ 
++	f2fs_xiaomi_init(sbi);
++
+ 	err = init_percpu_info(sbi);
+ 	if (err)
+ 		goto free_iostat;
+@@ -5048,6 +5081,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+ 	destroy_percpu_info(sbi);
+ free_iostat:
+ 	f2fs_destroy_iostat(sbi);
++	f2fs_xiaomi_destroy(sbi);
+ free_bio_info:
+ 	for (i = 0; i < NR_PAGE_TYPE; i++)
+ 		kvfree(sbi->write_io[i]);
+diff --git a/fs/f2fs/sysfs.c b/fs/f2fs/sysfs.c
+index 20946cf37..a3e4563eb 100644
+--- a/fs/f2fs/sysfs.c
++++ b/fs/f2fs/sysfs.c
+@@ -18,6 +18,7 @@
+ #include "segment.h"
+ #include "gc.h"
+ #include "iostat.h"
++#include "xiaomi.h"
+ #include <trace/events/f2fs.h>
+ 
+ static struct proc_dir_entry *f2fs_proc_root;
+@@ -98,6 +99,178 @@ static unsigned char *__struct_ptr(struct f2fs_sb_info *sbi, int struct_type)
+ 	return NULL;
+ }
+ 
++#if defined(CONFIG_XIAOMI_ENHANCED_IOSTAT) || \
++	defined(CONFIG_F2FS_VIP_FILE) || \
++	defined(CONFIG_F2FS_FS_HYBRID_UFS)
++static ssize_t f2fs_xiaomi_attr_show(struct f2fs_attr *a,
++		struct f2fs_sb_info *sbi, char *buf)
++{
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	if (!strcmp(a->attr.name, "en_iostat_enable"))
++		return sysfs_emit(buf, "%u\n",
++				  f2fs_xiaomi_iostat_enabled(sbi));
++	if (!strcmp(a->attr.name, "iostat_window_latency"))
++		return f2fs_xiaomi_iostat_show_window(sbi, buf);
++	if (!strcmp(a->attr.name, "iostat_daily_latency"))
++		return f2fs_xiaomi_iostat_show_daily(sbi, buf);
++	if (!strcmp(a->attr.name, "iostat_config"))
++		return f2fs_xiaomi_iostat_show_config(sbi, buf);
++	if (!strcmp(a->attr.name, "iostat_window_period_s"))
++		return sysfs_emit(buf, "%llu\n",
++			div64_u64(READ_ONCE(sbi->xiostat.window_period_ns),
++				  NSEC_PER_SEC));
++	if (!strcmp(a->attr.name, "iostat_latency_threshold_ms"))
++		return sysfs_emit(buf, "%llu\n",
++			div64_u64(READ_ONCE(
++				sbi->xiostat.latency_threshold_ns),
++				NSEC_PER_MSEC));
++#endif
++	if (!strcmp(a->attr.name, "max_lock_elapsed_time"))
++		return sysfs_emit(buf, "%llu\n",
++				 READ_ONCE(sbi->max_lock_elapsed_time));
++	if (!strcmp(a->attr.name, "adjust_lock_priority"))
++		return sysfs_emit(buf, "%u\n",
++				 READ_ONCE(sbi->adjust_lock_priority));
++	if (!strcmp(a->attr.name, "lock_duration_priority"))
++		return sysfs_emit(buf, "%u\n",
++				 READ_ONCE(sbi->lock_duration_priority));
++	if (!strcmp(a->attr.name, "critical_task_priority"))
++		return sysfs_emit(buf, "%ld\n",
++				 READ_ONCE(sbi->critical_task_priority));
++#ifdef CONFIG_F2FS_VIP_FILE
++	if (!strcmp(a->attr.name, "vip_file_enable"))
++		return sysfs_emit(buf, "%u\n", READ_ONCE(sbi->vip.enabled));
++	if (!strcmp(a->attr.name, "vip_inode_count"))
++		return sysfs_emit(buf, "%u\n", READ_ONCE(sbi->vip.count));
++#endif
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++	if (!strcmp(a->attr.name, "hybrid"))
++		return sysfs_emit(buf, "0\n");
++	if (!strcmp(a->attr.name, "hybrid_free_ratio"))
++		return sysfs_emit(buf, "%u\n", sbi->hi.free_ratio);
++	if (!strcmp(a->attr.name, "hybrid_die_info"))
++		return sysfs_emit(buf,
++			"main start=%u segno=%u secno=%u len=%u free=%u "
++			"free_segs=%u dirty_segs=%u gc_count=%u\n"
++			"ext start=%u segno=%u secno=%u len=%u free=%u "
++			"free_segs=%u dirty_segs=%u gc_count=%u\n",
++			sbi->hi.main.start, sbi->hi.main.start_segno,
++			sbi->hi.main.start_secno, sbi->hi.main.len,
++			sbi->hi.main.free, sbi->hi.main.free_segs,
++			sbi->hi.main.dirty_segs, sbi->hi.main.gc_count,
++			sbi->hi.ext.start, sbi->hi.ext.start_segno,
++			sbi->hi.ext.start_secno, sbi->hi.ext.len,
++			sbi->hi.ext.free, sbi->hi.ext.free_segs,
++			sbi->hi.ext.dirty_segs, sbi->hi.ext.gc_count);
++#endif
++	return -EOPNOTSUPP;
++}
++
++static ssize_t f2fs_xiaomi_attr_store(struct f2fs_attr *a,
++		struct f2fs_sb_info *sbi, const char *buf, size_t len)
++{
++	char config[80];
++	unsigned long t;
++	int ret;
++
++	ret = kstrtoul(skip_spaces(buf), 0, &t);
++	if (ret)
++		return ret;
++
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	if (!strcmp(a->attr.name, "en_iostat_enable")) {
++		if (t > 1)
++			return -EINVAL;
++		f2fs_xiaomi_iostat_set_enabled(sbi, t);
++		return len;
++	}
++	if (!strcmp(a->attr.name, "iostat_window_period_s")) {
++		ret = snprintf(config, sizeof(config),
++			       "window_period_s=%lu", t);
++		if (ret < 0 || ret >= sizeof(config))
++			return -EINVAL;
++		ret = f2fs_xiaomi_iostat_store_config(sbi, config, ret);
++		return ret < 0 ? ret : len;
++	}
++	if (!strcmp(a->attr.name, "iostat_latency_threshold_ms")) {
++		ret = snprintf(config, sizeof(config),
++			       "latency_threshold_ms=%lu", t);
++		if (ret < 0 || ret >= sizeof(config))
++			return -EINVAL;
++		ret = f2fs_xiaomi_iostat_store_config(sbi, config, ret);
++		return ret < 0 ? ret : len;
++	}
++	if (!strcmp(a->attr.name, "iostat_window_latency") ||
++	    !strcmp(a->attr.name, "iostat_daily_latency")) {
++		if (t != 0)
++			return -EINVAL;
++		f2fs_xiaomi_iostat_reset(sbi);
++		return len;
++	}
++	if (!strcmp(a->attr.name, "iostat_config")) {
++		ret = f2fs_xiaomi_iostat_store_config(sbi, buf, len);
++		return ret;
++	}
++#endif
++	if (!strcmp(a->attr.name, "max_lock_elapsed_time")) {
++		sbi->max_lock_elapsed_time = t;
++		return len;
++	}
++	if (!strcmp(a->attr.name, "adjust_lock_priority")) {
++		if (t >= BIT(LOCK_NAME_MAX - 1))
++			return -EINVAL;
++		sbi->adjust_lock_priority = t;
++		return len;
++	}
++	if (!strcmp(a->attr.name, "lock_duration_priority")) {
++		if (t < NICE_TO_PRIO(MIN_NICE) || t > NICE_TO_PRIO(MAX_NICE))
++			return -EINVAL;
++		sbi->lock_duration_priority = t;
++		return len;
++	}
++	if (!strcmp(a->attr.name, "critical_task_priority")) {
++		if (t < NICE_TO_PRIO(MIN_NICE) || t > NICE_TO_PRIO(MAX_NICE))
++			return -EINVAL;
++		if (!capable(CAP_SYS_NICE))
++			return -EPERM;
++		sbi->critical_task_priority = t;
++		if (sbi->cprc_info.f2fs_issue_ckpt)
++			set_user_nice(sbi->cprc_info.f2fs_issue_ckpt,
++				      PRIO_TO_NICE(sbi->critical_task_priority));
++		if (sbi->gc_thread && sbi->gc_thread->f2fs_gc_task)
++			set_user_nice(sbi->gc_thread->f2fs_gc_task,
++				      PRIO_TO_NICE(sbi->critical_task_priority));
++		return len;
++	}
++#ifdef CONFIG_F2FS_VIP_FILE
++	if (!strcmp(a->attr.name, "vip_file_enable")) {
++		if (t > 1)
++			return -EINVAL;
++		if (!t)
++			f2fs_vip_destroy(sbi);
++		else
++			WRITE_ONCE(sbi->vip.enabled, true);
++		return len;
++	}
++#endif
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++	if (!strcmp(a->attr.name, "hybrid")) {
++		if (t != 0)
++			return -EOPNOTSUPP;
++		f2fs_disable_hybrid(sbi);
++		return len;
++	}
++	if (!strcmp(a->attr.name, "hybrid_free_ratio")) {
++		if (t > 100)
++			return -EINVAL;
++		sbi->hi.free_ratio = t;
++		return len;
++	}
++#endif
++	return -EOPNOTSUPP;
++}
++#endif
++
+ static ssize_t dirty_segments_show(struct f2fs_attr *a,
+ 		struct f2fs_sb_info *sbi, char *buf)
+ {
+@@ -1016,6 +1189,35 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
+ #define F2FS_GENERAL_RO_ATTR(name) \
+ static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
+ 
++#define F2FS_XIAOMI_ATTR(_name, _mode)				\
++static struct f2fs_attr f2fs_attr_##_name = {			\
++	.attr = {.name = __stringify(_name), .mode = _mode },	\
++	.show = f2fs_xiaomi_attr_show,				\
++	.store = f2fs_xiaomi_attr_store,			\
++}
++
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++F2FS_XIAOMI_ATTR(en_iostat_enable, 0644);
++F2FS_XIAOMI_ATTR(iostat_config, 0644);
++F2FS_XIAOMI_ATTR(iostat_window_period_s, 0644);
++F2FS_XIAOMI_ATTR(iostat_latency_threshold_ms, 0644);
++F2FS_XIAOMI_ATTR(iostat_window_latency, 0644);
++F2FS_XIAOMI_ATTR(iostat_daily_latency, 0644);
++#endif
++F2FS_XIAOMI_ATTR(max_lock_elapsed_time, 0644);
++F2FS_XIAOMI_ATTR(adjust_lock_priority, 0644);
++F2FS_XIAOMI_ATTR(lock_duration_priority, 0644);
++F2FS_XIAOMI_ATTR(critical_task_priority, 0644);
++#ifdef CONFIG_F2FS_VIP_FILE
++F2FS_XIAOMI_ATTR(vip_file_enable, 0644);
++F2FS_XIAOMI_ATTR(vip_inode_count, 0444);
++#endif
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++F2FS_XIAOMI_ATTR(hybrid, 0644);
++F2FS_XIAOMI_ATTR(hybrid_free_ratio, 0644);
++F2FS_XIAOMI_ATTR(hybrid_die_info, 0444);
++#endif
++
+ #ifdef CONFIG_F2FS_STAT_FS
+ #define STAT_INFO_RO_ATTR(name, elname)				\
+ 	F2FS_RO_ATTR(STAT_INFO, f2fs_stat_info, name, elname)
+@@ -1284,6 +1486,27 @@ static struct attribute *f2fs_attrs[] = {
+ #ifdef CONFIG_F2FS_IOSTAT
+ 	ATTR_LIST(iostat_enable),
+ 	ATTR_LIST(iostat_period_ms),
++#endif
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++	ATTR_LIST(en_iostat_enable),
++	ATTR_LIST(iostat_config),
++	ATTR_LIST(iostat_window_period_s),
++	ATTR_LIST(iostat_latency_threshold_ms),
++	ATTR_LIST(iostat_window_latency),
++	ATTR_LIST(iostat_daily_latency),
++#endif
++	ATTR_LIST(max_lock_elapsed_time),
++	ATTR_LIST(adjust_lock_priority),
++	ATTR_LIST(lock_duration_priority),
++	ATTR_LIST(critical_task_priority),
++#ifdef CONFIG_F2FS_VIP_FILE
++	ATTR_LIST(vip_file_enable),
++	ATTR_LIST(vip_inode_count),
++#endif
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++	ATTR_LIST(hybrid),
++	ATTR_LIST(hybrid_free_ratio),
++	ATTR_LIST(hybrid_die_info),
+ #endif
+ 	ATTR_LIST(readdir_ra),
+ 	ATTR_LIST(max_io_bytes),
+diff --git a/fs/f2fs/xattr.c b/fs/f2fs/xattr.c
+index 54ab9caaa..3a6ea70dc 100644
+--- a/fs/f2fs/xattr.c
++++ b/fs/f2fs/xattr.c
+@@ -803,6 +803,7 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
+ 				struct page *ipage, int flags)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
++	struct f2fs_lock_context lc;
+ 	int err;
+ 
+ 	if (unlikely(f2fs_cp_error(sbi)))
+@@ -820,11 +821,11 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
+ 						size, ipage, flags);
+ 	f2fs_balance_fs(sbi, true);
+ 
+-	f2fs_lock_op(sbi);
++	f2fs_lock_op(sbi, &lc);
+ 	f2fs_down_write(&F2FS_I(inode)->i_xattr_sem);
+ 	err = __f2fs_setxattr(inode, index, name, value, size, ipage, flags);
+ 	f2fs_up_write(&F2FS_I(inode)->i_xattr_sem);
+-	f2fs_unlock_op(sbi);
++	f2fs_unlock_op(sbi, &lc);
+ 
+ 	f2fs_update_time(sbi, REQ_TIME);
+ 	return err;
+diff --git a/fs/f2fs/xiaomi.c b/fs/f2fs/xiaomi.c
+new file mode 100644
+index 000000000..63942c335
+--- /dev/null
++++ b/fs/f2fs/xiaomi.c
+@@ -0,0 +1,415 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Xiaomi F2FS compatibility features.
++ *
++ * The stock dash kernel contains vendor-only I/O statistics, VIP inode tracking
++ * and a UFS hybrid allocator.  The vendor source is not public.  This file
++ * provides the observable interfaces and a conservative implementation:
++ * statistics are measured from the normal F2FS bio completion path, while the
++ * hybrid allocator intentionally reports "not capable" and never remaps writes.
++ */
++
++#include <linux/kernel.h>
++#include <linux/ktime.h>
++#include <linux/math64.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/sysfs.h>
++#include <linux/f2fs_fs.h>
++
++#include "f2fs.h"
++#include "xiaomi.h"
++
++void f2fs_xiaomi_init(struct f2fs_sb_info *sbi)
++{
++#ifdef CONFIG_F2FS_VIP_FILE
++	spin_lock_init(&sbi->vip.lock);
++	sbi->vip.enabled = false;
++#endif
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++	f2fs_xiaomi_hybrid_init(sbi);
++#endif
++}
++
++void f2fs_xiaomi_destroy(struct f2fs_sb_info *sbi)
++{
++#ifdef CONFIG_F2FS_VIP_FILE
++	f2fs_vip_destroy(sbi);
++#endif
++}
++
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++static const char * const f2fs_xiaomi_io_names[F2FS_XIAOMI_IO_BUCKETS] = {
++	"read", "write_sync", "write_async", "meta", "other",
++};
++
++static void f2fs_xiaomi_clear_stats(struct f2fs_xiaomi_lat_stats *stats,
++				    unsigned int nr)
++{
++	memset(stats, 0, sizeof(*stats) * nr);
++}
++
++void f2fs_xiaomi_iostat_init(struct f2fs_sb_info *sbi)
++{
++	struct f2fs_xiaomi_iostat *iostat = &sbi->xiostat;
++
++	memset(iostat, 0, sizeof(*iostat));
++	spin_lock_init(&iostat->lock);
++	iostat->window_period_ns = 5ULL * NSEC_PER_SEC;
++	iostat->latency_threshold_ns = 100ULL * NSEC_PER_MSEC;
++}
++
++void f2fs_xiaomi_iostat_destroy(struct f2fs_sb_info *sbi)
++{
++	/* The structure is embedded in f2fs_sb_info; no allocation to free. */
++}
++
++void f2fs_xiaomi_iostat_reset(struct f2fs_sb_info *sbi)
++{
++	struct f2fs_xiaomi_iostat *iostat = &sbi->xiostat;
++	unsigned long flags;
++
++	spin_lock_irqsave(&iostat->lock, flags);
++	f2fs_xiaomi_clear_stats(iostat->window, F2FS_XIAOMI_IO_BUCKETS);
++	f2fs_xiaomi_clear_stats(iostat->last_window, F2FS_XIAOMI_IO_BUCKETS);
++	f2fs_xiaomi_clear_stats(iostat->daily, F2FS_XIAOMI_IO_BUCKETS);
++	f2fs_xiaomi_clear_stats(iostat->delayed, F2FS_XIAOMI_IO_BUCKETS);
++	iostat->window_start_ns = ktime_get_ns();
++	spin_unlock_irqrestore(&iostat->lock, flags);
++}
++
++bool f2fs_xiaomi_iostat_enabled(struct f2fs_sb_info *sbi)
++{
++	return READ_ONCE(sbi->xiostat.enabled);
++}
++
++int f2fs_xiaomi_iostat_set_enabled(struct f2fs_sb_info *sbi, bool enabled)
++{
++	if (enabled) {
++		f2fs_xiaomi_iostat_reset(sbi);
++		WRITE_ONCE(sbi->xiostat.enabled, true);
++	} else {
++		WRITE_ONCE(sbi->xiostat.enabled, false);
++		f2fs_xiaomi_iostat_reset(sbi);
++	}
++	return 0;
++}
++
++static void f2fs_xiaomi_roll_window(struct f2fs_xiaomi_iostat *iostat, u64 now)
++{
++	if (now - iostat->window_start_ns < iostat->window_period_ns)
++		return;
++
++	memcpy(iostat->last_window, iostat->window,
++	       sizeof(iostat->window));
++	f2fs_xiaomi_clear_stats(iostat->window, F2FS_XIAOMI_IO_BUCKETS);
++	iostat->window_start_ns = now;
++}
++
++void f2fs_xiaomi_iostat_record(struct f2fs_sb_info *sbi, unsigned int bucket,
++			       u64 latency_ns)
++{
++	struct f2fs_xiaomi_iostat *iostat = &sbi->xiostat;
++	struct f2fs_xiaomi_lat_stats *s;
++	unsigned long flags;
++	u64 now;
++
++	if (bucket >= F2FS_XIAOMI_IO_BUCKETS || !READ_ONCE(iostat->enabled))
++		return;
++
++	now = ktime_get_ns();
++	spin_lock_irqsave(&iostat->lock, flags);
++	f2fs_xiaomi_roll_window(iostat, now);
++
++	s = &iostat->window[bucket];
++	s->sum_ns += latency_ns;
++	s->count++;
++	if (latency_ns > s->peak_ns)
++		s->peak_ns = latency_ns;
++
++	s = &iostat->daily[bucket];
++	s->sum_ns += latency_ns;
++	s->count++;
++	if (latency_ns > s->peak_ns)
++		s->peak_ns = latency_ns;
++
++	if (latency_ns >= iostat->latency_threshold_ns) {
++		s = &iostat->delayed[bucket];
++		s->sum_ns += latency_ns;
++		s->count++;
++		if (latency_ns > s->peak_ns)
++			s->peak_ns = latency_ns;
++	}
++	spin_unlock_irqrestore(&iostat->lock, flags);
++}
++
++static ssize_t f2fs_xiaomi_show_stats(struct f2fs_sb_info *sbi, char *buf,
++				      const struct f2fs_xiaomi_lat_stats *stats,
++				      bool include_delay)
++{
++	struct f2fs_xiaomi_lat_stats copy[F2FS_XIAOMI_IO_BUCKETS];
++	struct f2fs_xiaomi_lat_stats delay[F2FS_XIAOMI_IO_BUCKETS];
++	unsigned long flags;
++	ssize_t off = 0;
++	int i;
++
++	spin_lock_irqsave(&sbi->xiostat.lock, flags);
++	memcpy(copy, stats, sizeof(copy));
++	if (include_delay)
++		memcpy(delay, sbi->xiostat.delayed, sizeof(delay));
++	spin_unlock_irqrestore(&sbi->xiostat.lock, flags);
++
++	off += sysfs_emit_at(buf, off, "%-12s %-10s %-12s %-12s %-12s\n",
++			     "type", "count", "avg_ms", "peak_ms", "total_ms");
++	for (i = 0; i < F2FS_XIAOMI_IO_BUCKETS; i++) {
++		u64 avg = copy[i].count ?
++			div64_u64(copy[i].sum_ns, copy[i].count) : 0;
++
++		off += sysfs_emit_at(buf, off,
++			"%-12s %-10u %-12llu %-12llu %-12llu\n",
++			f2fs_xiaomi_io_names[i], copy[i].count,
++			div64_u64(avg, NSEC_PER_MSEC),
++			div64_u64(copy[i].peak_ns, NSEC_PER_MSEC),
++			div64_u64(copy[i].sum_ns, NSEC_PER_MSEC));
++	}
++	if (include_delay) {
++		off += sysfs_emit_at(buf, off, "delayed(count>=threshold)\n");
++		for (i = 0; i < F2FS_XIAOMI_IO_BUCKETS; i++)
++			off += sysfs_emit_at(buf, off, "%-12s %u\n",
++					     f2fs_xiaomi_io_names[i],
++					     delay[i].count);
++	}
++	return off;
++}
++
++ssize_t f2fs_xiaomi_iostat_show_window(struct f2fs_sb_info *sbi, char *buf)
++{
++	return f2fs_xiaomi_show_stats(sbi, buf, sbi->xiostat.window, true);
++}
++
++ssize_t f2fs_xiaomi_iostat_show_daily(struct f2fs_sb_info *sbi, char *buf)
++{
++	return f2fs_xiaomi_show_stats(sbi, buf, sbi->xiostat.daily, false);
++}
++
++ssize_t f2fs_xiaomi_iostat_show_config(struct f2fs_sb_info *sbi, char *buf)
++{
++	struct f2fs_xiaomi_iostat *iostat = &sbi->xiostat;
++
++	return sysfs_emit(buf, "enabled=%u window_period_s=%llu "
++			 "latency_threshold_ms=%llu\n",
++			 READ_ONCE(iostat->enabled),
++			 div64_u64(READ_ONCE(iostat->window_period_ns),
++				   NSEC_PER_SEC),
++			 div64_u64(READ_ONCE(iostat->latency_threshold_ns),
++				   NSEC_PER_MSEC));
++}
++
++ssize_t f2fs_xiaomi_iostat_store_config(struct f2fs_sb_info *sbi,
++					const char *buf, size_t len)
++{
++	struct f2fs_xiaomi_iostat *iostat = &sbi->xiostat;
++	char *copy, *p, *token;
++	bool changed_period = false, changed_threshold = false;
++	bool changed_enabled = false;
++	unsigned int period_s, threshold_ms, enabled;
++	int ret = 0;
++
++	copy = kstrndup(buf, len, GFP_KERNEL);
++	if (!copy)
++		return -ENOMEM;
++
++	p = strim(copy);
++	while ((token = strsep(&p, " \t\n,")) != NULL) {
++		if (!*token)
++			continue;
++		if (sscanf(token, "window_period_s=%u", &period_s) == 1) {
++			if (!period_s || period_s > 86400) {
++				ret = -EINVAL;
++				goto out;
++			}
++			changed_period = true;
++		} else if (sscanf(token, "latency_threshold_ms=%u",
++				  &threshold_ms) == 1) {
++			if (threshold_ms > 3600000) {
++				ret = -EINVAL;
++				goto out;
++			}
++			changed_threshold = true;
++		} else if (sscanf(token, "enabled=%u", &enabled) == 1) {
++			if (enabled > 1) {
++				ret = -EINVAL;
++				goto out;
++			}
++			changed_enabled = true;
++		} else {
++			ret = -EINVAL;
++			goto out;
++		}
++	}
++
++	if (changed_period) {
++		WRITE_ONCE(iostat->window_period_ns,
++			   (u64)period_s * NSEC_PER_SEC);
++		iostat->window_start_ns = ktime_get_ns();
++	}
++	if (changed_threshold)
++		WRITE_ONCE(iostat->latency_threshold_ns,
++			   (u64)threshold_ms * NSEC_PER_MSEC);
++	if (changed_enabled)
++		f2fs_xiaomi_iostat_set_enabled(sbi, enabled);
++	/* A pure whitespace write is accepted as a no-op. */
++out:
++	kfree(copy);
++	return ret ? ret : len;
++}
++#endif /* CONFIG_XIAOMI_ENHANCED_IOSTAT */
++
++#ifdef CONFIG_F2FS_VIP_FILE
++/* Bound the fallback-selected VIP set; stock uses a larger manager. */
++#define F2FS_VIP_INODES_MAX	8192
++
++/* Return the sorted-array insertion index, or the matching index. */
++static int __f2fs_vip_lower_bound(struct f2fs_sb_info *sbi, u32 ino)
++{
++	u32 lo = 0, hi = sbi->vip.count;
++
++	while (lo < hi) {
++		u32 mid = lo + (hi - lo) / 2;
++
++		if (sbi->vip.inodes[mid] < ino)
++			lo = mid + 1;
++		else
++			hi = mid;
++	}
++	return lo;
++}
++
++int f2fs_vip_bsearch(struct f2fs_sb_info *sbi, u32 ino)
++{
++	unsigned long flags;
++	int index = -ENOENT;
++
++	spin_lock_irqsave(&sbi->vip.lock, flags);
++	if (sbi->vip.count) {
++		int pos = __f2fs_vip_lower_bound(sbi, ino);
++
++		if (pos < sbi->vip.count && sbi->vip.inodes[pos] == ino)
++			index = pos;
++	}
++	spin_unlock_irqrestore(&sbi->vip.lock, flags);
++	return index;
++}
++
++int f2fs_vip_insert(struct f2fs_sb_info *sbi, u32 ino)
++{
++	unsigned long flags;
++	u32 *inodes, *grown;
++	u32 new_capacity;
++	int pos;
++
++	if (!READ_ONCE(sbi->vip.enabled))
++		return 0;
++
++	spin_lock_irqsave(&sbi->vip.lock, flags);
++	pos = __f2fs_vip_lower_bound(sbi, ino);
++	if (pos < sbi->vip.count && sbi->vip.inodes[pos] == ino) {
++		spin_unlock_irqrestore(&sbi->vip.lock, flags);
++		return 0;
++	}
++	if (sbi->vip.count >= F2FS_VIP_INODES_MAX) {
++		spin_unlock_irqrestore(&sbi->vip.lock, flags);
++		return -ENOSPC;
++	}
++	if (sbi->vip.count == sbi->vip.capacity) {
++		new_capacity = sbi->vip.capacity ? sbi->vip.capacity * 2 : 64;
++		if (new_capacity < sbi->vip.capacity ||
++		    new_capacity > 1U << 20) {
++			spin_unlock_irqrestore(&sbi->vip.lock, flags);
++			return -ENOSPC;
++		}
++		inodes = kcalloc(new_capacity, sizeof(*inodes), GFP_ATOMIC);
++		if (!inodes) {
++			spin_unlock_irqrestore(&sbi->vip.lock, flags);
++			return -ENOMEM;
++		}
++		memcpy(inodes, sbi->vip.inodes,
++		       sbi->vip.count * sizeof(*inodes));
++		grown = sbi->vip.inodes;
++		sbi->vip.inodes = inodes;
++		sbi->vip.capacity = new_capacity;
++		kfree(grown);
++	}
++	memmove(&sbi->vip.inodes[pos + 1], &sbi->vip.inodes[pos],
++		(sbi->vip.count - pos) * sizeof(*sbi->vip.inodes));
++	sbi->vip.inodes[pos] = ino;
++	sbi->vip.count++;
++	spin_unlock_irqrestore(&sbi->vip.lock, flags);
++	return 0;
++}
++
++int f2fs_vip_remove(struct f2fs_sb_info *sbi, u32 ino)
++{
++	unsigned long flags;
++	int pos, ret = -ENOENT;
++
++	spin_lock_irqsave(&sbi->vip.lock, flags);
++	pos = __f2fs_vip_lower_bound(sbi, ino);
++	if (pos < sbi->vip.count && sbi->vip.inodes[pos] == ino) {
++		memmove(&sbi->vip.inodes[pos], &sbi->vip.inodes[pos + 1],
++			(sbi->vip.count - pos - 1) * sizeof(*sbi->vip.inodes));
++		sbi->vip.count--;
++		ret = 0;
++	}
++	spin_unlock_irqrestore(&sbi->vip.lock, flags);
++	return ret;
++}
++
++void f2fs_vip_destroy(struct f2fs_sb_info *sbi)
++{
++	unsigned long flags;
++
++	spin_lock_irqsave(&sbi->vip.lock, flags);
++	kfree(sbi->vip.inodes);
++	sbi->vip.inodes = NULL;
++	sbi->vip.count = 0;
++	sbi->vip.capacity = 0;
++	sbi->vip.enabled = false;
++	spin_unlock_irqrestore(&sbi->vip.lock, flags);
++}
++#endif /* CONFIG_F2FS_VIP_FILE */
++
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++/*
++ * The stock allocator needs a paired "ext" UFS LUN and a matching block-layer
++ * hybrid driver.  Neither interface exists in AOSP GKI, and guessing it could
++ * misdirect writes.  Report no capability so F2FS always uses the normal
++ * allocator and remains usable with ordinary single-device UFS layouts.
++ */
++bool f2fs_hw_support_hybrid(struct f2fs_sb_info *sbi)
++{
++	return false;
++}
++
++void f2fs_hw_hybrid_get_avail(struct f2fs_sb_info *sbi, u64 *main_avail,
++			      u64 *ext_avail)
++{
++	*main_avail = 0;
++	*ext_avail = 0;
++}
++
++void f2fs_disable_hybrid(struct f2fs_sb_info *sbi)
++{
++	sbi->hi.main.len = 0;
++	sbi->hi.ext.len = 0;
++}
++
++void f2fs_xiaomi_hybrid_init(struct f2fs_sb_info *sbi)
++{
++	memset(&sbi->hi, 0, sizeof(sbi->hi));
++	sbi->hi.free_ratio = 10;
++	sbi->hi.gc_threshold = 90;
++	sbi->hi.main_new_seg_ratio = 70;
++	sbi->hi.ext_new_seg_ratio = 30;
++}
++#endif /* CONFIG_F2FS_FS_HYBRID_UFS */
+diff --git a/fs/f2fs/xiaomi.h b/fs/f2fs/xiaomi.h
+new file mode 100644
+index 000000000..e8db6e040
+--- /dev/null
++++ b/fs/f2fs/xiaomi.h
+@@ -0,0 +1,133 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _F2FS_XIAOMI_H
++#define _F2FS_XIAOMI_H
++
++#include <linux/errno.h>
++#include <linux/spinlock.h>
++#include <linux/types.h>
++
++struct f2fs_sb_info;
++
++void f2fs_xiaomi_init(struct f2fs_sb_info *sbi);
++void f2fs_xiaomi_destroy(struct f2fs_sb_info *sbi);
++
++#define F2FS_XIAOMI_IO_READ		0
++#define F2FS_XIAOMI_IO_WRITE_SYNC	1
++#define F2FS_XIAOMI_IO_WRITE_ASYNC	2
++#define F2FS_XIAOMI_IO_META		3
++#define F2FS_XIAOMI_IO_OTHER		4
++#define F2FS_XIAOMI_IO_BUCKETS		5
++
++struct f2fs_xiaomi_lat_stats {
++	u64 sum_ns;
++	u64 peak_ns;
++	u32 count;
++};
++
++struct f2fs_xiaomi_iostat {
++	spinlock_t lock;
++	bool enabled;
++	u64 window_period_ns;
++	u64 latency_threshold_ns;
++	u64 window_start_ns;
++	struct f2fs_xiaomi_lat_stats window[F2FS_XIAOMI_IO_BUCKETS];
++	struct f2fs_xiaomi_lat_stats last_window[F2FS_XIAOMI_IO_BUCKETS];
++	struct f2fs_xiaomi_lat_stats daily[F2FS_XIAOMI_IO_BUCKETS];
++	struct f2fs_xiaomi_lat_stats delayed[F2FS_XIAOMI_IO_BUCKETS];
++};
++
++struct f2fs_vip_manager {
++	u32 *inodes;
++	u32 count;
++	u32 capacity;
++	spinlock_t lock;
++	bool enabled;
++};
++
++struct f2fs_hybrid_die {
++	u32 start;
++	u32 start_segno;
++	u32 start_secno;
++	u32 len;
++	u32 free;
++	u32 free_segs;
++	u32 dirty_segs;
++	u32 gc_selected_count;
++	u32 gc_count;
++};
++
++struct f2fs_hybrid_info {
++	struct f2fs_hybrid_die main;
++	struct f2fs_hybrid_die ext;
++	u32 free_ratio;
++	u32 gc_threshold;
++	u64 large_file_threshold;
++	u32 main_new_seg_ratio;
++	u32 ext_new_seg_ratio;
++	u32 gc_alloc_mode;
++};
++
++#ifdef CONFIG_XIAOMI_ENHANCED_IOSTAT
++void f2fs_xiaomi_iostat_init(struct f2fs_sb_info *sbi);
++void f2fs_xiaomi_iostat_destroy(struct f2fs_sb_info *sbi);
++void f2fs_xiaomi_iostat_reset(struct f2fs_sb_info *sbi);
++void f2fs_xiaomi_iostat_record(struct f2fs_sb_info *sbi, unsigned int bucket,
++			       u64 latency_ns);
++bool f2fs_xiaomi_iostat_enabled(struct f2fs_sb_info *sbi);
++int f2fs_xiaomi_iostat_set_enabled(struct f2fs_sb_info *sbi, bool enabled);
++ssize_t f2fs_xiaomi_iostat_show_window(struct f2fs_sb_info *sbi, char *buf);
++ssize_t f2fs_xiaomi_iostat_show_daily(struct f2fs_sb_info *sbi, char *buf);
++ssize_t f2fs_xiaomi_iostat_show_config(struct f2fs_sb_info *sbi, char *buf);
++ssize_t f2fs_xiaomi_iostat_store_config(struct f2fs_sb_info *sbi,
++					const char *buf, size_t len);
++#else
++static inline void f2fs_xiaomi_iostat_init(struct f2fs_sb_info *sbi) {}
++static inline void f2fs_xiaomi_iostat_destroy(struct f2fs_sb_info *sbi) {}
++static inline void f2fs_xiaomi_iostat_reset(struct f2fs_sb_info *sbi) {}
++static inline void f2fs_xiaomi_iostat_record(struct f2fs_sb_info *sbi,
++		unsigned int bucket, u64 latency_ns) {}
++#endif
++
++#ifdef CONFIG_F2FS_VIP_FILE
++int f2fs_vip_bsearch(struct f2fs_sb_info *sbi, u32 ino);
++int f2fs_vip_insert(struct f2fs_sb_info *sbi, u32 ino);
++int f2fs_vip_remove(struct f2fs_sb_info *sbi, u32 ino);
++void f2fs_vip_destroy(struct f2fs_sb_info *sbi);
++#else
++static inline int f2fs_vip_bsearch(struct f2fs_sb_info *sbi, u32 ino)
++{
++	return -ENOENT;
++}
++static inline int f2fs_vip_insert(struct f2fs_sb_info *sbi, u32 ino)
++{
++	return 0;
++}
++static inline int f2fs_vip_remove(struct f2fs_sb_info *sbi, u32 ino)
++{
++	return 0;
++}
++static inline void f2fs_vip_destroy(struct f2fs_sb_info *sbi) {}
++#endif
++
++#ifdef CONFIG_F2FS_FS_HYBRID_UFS
++void f2fs_xiaomi_hybrid_init(struct f2fs_sb_info *sbi);
++bool f2fs_hw_support_hybrid(struct f2fs_sb_info *sbi);
++void f2fs_hw_hybrid_get_avail(struct f2fs_sb_info *sbi, u64 *main_avail,
++			      u64 *ext_avail);
++void f2fs_disable_hybrid(struct f2fs_sb_info *sbi);
++#else
++static inline void f2fs_xiaomi_hybrid_init(struct f2fs_sb_info *sbi) {}
++static inline bool f2fs_hw_support_hybrid(struct f2fs_sb_info *sbi)
++{
++	return false;
++}
++static inline void f2fs_hw_hybrid_get_avail(struct f2fs_sb_info *sbi,
++		u64 *main_avail, u64 *ext_avail)
++{
++	*main_avail = 0;
++	*ext_avail = 0;
++}
++static inline void f2fs_disable_hybrid(struct f2fs_sb_info *sbi) {}
++#endif
++
++#endif /* _F2FS_XIAOMI_H */
+diff --git a/include/trace/events/f2fs.h b/include/trace/events/f2fs.h
+index dbea02025..4990f694e 100644
+--- a/include/trace/events/f2fs.h
++++ b/include/trace/events/f2fs.h
+@@ -6,10 +6,20 @@
+ #define _TRACE_F2FS_H
+ 
+ #include <linux/tracepoint.h>
++#include <linux/ioprio.h>
++#include <linux/sched.h>
+ #include <uapi/linux/f2fs.h>
+ 
+ #define show_dev(dev)		MAJOR(dev), MINOR(dev)
+ #define show_dev_ino(entry)	show_dev(entry->dev), (unsigned long)entry->ino
++#define show_lock_name(lock)						\
++	__print_symbolic(lock,						\
++		{ LOCK_NAME_CP_RWSEM,		"cp_rwsem" },		\
++		{ LOCK_NAME_NODE_CHANGE,	"node_change" },	\
++		{ LOCK_NAME_NODE_WRITE,		"node_write" },		\
++		{ LOCK_NAME_GC_LOCK,		"gc_lock" },		\
++		{ LOCK_NAME_CP_GLOBAL,		"cp_global" },		\
++		{ LOCK_NAME_IO_RWSEM,		"io_rwsem" })
+ 
+ TRACE_DEFINE_ENUM(NODE);
+ TRACE_DEFINE_ENUM(DATA);
+@@ -2404,6 +2414,159 @@ DEFINE_EVENT(f2fs__rw_end, f2fs_datawrite_end,
+ 	TP_ARGS(inode, offset, bytes)
+ );
+ 
++TRACE_EVENT(f2fs_lock_elapsed_time,
++
++	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
++		bool is_write, struct task_struct *p, int ioprio,
++		unsigned long long total_time,
++		unsigned long long running_time,
++		unsigned long long runnable_time,
++		unsigned long long io_sleep_time,
++		unsigned long long other_time),
++
++	TP_ARGS(sbi, lock_name, is_write, p, ioprio, total_time, running_time,
++		runnable_time, io_sleep_time, other_time),
++
++	TP_STRUCT__entry(
++		__field(dev_t, dev)
++		__array(char, comm, TASK_COMM_LEN)
++		__field(pid_t, pid)
++		__field(int, prio)
++		__field(int, ioprio_class)
++		__field(int, ioprio_data)
++		__field(unsigned int, lock_name)
++		__field(bool, is_write)
++		__field(unsigned long long, total_time)
++		__field(unsigned long long, running_time)
++		__field(unsigned long long, runnable_time)
++		__field(unsigned long long, io_sleep_time)
++		__field(unsigned long long, other_time)
++	),
++
++	TP_fast_assign(
++		__entry->dev		= sbi->sb->s_dev;
++		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
++		__entry->pid		= p->pid;
++		__entry->prio		= p->prio;
++		__entry->ioprio_class	= IOPRIO_PRIO_CLASS(ioprio);
++		__entry->ioprio_data	= IOPRIO_PRIO_DATA(ioprio);
++		__entry->lock_name	= lock_name;
++		__entry->is_write	= is_write;
++		__entry->total_time	= total_time;
++		__entry->running_time	= running_time;
++		__entry->runnable_time	= runnable_time;
++		__entry->io_sleep_time	= io_sleep_time;
++		__entry->other_time	= other_time;
++	),
++
++	TP_printk("dev = (%d,%d), comm: %s, pid: %d, prio: %d, "
++		"ioprio_class: %d, ioprio_data: %d, lock_name: %s, "
++		"lock_type: %s, total: %llu, running: %llu, "
++		"runnable: %llu, io_sleep: %llu, other: %llu",
++		show_dev(__entry->dev),
++		__entry->comm,
++		__entry->pid,
++		__entry->prio,
++		__entry->ioprio_class,
++		__entry->ioprio_data,
++		show_lock_name(__entry->lock_name),
++		__entry->is_write ? "wlock" : "rlock",
++		__entry->total_time,
++		__entry->running_time,
++		__entry->runnable_time,
++		__entry->io_sleep_time,
++		__entry->other_time)
++);
++
++DECLARE_EVENT_CLASS(f2fs_priority_update,
++
++	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
++		bool is_write, struct task_struct *p, int orig_prio,
++		int new_prio),
++
++	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio),
++
++	TP_STRUCT__entry(
++		__field(dev_t, dev)
++		__array(char, comm, TASK_COMM_LEN)
++		__field(pid_t, pid)
++		__field(unsigned int, lock_name)
++		__field(bool, is_write)
++		__field(int, orig_prio)
++		__field(int, new_prio)
++	),
++
++	TP_fast_assign(
++		__entry->dev		= sbi->sb->s_dev;
++		memcpy(__entry->comm, p->comm, TASK_COMM_LEN);
++		__entry->pid		= p->pid;
++		__entry->lock_name	= lock_name;
++		__entry->is_write	= is_write;
++		__entry->orig_prio	= orig_prio;
++		__entry->new_prio	= new_prio;
++	),
++
++	TP_printk("dev = (%d,%d), comm: %s, pid: %d, lock_name: %s, "
++		"lock_type: %s, orig_prio: %d, new_prio: %d",
++		show_dev(__entry->dev),
++		__entry->comm,
++		__entry->pid,
++		show_lock_name(__entry->lock_name),
++		__entry->is_write ? "wlock" : "rlock",
++		__entry->orig_prio,
++		__entry->new_prio)
++);
++
++DEFINE_EVENT(f2fs_priority_update, f2fs_priority_uplift,
++
++	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
++		bool is_write, struct task_struct *p, int orig_prio,
++		int new_prio),
++
++	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio)
++);
++
++DEFINE_EVENT(f2fs_priority_update, f2fs_priority_restore,
++
++	TP_PROTO(struct f2fs_sb_info *sbi, enum f2fs_lock_name lock_name,
++		bool is_write, struct task_struct *p, int orig_prio,
++		int new_prio),
++
++	TP_ARGS(sbi, lock_name, is_write, p, orig_prio, new_prio)
++);
++
++/*
++ * Stock dash 6.6.118 exposes this tracepoint for fault_report.ko.  The
++ * module finds it by name through for_each_kernel_tracepoint(), so the
++ * prototype must stay in sync with the stock kernel:
++ *   (sb, err_code, function, line)
++ */
++TRACE_EVENT(f2fs_fault_report,
++
++	TP_PROTO(struct super_block *sb, unsigned int err_code,
++		const char *function, unsigned int line),
++
++	TP_ARGS(sb, err_code, function, line),
++
++	TP_STRUCT__entry(
++		__field(dev_t, dev)
++		__field(unsigned int, err_code)
++		__string(func, function)
++		__field(unsigned int, line)
++	),
++
++	TP_fast_assign(
++		__entry->dev = sb->s_dev;
++		__entry->err_code = err_code;
++		__assign_str(func, function);
++		__entry->line = line;
++	),
++
++	TP_printk("dev=(%d,%d) err_code=%u func=%s line=%u",
++		show_dev(__entry->dev), __entry->err_code,
++		__get_str(func), __entry->line)
++);
++
+ #endif /* _TRACE_F2FS_H */
+ 
+  /* This part must be outside protection */
+diff --git a/include/trace/hooks/fs.h b/include/trace/hooks/fs.h
+index d5fcb5357..6e8c22dff 100644
+--- a/include/trace/hooks/fs.h
++++ b/include/trace/hooks/fs.h
+@@ -28,6 +28,14 @@ DECLARE_HOOK(android_vh_f2fs_restore_priority,
+ 	TP_PROTO(struct task_struct *p, int saved_prio),
+ 	TP_ARGS(p, saved_prio));
+ 
++DECLARE_HOOK(android_vh_f2fs_is_hiprio_task,
++	TP_PROTO(int *ret),
++	TP_ARGS(ret));
++
++DECLARE_HOOK(android_vh_f2fs_is_usr_task,
++	TP_PROTO(int *ret),
++	TP_ARGS(ret));
++
+ DECLARE_HOOK(android_vh_ep_create_wakeup_source,
+ 	TP_PROTO(char *name, int len),
+ 	TP_ARGS(name, len));

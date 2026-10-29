@@ -1,0 +1,60 @@
+diff --git a/arch/arm64/kernel/entry-common.c b/arch/arm64/kernel/entry-common.c
+index b61bd14d5..ca8443efc 100644
+--- a/arch/arm64/kernel/entry-common.c
++++ b/arch/arm64/kernel/entry-common.c
+@@ -13,6 +13,7 @@
+ #include <linux/sched.h>
+ #include <linux/sched/debug.h>
+ #include <linux/thread_info.h>
++#include <trace/hooks/dtask.h>
+ 
+ #include <asm/cpufeature.h>
+ #include <asm/daifflags.h>
+@@ -132,11 +133,13 @@ static __always_inline void __exit_to_user_mode(void)
+ static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
+ {
+ 	unsigned long flags;
++	int thread_lazy_resched_flag = 0;
+ 
+ 	local_daif_mask();
+ 
+ 	flags = read_thread_flags();
+-	if (unlikely(flags & _TIF_WORK_MASK))
++	trace_android_vh_restore_curr_resched(&flags, &thread_lazy_resched_flag);
++	if (unlikely(flags & _TIF_WORK_MASK) || thread_lazy_resched_flag)
+ 		do_notify_resume(regs, flags);
+ 
+ 	lockdep_sys_exit();
+diff --git a/arch/arm64/kernel/signal.c b/arch/arm64/kernel/signal.c
+index e5ed5d748..3ada0eb5e 100644
+--- a/arch/arm64/kernel/signal.c
++++ b/arch/arm64/kernel/signal.c
+@@ -1283,11 +1283,16 @@ static void do_signal(struct pt_regs *regs)
+ void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
+ {
+ 	int thread_lazy_flag = 0;
++	int thread_lazy_resched_flag = 0;
+ 
++	trace_android_vh_restore_curr_resched(&thread_flags,
++					      &thread_lazy_resched_flag);
+ 	do {
+ 		trace_android_vh_read_lazy_flag(&thread_lazy_flag, &thread_flags);
+-		if ((thread_flags & _TIF_NEED_RESCHED) || thread_lazy_flag) {
++		if ((thread_flags & _TIF_NEED_RESCHED) || thread_lazy_flag ||
++				thread_lazy_resched_flag) {
+ 			/* Unmask Debug and SError for the next task */
++			thread_lazy_resched_flag = 0;
+ 			local_daif_restore(DAIF_PROCCTX_NOIRQ);
+ 
+ 			schedule();
+@@ -1315,7 +1320,9 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
+ 
+ 		local_daif_mask();
+ 		thread_flags = read_thread_flags();
+-	} while (thread_flags & _TIF_WORK_MASK);
++		trace_android_vh_restore_curr_resched(&thread_flags,
++						      &thread_lazy_resched_flag);
++	} while (thread_flags & _TIF_WORK_MASK || thread_lazy_resched_flag);
+ }
+ 
+ unsigned long __ro_after_init signal_minsigstksz;

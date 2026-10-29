@@ -1,0 +1,35 @@
+[submodule "BakaSU"]
+	path = BakaSU
+	url = https://github.com/Baka-SU/BakaSU.git
+[submodule "third_party/sukisu-patch"]
+	path = third_party/sukisu-patch
+	url = https://github.com/SukiSU-Ultra/SukiSU_patch.git
+	branch = main
+[submodule "third_party/dash-droidspaces"]
+	path = third_party/dash-droidspaces
+	url = https://github.com/lakitu12/kernel_dash_droidspaces.git
+	branch = main
+[submodule "third_party/hyperos-lz4kd"]
+	path = third_party/hyperos-lz4kd
+	url = https://github.com/2108282/hyperos-lz4kd.git
+	branch = main
+[submodule "third_party/cc-dash-build"]
+	path = third_party/cc-dash-build
+	url = https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_build.git
+	branch = dash-w-oss
+[submodule "third_party/cc-dash-device-modules"]
+	path = third_party/cc-dash-device-modules
+	url = https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_device_modules.git
+	branch = dash-w-oss
+[submodule "third_party/cc-dash-bazel-rules"]
+	path = third_party/cc-dash-bazel-rules
+	url = https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_bazel_mgk_rules.git
+	branch = lineage-23.2
+[submodule "third_party/susfs4ksu"]
+	path = third_party/susfs4ksu
+	url = https://gitlab.com/simonpunk/susfs4ksu.git
+	branch = gki-android15-6.6
+[submodule "third_party/cc-dash-mtk-modules"]
+	path = third_party/cc-dash-mtk-modules
+	url = https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules.git
+	branch = dash-w-oss

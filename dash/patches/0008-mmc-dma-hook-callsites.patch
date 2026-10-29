@@ -1,0 +1,161 @@
+diff --git a/drivers/dma-buf/heaps/system_heap.c b/drivers/dma-buf/heaps/system_heap.c
+index 78fcce7a1..38d11cba8 100644
+--- a/drivers/dma-buf/heaps/system_heap.c
++++ b/drivers/dma-buf/heaps/system_heap.c
+@@ -11,6 +11,7 @@
+  */
+ 
+ #include <linux/dma-buf.h>
++#include <trace/hooks/dmabuf.h>
+ #include <linux/dma-mapping.h>
+ #include <linux/dma-heap.h>
+ #include <linux/err.h>
+@@ -370,13 +371,22 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
+ 	struct list_head pages;
+ 	struct page *page, *tmp_page;
+ 	int i, ret = -ENOMEM;
++	unsigned long long stime = 0;
+ 
+-	if (len / PAGE_SIZE > totalram_pages())
++	trace_android_vh_dma_heap_buffer_alloc_lat_start(&stime);
++
++	if (len / PAGE_SIZE > totalram_pages()) {
++		trace_android_vh_dma_heap_buffer_alloc_lat_end(stime, len,
++							       ERR_PTR(-ENOMEM));
+ 		return ERR_PTR(-ENOMEM);
++	}
+ 
+ 	buffer = kzalloc(sizeof(*buffer), GFP_KERNEL);
+-	if (!buffer)
++	if (!buffer) {
++		trace_android_vh_dma_heap_buffer_alloc_lat_end(stime, len,
++							       ERR_PTR(-ENOMEM));
+ 		return ERR_PTR(-ENOMEM);
++	}
+ 
+ 	INIT_LIST_HEAD(&buffer->attachments);
+ 	mutex_init(&buffer->lock);
+@@ -440,6 +450,7 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
+ 		dma_unmap_sgtable(dma_heap_get_dev(heap), table, DMA_BIDIRECTIONAL, 0);
+ 	}
+ 
++	trace_android_vh_dma_heap_buffer_alloc_lat_end(stime, len, dmabuf);
+ 	return dmabuf;
+ 
+ free_pages:
+@@ -454,6 +465,8 @@ static struct dma_buf *system_heap_do_allocate(struct dma_heap *heap,
+ 		__free_pages(page, compound_order(page));
+ 	kfree(buffer);
+ 
++	trace_android_vh_dma_heap_buffer_alloc_lat_end(stime, len,
++						       ERR_PTR(ret));
+ 	return ERR_PTR(ret);
+ }
+ 
+diff --git a/drivers/mmc/core/block.c b/drivers/mmc/core/block.c
+index 1f7bbc9dc..46ec35207 100644
+--- a/drivers/mmc/core/block.c
++++ b/drivers/mmc/core/block.c
+@@ -1032,8 +1032,10 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
+ 	int err;
+ 	struct mmc_blk_data *main_md = dev_get_drvdata(&host->card->dev);
+ 
+-	if (md->reset_done & type)
++	if (md->reset_done & type) {
++		trace_android_vh_mmc_blk_reset(host, -EEXIST);
+ 		return -EEXIST;
++	}
+ 
+ 	md->reset_done |= type;
+ 	err = mmc_hw_reset(host->card);
+@@ -1043,15 +1045,20 @@ static int mmc_blk_reset(struct mmc_blk_data *md, struct mmc_host *host,
+ 	 * in that case.
+ 	 */
+ 	main_md->part_curr = err ? MMC_BLK_PART_INVALID : main_md->part_type;
+-	if (err)
++	if (err) {
++		trace_android_vh_mmc_blk_reset(host, err);
+ 		return err;
++	}
+ 	/* Ensure we switch back to the correct partition */
+-	if (mmc_blk_part_switch(host->card, md->part_type))
++	if (mmc_blk_part_switch(host->card, md->part_type)) {
+ 		/*
+ 		 * We have failed to get back into the correct
+ 		 * partition, so we need to abort the whole request.
+ 		 */
++		trace_android_vh_mmc_blk_reset(host, -ENODEV);
+ 		return -ENODEV;
++	}
++	trace_android_vh_mmc_blk_reset(host, 0);
+ 	return 0;
+ }
+ 
+diff --git a/drivers/mmc/core/sd.c b/drivers/mmc/core/sd.c
+index a06f3011e..198ed3e0c 100644
+--- a/drivers/mmc/core/sd.c
++++ b/drivers/mmc/core/sd.c
+@@ -20,6 +20,7 @@
+ #include <linux/mmc/card.h>
+ #include <linux/mmc/mmc.h>
+ #include <linux/mmc/sd.h>
++#include <trace/hooks/mmc.h>
+ 
+ #include "core.h"
+ #include "card.h"
+@@ -1899,6 +1900,7 @@ int mmc_attach_sd(struct mmc_host *host)
+ 		goto remove_card;
+ 
+ 	mmc_claim_host(host);
++	trace_android_vh_mmc_attach_sd(host, 0);
+ 	return 0;
+ 
+ remove_card:
+@@ -1911,5 +1913,6 @@ int mmc_attach_sd(struct mmc_host *host)
+ 	pr_err("%s: error %d whilst initialising SD card\n",
+ 		mmc_hostname(host), err);
+ 
++	trace_android_vh_mmc_attach_sd(host, err);
+ 	return err;
+ }
+diff --git a/drivers/mmc/core/slot-gpio.c b/drivers/mmc/core/slot-gpio.c
+index 8791656e9..9e58d2124 100644
+--- a/drivers/mmc/core/slot-gpio.c
++++ b/drivers/mmc/core/slot-gpio.c
+@@ -11,6 +11,7 @@
+ #include <linux/jiffies.h>
+ #include <linux/mmc/host.h>
+ #include <linux/mmc/slot-gpio.h>
++#include <trace/hooks/mmc.h>
+ #include <linux/module.h>
+ #include <linux/slab.h>
+ 
+@@ -32,6 +33,7 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
+ 	struct mmc_host *host = dev_id;
+ 	struct mmc_gpio *ctx = host->slot.handler_priv;
+ 
++	trace_android_vh_mmc_gpio_cd_irqt(host);
+ 	host->trigger_card_event = true;
+ 	mmc_detect_change(host, msecs_to_jiffies(ctx->cd_debounce_delay_ms));
+ 
+diff --git a/drivers/mmc/host/sdhci.c b/drivers/mmc/host/sdhci.c
+index 9796a3cb3..5d8e145d2 100644
+--- a/drivers/mmc/host/sdhci.c
++++ b/drivers/mmc/host/sdhci.c
+@@ -27,6 +27,7 @@
+ #include <linux/leds.h>
+ 
+ #include <linux/mmc/mmc.h>
++#include <trace/hooks/mmc.h>
+ #include <linux/mmc/host.h>
+ #include <linux/mmc/card.h>
+ #include <linux/mmc/sdio.h>
+@@ -2472,6 +2473,8 @@ static int sdhci_get_cd(struct mmc_host *mmc)
+ 	struct sdhci_host *host = mmc_priv(mmc);
+ 	int gpio_cd = mmc_gpio_get_cd(mmc);
+ 
++	trace_android_vh_sdhci_get_cd(host);
++
+ 	if (host->flags & SDHCI_DEVICE_DEAD)
+ 		return 0;
+ 

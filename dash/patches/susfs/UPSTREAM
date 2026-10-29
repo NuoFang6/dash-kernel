@@ -1,0 +1,9 @@
+repo: https://gitlab.com/simonpunk/susfs4ksu
+branch: gki-android15-6.6
+commit: 0606e19afae93ffc88e53883dbf3cfced62a7b59
+
+files:
+  kernel_patches/50_add_susfs_in_gki-android15-6.6.patch -> ../../../0003-susfs-gki-android15-6.6.patch
+  kernel_patches/fs/susfs.c -> susfs.c
+  kernel_patches/include/linux/susfs.h -> susfs.h
+  kernel_patches/include/linux/susfs_def.h -> susfs_def.h
