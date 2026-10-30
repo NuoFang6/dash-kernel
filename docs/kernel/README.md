@@ -2,10 +2,11 @@
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
 
-当前目标基线是 **AOSP `android15-6.6-2026-01_r1`（6.6.118）**，不是早期
-6.6.144 实验构建。设备 stock 为
+当前内核源码同步到 **AOSP `android15-6.6-2026-10_r2`（6.6.143）**，
+clang 使用预编译 **r614150（23.0.1，PGO/BOLT/LTO）**。设备 stock 为
 `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支
-`android15-6.6`，KMI 字符串 `android15-8`，4K 页。
+`android15-6.6`，KMI 字符串 `android15-8`，4K 页；stock 仍是 6.6.118，
+当前自编内核为 6.6.143。
 
 ## 目录
 
@@ -18,7 +19,7 @@ patches/susfs/                SUSFS 内核侧新增文件
 patches/vendor-hooks/         node_cache/os_cpu_qi 的 13 个 trace hooks
 scripts/                      同步、打补丁、配置、构建、boot 打包和静态检查
 src/aosp/common/              clean AOSP 浅克隆，可随时重置
-toolchains/                   clang r510928
+toolchains/                   clang r614150（clang 23.0.1）
 out/                          构建目录和 artifacts
 ```
 
@@ -27,8 +28,8 @@ out/                          构建目录和 artifacts
 ```bash
 cd dash
 make deps       # Arch/CachyOS 依赖检查
-make toolchain  # 获取固定 clang r510928
-make source     # 浅克隆/更新 AOSP 到 6.6.118 标签
+make toolchain  # 获取固定 clang r614150
+make source     # 浅克隆/更新 AOSP 到 2026-10_r2（6.6.143）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
 make build      # Image / Image.lz4 / vmlinux / System.map
@@ -36,6 +37,12 @@ make boot       # 从 stock boot_b 继承生成 boot.img
 bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
 make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.md（给 LLM 的避坑包）
 ```
+
+> **6.6.143 补丁序列（2026-10-30 已重生成）**：`patches/series` 现在是
+> `0000-6.6.143-dash-integration.patch`（整树 squash），旧 6.6.118 拆分系列
+> 已移入 `patches/legacy-6.6.118/`。已在干净 bf768 worktree 验证 apply 后
+> 84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致，无 warning。
+> `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动。
 
 产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
 
@@ -62,9 +69,11 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - Xiaomi F2FS hybrid sysfs ABI；hybrid 在缺少原厂 block 映射时安全回退为
   “不支持”，不会重定向写入。
 - Xiaomi EROFS iostat sysfs。
-- stock core tracepoint 1860/1860 对齐：51 个 stock-only hook（含 0008/0009
-  补齐的 MMC/DMA/lazy-resched 调用点）、2 个 LZ4 事件；GKI dynamic
-  task_struct（`arch_task_struct_size`、`vendor_data_pad`、1024B vendor 上限）。
+- stock core tracepoint：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
+  上游额外 46 个（合计 1906）。51 个 stock-only hook（含 0008/0009 补齐的
+  MMC/DMA/lazy-resched 调用点）和 2 个 LZ4 事件已恢复，LZ4 已实测触发；
+  GKI dynamic task_struct（`arch_task_struct_size`、`vendor_data_pad`、
+  1024B vendor 上限）。
 - `TRIM_UNUSED_KSYMS=y`，使用 stock 导出表作为 ABI 白名单。
 
 详细差异、验证分层和未覆盖项见：
@@ -73,6 +82,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - [TEST_REPORT.md](TEST_REPORT.md)
 - [BOOT_PACKAGING.md](BOOT_PACKAGING.md)
 - [OPEN_ISSUES.md](OPEN_ISSUES.md)
+- [ZRAM_EXTM.md](ZRAM_EXTM.md)：内存扩展/ExtM 与 lz4kd 的实机结论（stock
+  vendor zram + crypto lz4kd，不替换 zram 模块）
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
   [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成，供 LLM 快速避坑。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。
@@ -106,10 +117,10 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   footer、只替换 kernel 生成，已实机启动成功。不要用 mkbootimg 重建或清空 AVB
   尾部，详见 [BOOT_PACKAGING.md](BOOT_PACKAGING.md)。
 - 当前 boot 镜像保留原厂 header v4/空 ramdisk/空 cmdline 和 OEM 签名的
-  vbmeta/footer，只把 kernel 换成自编。本次没有写 `init_boot`/`vendor_boot`/
-  `dtbo`/`vbmeta`；但当前设备的 `init_boot` 本身就是交接前的 KernelSU patched
-  版本（含 `kernelsu.ko`），不是 stock，且与交接包只差 `stock_image.sha1`。
-  不要把 init_boot 当原厂恢复源。不要刷紧凑镜像或改 vbmeta flags，否则 bootloop。
+  vbmeta/footer，只把 kernel 换成自编。本次没有写 `vendor_boot`/`dtbo`/`vbmeta`。
+  `init_boot_a/b` 已于 2026-10-30 还原为 OS4.0.3.0 官方镜像（sha256
+  `3d2062ae…`，两槽相同），设备启动和内置 KSU root 正常；KernelSU patched
+  旧副本只留作历史回滚。不要刷紧凑镜像或改 vbmeta flags，否则 bootloop。
 - AnyKernel/LunarKernel 也采用同一思路：基于当前 stock boot 用 magiskboot 重封并
   写满分区，保留 AVB 元数据；它的可用不代表存在额外签名权限。
 - 内建 BakaSU v4.2.0-rc3 已替代 stock 的 `kernelsu` LKM；584 个 stock 非 LKM

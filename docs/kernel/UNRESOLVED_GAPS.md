@@ -122,7 +122,8 @@
 
 ## 已完成、不要重复列为缺口的项
 
-- core tracepoint 1860/1860；51 个 hook（含 7 个原 export-only 的调用点）。
+- core tracepoint：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143 另含
+  46 个上游新增（合计 1906），2 个 LZ4 事件已恢复并实测触发。
 - GKI dynamic task_struct。
 - F2FS lock/priority、`gc_lock` 全调用点、VIP 接口/保守策略、fault_report
   同步+异步。

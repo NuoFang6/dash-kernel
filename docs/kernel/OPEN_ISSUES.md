@@ -20,12 +20,14 @@
 4. **sysfs 数值已补采（2026-10-29 晚）。** root（KSU 域）已成功读取
    node_cache/QoS/F2FS/EROFS 数值，系统始终保持 Enforcing，没有关闭 SELinux；
    具体值见 `TEST_REPORT.md` §8。此前读失败是权限/上下文问题，不是节点未注册。
-5. **恢复资产。** 完整 `boot_a`、`boot_b`、`vbmeta_b`、`oops` 备份和当前
-   KSU init_boot 副本在 `out/device-backup/`；任何时候不要写 `lk`、`super` 或
-   用户数据。恢复 boot 必须使用完整 64MB 分区镜像。
-6. **init_boot 不是 stock。** 当前 `init_boot_b` 与交接包一致地带有 KernelSU
-   init wrapper/`kernelsu.ko`，但当前比交接包少一个 `stock_image.sha1`（仅 41B）。
-   本次未写 init_boot；不要把该分区当原厂恢复源，恢复用 `out/device-backup/`。
+5. **恢复资产。** 完整 `boot_a`、`boot_b`、`vbmeta_b`、`oops` 备份在
+   `out/device-backup/`；还原前的 KernelSU patched init_boot A/B 副本在
+   `/home/nuofang/t5m/backup/init_boot_{a,b}_current_20261030.img`。任何时候
+   不要写 `lk`、`super` 或用户数据。恢复 boot 必须使用完整 64MB 分区镜像。
+6. **init_boot 已还原官方。** 2026-10-30 已把 `init_boot_a/b` 都写回
+   OS4.0.3.0 payload 中的 `init_boot`（sha256 `3d2062ae…`）；实机启动、
+   内置 KSU root、zram ExtM 均正常。旧的 KernelSU patched 副本只作回滚，
+   不再把 init_boot 视为未还原项。
 
 ### hooks 分组测试（未来改动时）
 
@@ -136,19 +138,39 @@ Android 上层 `libmemfd`/ashmem 用户态回归测试。
 风险，且当前任务的可选优先级低于已验证的 GKI 构建。后续如需官方 UFS，应单独
 做厂商 UFS 驱动/设备树/初始化链路测试。
 
-### lz4kd/zram
+### lz4kd/zram（2026-10-30 已闭环）
 
-未加入。没有把“注册算法”包装成“delta zram 实际调用”。后续需要先确认 stock
-zram 的 `system_dlkm/zram.ko` 加载位置和压缩后端 ABI。
+已用实机确认：stock vendor zram 的 zcomp 走 crypto API，本内核注册了
+`lz4kd-generic`（type=compression），所以无需替换 zram 模块，直接在 zram
+未初始化时 `echo lz4kd > /sys/block/zram0/comp_algorithm` 即可选中；当前
+Scene 开机配置已选中 `[lz4kd]`。
+
+同时确认本机“内存扩展”是小米 ExtM，宿主是 vendor_boot 里的 ExtM 版
+`zram.ko`（含 xswapd/zgroup/mctrl/smart_cache）。此前为了 lz4kd 而
+rmmod + insmod 自编 zram 模块会直接废掉 ExtM（`backing_dev=none`、无
+`xswapd0`），不要再这样做。完整链路、启动时序、回写验证和恢复步骤见
+[ZRAM_EXTM.md](ZRAM_EXTM.md)。
+
+### 6.6.143 偏离项状态（2026-10-30）
+
+- **ThinLTO**：已构建并实机启动；`pid.o` 为 LLVM bitcode、`.cmd` 含
+  `-flto=thin`。尚无性能/功耗 A/B，不能声明收益。
+- **AutoFDO**：未启用，需要先采集 profile；按当前约定跳过。
+- **pid_max clamp**：已生效并实机验证，32768 为硬上限；这是有意偏离 stock，
+  用于规避 DroidSpaces 的 0x8000 PID 掩码 bug。
+- **补丁序列**：已重生成 `patches/0000-6.6.143-dash-integration.patch`；
+  旧 6.6.118 系列归档，不再参与构建。
 
 ### 仍缺的 stock-only 实现（2026-10-30 复核）
 
-- **stock core tracepoint 已对齐**：当前 `__traceiter_*` 与 stock 均为 1860 个，
-  差集为 0。补丁 `0007-stock-parity-hooks.patch` 从 AOSP
+- **stock core tracepoint 已对齐**：stock 的 1860 个 `__traceiter_*` 全部存在；
+  6.6.143 上游额外 46 个，当前共 1906 个（missing=0，extra 均为上游新增）。
+  补丁 `0007-stock-parity-hooks.patch` 从 AOSP
   `android15-6.6-2026-10_r2` 回移了 51 个缺失 hook，其中 44 个同时回移调用点；
   剩余 7 个 export-only hook 已在 `0008`/`0009` 补上调用点
   （MMC/DMA/lazy resched），当前所有目标 hook 都有调用点。
-  2 个 LZ4 事件按 stock BTF 字段在 EROFS LZ4 解压路径实现，已实测触发。
+  2 个 LZ4 事件按 stock BTF 字段在 EROFS LZ4 解压路径实现，已实测触发
+  （2026-10-30 6.6.143 同步时曾丢失，已恢复）。
   这些 hook 默认无注册者，回调路径需要厂商模块主动注册；本构建只保证事件/
   符号/调用点与 stock 形状一致。
 - **SCSI fastdiscard 未实现**：stock 有 `CONFIG_SCSI_DISCARD` /

@@ -10,9 +10,10 @@
 |---|---|
 | 设备 | dash / REDMI Turbo 5 Max / MT6991 |
 | stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.118-4k #29`（AOSP `android15-6.6-2026-01_r1` / `f9c84f40`） |
-| `boot_b` | `a28344f9296fb9796b2c8dc231812c59aa76770d069158897d1305dc55ab7cac` |
-| 模块 | 585 个（584 个 stock 非 LKM + `mkp`）；KSU 内建，`kernelsu` LKM 不加载 |
+| 当前内核 | `6.6.143-4k #3`（AOSP `android15-6.6-2026-10_r2` / `bf768be0`，clang r614150，ThinLTO） |
+| `boot_b` | `5d4e1ab14785fff3379520f711ee5b765285cf8f58145bddd1e74df15546c93c` |
+| `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
+| 模块 | 586 个（当前实机加载；638 个 stock 清单 `hard_missing=0`）；KSU 内建 |
 | 静态检查 | KCFI 13/13；638 stock 模块 `hard_missing=0 weak_missing=0` |
 | 安全 | SELinux `Enforcing`；SUSFS v2.3.0，9 项特性 |
 
@@ -26,10 +27,11 @@
   接入 trace wrapper；真机验证 uplift/restore 和 lock elapsed；
 - F2FS VIP：`android_vh_f2fs_is_hiprio_task/usr_task` hook + 保守 fallback（有用户地址空间
   的 RT/negative-nice 写打开，上限 8192）；真机验证 `vip_inode_count` 增删和开关清零。
-- stock core tracepoint 1860/1860 对齐：51 个 stock-only hook、2 个 LZ4 事件；
-  7 个 export-only hook 已补 MMC/DMA/lazy-resched 调用点；
-  GKI dynamic task_struct（`arch_task_struct_size`、`vendor_data_pad`、
-  1024B vendor 上限）。
+- stock core tracepoint：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
+  上游额外 46 个，当前共 1906 个。51 个 stock-only hook 与 2 个 LZ4 事件已补
+  （LZ4 start/end 已在实机触发）；7 个 export-only hook 已补
+  MMC/DMA/lazy-resched 调用点；GKI dynamic task_struct
+  （`arch_task_struct_size`、`vendor_data_pad`、1024B vendor 上限）。
 - EROFS iostat 改为每 CPU 统计（`iostat_config` 输出 `percpu=1`），
   保留单 aggregate bucket；stock 的多桶/多阈值布局仍未复刻。
 - `/proc/iostat_enhance` 经复核不是 dash stock ABI；io_monitor 实际节点是
@@ -39,6 +41,19 @@
 SCSI fastdiscard、UFS 官方 37 文件源；详见
 [kernel/UFS_HYBRID_EVIDENCE.md](kernel/UFS_HYBRID_EVIDENCE.md) 和
 [kernel/OPEN_ISSUES.md](kernel/OPEN_ISSUES.md)。
+
+### 2026-10-30 偏离 stock 的已落地项
+
+- AOSP 同步到 `android15-6.6-2026-10_r2`（6.6.143，`bf768be0`），实机启动；
+- clang 升级到 r614150（23.0.1，PGO/BOLT/LTO 预编译），构建全程 clang/LLD；
+- ThinLTO 已开启并实机启动：`kernel/pid.o` 为 LLVM IR bitcode，`.pid.o.cmd`
+  带 `-flto=thin`；AutoFDO 未启用（需要 profile，按约定跳过）；
+- `pid_max` 硬钳 32768，实测 root 写 40000/100000 均返回失败；
+- lz4kd 通过 crypto `compression` 算法 + stock vendor zram 选中，保留 ExtM
+  内存扩展（见 [kernel/ZRAM_EXTM.md](kernel/ZRAM_EXTM.md)）；
+- 6.6.143 补丁序列已重生成：`patches/0000-6.6.143-dash-integration.patch`
+  （整树 squash），旧 6.6.118 系列归档到 `patches/legacy-6.6.118/`；干净
+  bf768 worktree 上 apply 后 87 个文件 hash 与当前工作树一致。
 
 ## 2. 权威顺序
 
@@ -64,6 +79,8 @@ SCSI fastdiscard、UFS 官方 37 文件源；详见
 | [DESIGN.md](kernel/DESIGN.md) | 补丁、hooks、F2FS/EROFS 实现与差异 | 当前 |
 | [TEST_REPORT.md](kernel/TEST_REPORT.md) | 静态检查、真机证据、AVB 复盘、stock parity 修复 | 当前 |
 | [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) | 未覆盖项、风险、剩余 stock 缺口 | 当前 |
+| [ZRAM_EXTM.md](kernel/ZRAM_EXTM.md) | 内存扩展 ExtM 与 lz4kd：stock vendor zram、backing_dev、xswapd、回写验证 | 当前 |
+| [LOG_AUDIT_20261030.md](kernel/LOG_AUDIT_20261030.md) | 系统日志审计：kernel WARN、SELinux、crash/ANR、厂商噪声与结论 | 当前 |
 | [BOOT_PACKAGING.md](kernel/BOOT_PACKAGING.md) | boot 封装、AVB、恢复规则 | 当前 |
 | [STOCK_PARITY_AUDIT.md](kernel/STOCK_PARITY_AUDIT.md) | 实机 vs stock 6.6.118 的 config/模块/tracepoint/功能核对 | 当前 |
 | [UNRESOLVED_GAPS.md](kernel/UNRESOLVED_GAPS.md) | 未完成项按性能影响排序、原因与已知信息 | 当前 |
@@ -111,6 +128,7 @@ SCSI fastdiscard、UFS 官方 37 文件源；详见
   `docs/kernel/DEV_NOTES.md`。
 - 文档移动后，相对链接已按新位置重写；如再移动，请同步更新本页、生成器
   `SOURCES` 和相关链接。
-- 当前顶层 git 仍没有 commit；本文档整理不改变这一点。需要固化时，应把
-  `docs/`、`dash/` 的文档/补丁/脚本和顶层导航一起提交，排除 `out/`、`src/`、
-  `toolchains/` 和 `handoff/` 大文件。
+- 顶层 git 基线为 `02bba0a`（6.6.118 #29）；当前 `main` 已固化 6.6.143
+  同步、补丁序列和文档。提交范围包括 `docs/`、`dash/` 的文档/补丁/脚本和
+  顶层导航；`dash/out/`、`dash/src/`、`dash/toolchains/` 与 `handoff/`
+  由 `.gitignore` 排除，不入库。

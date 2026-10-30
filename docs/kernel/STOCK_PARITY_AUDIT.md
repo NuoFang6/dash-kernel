@@ -1,5 +1,10 @@
 # dash 实机 vs stock 6.6.118 特性核对（2026-10-30，构建 #29）
 
+> 更新（2026-10-30 晚）：当前设备已到 `6.6.143-4k #3`（AOSP 2026-10_r2 +
+> ThinLTO）。本文表格仍是 6.6.118 #29 快照；6.6.143 下 stock 的 1860 个
+> traceiter 全部保留，另有 46 个上游新增，LZ4 事件已恢复；详见
+> [TEST_REPORT.md](TEST_REPORT.md) §15。
+
 对象：当前设备运行的自编内核 `6.6.118-4k #29`，对比设备 stock
 `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`。
 结论只区分“已核对一致”“已实现但有行为差异”“未实现/阻塞”，不把
@@ -43,8 +48,10 @@ stock 有、当前没有的 7 项：
 | `CONFIG_UAPI_HEADER_TEST` | 构建测试 | 不参与运行时 |
 
 除此之外两边没有 `y/m` 值冲突；zram、EROFS、F2FS、LZ4、GKI hacks 等一致。
-stock `zram` 当前后端的实际算法是 `lz4`，当前设备也是 `lz4`，没有 stock
-`lz4kd` 缺失问题。
+stock `zram` 默认算法是 `lz4`；但 stock zcomp 走 crypto API，本内核注册
+`lz4kd-generic` 后可直接选中 `[lz4kd]`，不需要替换 zram。注意 stock 的
+“内存扩展”是 ExtM（vendor_boot 里的 ExtM 版 zram.ko + xswapd），替换
+zram 模块会破坏回写；见 [ZRAM_EXTM.md](ZRAM_EXTM.md)。
 
 ## 3. 已核对一致 / 已补齐
 

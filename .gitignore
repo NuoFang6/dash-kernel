@@ -1,2 +1,23 @@
-handoff/dash-gap-handoff/
-handoff/*.tar.zst
+# Local build tree, fetched kernel source and toolchain
+/dash/src/
+/dash/toolchains/
+/dash/out/
+
+# Scratch handoff artifacts: boot images, logs, vendor blobs and extracted sources
+/handoff/
+
+# Local logs and Python caches
+*.log
+__pycache__/
+*.pyc
+*.pyo
+
+# Patch/merge leftovers
+*.orig
+*.rej
+
+# Editor / OS noise
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

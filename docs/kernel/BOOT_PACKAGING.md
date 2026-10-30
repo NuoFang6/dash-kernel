@@ -96,10 +96,10 @@ AVB/分区结构；我们最初的 mkbootimg 镜像把它丢了。它不违反 A
 3. **不要为了自定义 kernel 改 vbmeta flags 或重签 vbmeta。** 本机 bootloader
    拒绝签名被修改的 vbmeta；`--disable-verity --disable-verification` 不是本机
    可行路线。
-4. `init_boot_b`、`vendor_boot_b`、`dtbo_b`、`vbmeta_b` 保持本次操作前的状态；
-   本方案只替换 `boot_b` 中 kernel。注意：当前 `init_boot_b` 是设备原有的
-   KernelSU patched 镜像（含 `kernelsu.ko`），不是 stock；它与交接包只差
-   `stock_image.sha1`。不要把 init_boot 当原厂恢复源。
+4. `vendor_boot_b`、`dtbo_b`、`vbmeta_b` 保持本次操作前的状态；本方案只替换
+   `boot_b` 中 kernel。`init_boot_a/b` 已于 2026-10-30 还原为 OS4.0.3.0 官方
+   镜像（sha256 `3d2062ae…`）；KernelSU patched 旧副本只作历史回滚，不要再用
+   它当原厂恢复源。
 5. kernel 压缩后必须能放进 stock original-image 空间；脚本支持把 vbmeta 搬迁到
    新位置，但如果超过分区可用空间会明确失败，不能截断。
 6. 任何写入前备份完整 `boot_b`/`vbmeta_b`，不要碰 `lk`、`super` 或用户数据。
@@ -116,6 +116,6 @@ fastboot reboot
 
 两个文件的 SHA256 已记录在
 [out/device-backup/SHA256SUMS](../../dash/out/device-backup/SHA256SUMS)。恢复不涉及
-`lk` 或用户数据。当前设备的 KernelSU patched init_boot 副本也保存在
-`out/device-backup/init_boot_b.current-kSU.img`；它不是 stock，不要用于恢复
-原厂 init_boot。
+`lk` 或用户数据。官方 init_boot 可从 OS4 OTA 的 `payload.bin` 提取
+（`init_boot`，sha256 `3d2062ae…`）；还原前的 KernelSU patched 副本只作历史
+回滚，不要用于恢复原厂 init_boot。

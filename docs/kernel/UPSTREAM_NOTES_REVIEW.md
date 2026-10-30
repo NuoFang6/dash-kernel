@@ -46,7 +46,8 @@
   - `Image.lz4` 必须是 **legacy LZ4**：magic `0221 4c18`，不是标准帧
     `0422 4d18`；我们已把该检查加入 `make-boot.sh`。
   - 性能选项：ThinLTO、AutoFDO、BBRv3、ZSTD 1.5.7、Cortex-A725 编译优化。
-    这些都会偏离 stock 的 `LTO_NONE`/CFI 与默认算法，**未应用**；见 §4。
+    ThinLTO 已应用并实机启动；AutoFDO 因缺少 profile 未启用；BBRv3/ZSTD
+    等仍未应用；见 §4。
   - 防格机 Baseband-guard LSM、vendor 模块兼容修复；我们已有 vendor-ko 兼容，
     BBG 不是 stock 特性，未引入。
 - 其 `dash-w-oss` 分支没有可用的额外笔记（README 是 AOSP 通用补丁指南）。
@@ -121,31 +122,33 @@
 
 | 优化 | 收益 | 不应用的原因 |
 |---|---|---|
-| 升级到 6.6.139/6.6.142（2026-07/10 tag） | 补 2026-02..08 LTS/安全修复 | 需重放全部补丁、重建、638 模块/KCFI/启动复验；KMI 仍 android15-8，但 stock parity 基线变化 |
-| ThinLTO / AutoFDO | 3-5% 级内核路径优化 | 偏离 stock `LTO_NONE`，改变镜像/KCFI/调试与可复现性；未有 A/B |
+| 升级到 6.6.143（2026-10_r2 tag） | 补 2026-02..10 LTS/安全修复 | **已应用并启动**；KMI 仍 android15-8；仍需用新基线复跑完整 stock parity |
+| ThinLTO / AutoFDO | 3-5% 级内核路径优化 | ThinLTO **已开启并实机启动**（`-flto=thin`，pid.o 为 bitcode）；AutoFDO 未启用，缺 profile；仍缺 A/B |
 | BBRv3 / ZSTD 1.5.7 / zstd zram 默认 | 网络/压缩吞吐 | 不是 stock 默认（stock zram 运行 lz4）；会改变行为，需 A/B |
 | `KBUILD_BUILD_TIMESTAMP` 同步 ROM | 降低完整性检测/时间漂移异常 | 改变 `/proc/version` 和可复现构建；是否追求 stealth 需设备所有者决定 |
-| dash-droidspaces `pid_max` clamp 32768 | 规避 0x8000 掩码类 bug | 改变 PID 空间/用户态可见行为，不是 stock；需明确 bug 复现再上 |
+| dash-droidspaces `pid_max` clamp 32768 | 规避 0x8000 掩码类 bug | **已应用并实机验证**：pid_max=32768，写 40000/100000 均失败；不是 stock 行为 |
 | DroidSpaces SYSVIPC kABI 6/7/8 + namespace 配置 | 容器支持 | 不是 stock 配置；会改变 kABI/启动行为，应做独立变体 |
 | Baseband-guard LSM | 防格机 | 额外 LSM，非 stock；需要白名单和设备验证 |
 | SUSFS README 删除 protected exports | 避免 WiFi 模块被拦 | 我们已用 `CONFIG_VENDOR_KO_COMPAT` 绕过；删除会降低/改变 ABI 保护，不必要 |
 
 ## 5. 已验证无需改动
 
-- stock 基线 `android15-6.6-2026-01_r1` == 6.6.118；clang r510928、4K、
-  `LTO_NONE`、CFI、boot v4 与 stock 匹配。
-- stock zram 运行算法是 `lz4`，不是 lz4kd；`zram.ko`/`zsmalloc.ko` 均为 stock
-  模块，无缺失。
+- stock 基线 `android15-6.6-2026-01_r1` == 6.6.118；当前自编已同步到
+  `2026-10_r2`（6.6.143），clang r614150、4K、ThinLTO、CFI、boot v4 已在
+  实机验证。
+- stock zram 默认算法是 `lz4`；lz4kd 通过 crypto API 可被 stock zram 选中，
+  不需要替换 zram 模块；ExtM 内存扩展保留，见
+  [ZRAM_EXTM.md](ZRAM_EXTM.md)。
 - `SUSFS`/内建 KSU 的集成方式与 BakaSU/上游说明一致；SUSFS 版本 2.3.0。
 - 我们的 boot 封装是完整 64MB 继承 + OEM vbmeta/footer，不使用 AK3；Flavenz 的
   slot/bootconfig 修补不适用。
 
 ## 6. 下一步优先级
 
-1. **安全/LTS**：评估把基线从 2026-01_r1 升到 2026-07_r1/2026-10_r2，KMI 保持
-   `android15-8`；这是比性能调参更重要的缺口。
-2. **性能 A/B**：在 stock 与自编之间测启动时延、zram、node_cache/QoS；再决定
-   ThinLTO/AutoFDO/BBRv3 是否值得偏离 stock。
+1. **安全/LTS**：基线已升到 2026-10_r2（6.6.143）；仍需按新基线复核
+   `ro.build.version.security_patch` 与 token 差异，并重跑完整 stock parity。
+2. **性能 A/B**：ThinLTO 已实测可启动，但尚无收益/功耗数据；AutoFDO 需先采集
+   profile；BBRv3/ZSTD 仍待 A/B。
 3. **DroidSpaces**：若确实需要容器，单独变体加 SYSVIPC kABI 6/7/8 + namespace
    配置，不混入 stock parity。
 4. **hybrid/fastdiscard/UFS core**：继续按 [UNRESOLVED_GAPS.md](UNRESOLVED_GAPS.md)

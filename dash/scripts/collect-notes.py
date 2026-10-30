@@ -166,9 +166,10 @@ HARD_RULES = r"""
    完整备份 + 写当前槽位 `boot_b`，不是 RAM 临时启动。
 4. **hidden-unlock 不是普通 Orange State。** 它接受“OEM 签名元数据 + kernel
    hash 不匹配”，但拒绝缺失/损坏的 vbmeta；不要把本机结论套到别的设备。
-5. **`init_boot` 不是 stock。** 设备现有 init_boot 带 KernelSU wrapper /
-   `kernelsu.ko`，且与交接包只差 41B 的 `stock_image.sha1`。恢复源用
-   `out/device-backup/`，不要把 init_boot 当原厂镜像。
+5. **`init_boot` 已还原为 OS4 官方。** 2026-10-30 将 A/B 两个槽都写回
+   OS4.0.3.0 payload 里的 `init_boot`（sha256 `3d2062ae…`）；设备启动、内置
+   KSU root 正常。之前的 KernelSU patched 副本仅留作历史回滚，不要再把它
+   当原厂镜像。
 6. **厂商模块兼容不等于签名有效。** `CONFIG_VENDOR_KO_COMPAT` 跳过了签名、
    vermagic、CRC、namespace、protected-export 检查；只用于自有已解锁设备。
 7. **13 个 `android_vh_*` hook 的 TP_PROTO 不能随意改。** KCFI 原型不匹配会在
@@ -405,13 +406,13 @@ def build_document(root: Path, out_path: Path, notes: tuple[Note, ...]) -> str:
     lines.append("### 0.4 已知冲突 / 容易误读的地方")
     lines.append("")
     lines.append("- **本机 AVB 特例**：hidden-unlock 接受保留 OEM vbmeta/footer、kernel hash 不匹配的 boot；拒绝缺 vbmeta/改 flags。通用指南里的“解锁后随便刷”不适用于此。")
-    lines.append("- **init_boot**：当前是 KernelSU patched，不是 stock；与交接包只差 `stock_image.sha1`。恢复源用 `out/device-backup/`。")
+    lines.append("- **init_boot**：2026-10-30 已把 A/B 都还原为 OS4.0.3.0 官方（sha256 `3d2062ae…`）；之前的 KernelSU patched 副本只作历史回滚。")
     lines.append("- **上游 call-site bootloop**：那是 `kernel_dash_droidspaces` 自己的组合；本仓库完整 13-hook 全调用点已开机。不要据此删调用点。")
     lines.append("- **F2FS iostat**：2026-10-30 已修正为 stock 单开关语义：只开 `en_iostat_enable=1` 即记录；stock `io_lat` 仍由 `iostat_enable` 控制。")
     lines.append("- **F2FS fault report**：`f2fs_fault_report` tracepoint 已补，只在同步 `f2fs_handle_error()` 触发；`/proc/fault_report` 已恢复。")
     lines.append("- **DroidSpaces**：本内核没有 SYSVIPC/POSIX_MQUEUE/PID_NS/USER_NS/DEVTMPFS/IP_SET 等容器配置；容器目标要另建变体。")
-    lines.append("- **旧状态**：`docs/project/NAVIGATION.md`/`GAP_RESEARCH.md` 里有 6.6.144 时代文字；当前构建是 6.6.118，见 `BUILD_INFO`。")
-    lines.append("- **未补齐**：stock core tracepoint 还缺 58 个；VIP 选择策略、hybrid、EROFS per-device、SCSI fastdiscard、GKI task_struct 等见 OPEN_ISSUES。")
+    lines.append("- **旧状态**：`docs/project/NAVIGATION.md`/`GAP_RESEARCH.md` 里有 6.6.144/6.6.118 时代文字；当前构建是 6.6.143 #3，见 `BUILD_INFO`。")
+    lines.append("- **未补齐**：stock 1860 个 traceiter 全部存在（6.6.143 另有 46 个上游新增，LZ4 已恢复）；剩余是 hybrid UFS、EROFS/F2FS 多桶 iostat、SCSI fastdiscard、UFS 37 文件源、VIP 原始策略等，见 OPEN_ISSUES。")
     lines.append("")
     lines.append("## 源清单（Sources）")
     lines.append("")

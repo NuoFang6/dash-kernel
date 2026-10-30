@@ -194,8 +194,11 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 - UFS：包内官方 MTK UFS 源保留为参考，但本次没有把 37 个文件整体替换进 AOSP
   核心。原因：stock 的 UFS 初始化被 bootloader/内核命令行 blacklist，且替换核心
   UFS 会扩大启动风险；本任务的可选优先级低于已验证的 GKI 构建。
-- lz4kd：未加入，按交接说明不作为首版阻塞项。没有把“注册 zram 算法”冒充
-  “delta 实际调用”。
+- lz4kd：已实现普通 lz4kd 压缩算法接入（非 delta zram）。stock vendor zram
+  通过 crypto API 接受本内核注册的 `lz4kd-generic`，无需替换 zram 模块；
+  当前 Scene 开机配置已选中 `[lz4kd]`。注意本机“内存扩展”是 ExtM，位于
+  vendor zram 模块内部，替换 zram 会破坏回写；详见
+  [ZRAM_EXTM.md](ZRAM_EXTM.md)。
 
 ## 9. 安全与回退
 

@@ -323,6 +323,9 @@ QoS sysfs 与 stock 行为一致：
 
 ### 9.1 当前分区状态与 init_boot 差异
 
+> 2026-10-30 晚更新：`init_boot_a/b` 已还原为 OS4.0.3.0 官方镜像
+> （sha256 `3d2062ae…`）。下表是还原前 00:11 的历史快照，保留作对照。
+
 2026-10-30 00:11 只读 `sha256sum` 实测：
 
 | 分区 | 当前 SHA256 | 判断 |
@@ -472,3 +475,86 @@ QoS sysfs 与 stock 行为一致：
   `iostat_config` 输出 `percpu=1`。实机 drop_caches 后读取
   `/product/app/AiasstVision/AiasstVision.apk`，window/daily 均记录到
   `count>=1 bytes>=4096`。与 stock 的剩余差异是多槽/多阈值布局。
+
+## 14. zram ExtM 内存扩展与 lz4kd（2026-10-30，实机 #4）
+
+- 故障：为 lz4kd 曾 rmmod vendor zram 并 insmod 自编 zram.ko；自编模块只有
+  AOSP writeback，没有小米 ExtM 的 `backing_dev`/`xswapd`/zgroup/mctrl/
+  smart_cache，导致内存扩展失效。
+- 恢复：回到 vendor_boot 自带的 ExtM 版 zram.ko，重新执行
+  `/system_ext/xbin/system_perf_init`；`backing_dev=/dev/block/dm-71`，
+  `xswapd0` 正常运行。
+- lz4kd 不需要替换 zram：本内核把 lz4kd 注册为 crypto `compression`
+  （`lz4kd-generic`），stock zram 的 zcomp 走 crypto API，直接
+  `echo lz4kd > /sys/block/zram0/comp_algorithm` 成功；重启后
+  `comp_algorithm` 为 `[lz4kd]`，`/proc/crypto` refcnt=9。
+- 重启后完整链路：11.6s ExtM 绑定 dm-71、16 GiB swap（priority -2）；
+  35.9s Scene 重置 zram、36.1s 恢复 dm-71、priority 0；xswapd0 存活。
+- 回写验证：`echo all > idle; echo idle > writeback` →
+  `ExtM: Flush finished. Mode 2, flush 497 pages`，`bd_stat=497 0 497 ...`，
+  无 lz4kd 压缩/解压错误。
+- 细节和恢复命令：[ZRAM_EXTM.md](ZRAM_EXTM.md)。
+
+## 15. AOSP 6.6.143 + ThinLTO + pid_max clamp（2026-10-30，实机 #3）
+
+- 源码：AOSP `android15-6.6-2026-10_r2`，commit `bf768be0`，SUBLEVEL=143；
+  已确认这是当前 `android15-6.6` 最新 tag（r2）。
+- 工具链：clang r614150 / LLD 23.0.1（当前 main-kernel 最新预编译），
+  `HOSTCC=clang`、`LD=ld.lld`，构建 0 error / 0 warning。`versions.env`
+  的 `CLANG_PREBUILT_BRANCH` 已修正为 `main-kernel`。
+- ThinLTO：`CONFIG_LTO_CLANG_THIN=y`；`kernel/pid.o` 为 LLVM IR bitcode，
+  `.pid.o.cmd` 含 `-flto=thin`；Image 38,316,544 B。AutoFDO 未启用
+  （`# CONFIG_AUTOFDO_CLANG is not set`，缺少 profile，按约定跳过）。
+  本次是在已有中间产物上完成 ThinLTO 链接/BTF，未单独记录 clean-build 耗时。
+- pid_max clamp：`pid_max=32768`，`echo 100000 > /proc/sys/kernel/pid_max`
+  与 `echo 40000` 均失败并保持 32768；dmesg 为
+  `pid_max: default: 32768 minimum: 301`。该钳制来自 dash-droidspaces
+  pid-max-clamp，用于规避 0x8000 PID 掩码 bug。
+- core tracepoint：6.6.143 同步后曾丢失 #29 的 2 个 LZ4 事件，本次已恢复
+  `include/trace/events/lz4.h` 和 EROFS 解压调用点。最终 System.map 中
+  stock 的 1860 个 `__traceiter_*` 全部存在，另含 46 个 6.6.143 上游新增
+  （合计 1906，missing=0）。实机 drop_caches 后读 APK 触发到成对事件：
+  `inputsize=4096 outputsize=5613 ret=5613 bypass=0`。
+- Zram ExtM：开机约 36 s 后 Scene 选中 `[lz4kd]`，
+  `backing_dev=/dev/block/dm-71`，`xswapd0` 存活，swap 16 GiB priority 0；
+  `writeback` 实测成功。
+- 兼容性：KCFI 13/13；638 个 stock 模块 `hard_missing=0 weak_missing=0`；
+  实机加载 586 个模块，`node_cache`/`zram`/`zsmalloc` 正常；KSU root 正常。
+- 产物：Image `193908f7…`，Image.lz4 `cffe2e55…`，boot.img
+  `5d4e1ab1…`；`boot_b` 已写入并与产物 hash 一致；可用
+  `handoff/boot-6.6.143-4/boot.img` 回退到 LTO 前版本。
+
+## 16. 6.6.143 补丁序列重生成（2026-10-30，离线）
+
+- 当前 `patches/series` 改为单个
+  `0000-6.6.143-dash-integration.patch`（84 个文件，6138 insertions /
+  24 deletions），旧的 6.6.118 拆分系列和 vendor-hooks 移入
+  `patches/legacy-6.6.118/` 仅作参考。
+- 采用整树 squash 的原因：BakaSU/SUSFS/F2FS/EROFS/vendor-hook 的改动在
+  VFS/security/core 文件交错，按旧系列拆分会产生不可独立应用的 hunk。
+- 验证：在干净 AOSP `bf768be0` worktree 上执行
+  `git apply --index 0000-6.6.143-dash-integration.patch`，再安装
+  `patches/susfs/*`；补丁的 84 个文件加 3 个 SUSFS 文件共 87 个文件与当前
+  构建工作树 sha256 全部一致，`git apply` 无 warning。
+- 未重新从 clean 树跑整树编译；当前 Image 与补丁源码只差 3 个文件的 EOF
+  空行清理，不含逻辑差异。`make patches` 现在可以从 bf768 重放，不再回退
+  到 6.6.118。
+
+## 17. init_boot 还原为 OS4 官方（2026-10-30，A/B 双槽）
+
+- 还原前实测：`init_boot_a` = `6f8638fc…`（KernelSU patched 20261026），
+  `init_boot_b` = `5bfcf159…`（KernelSU patched 20261028）；两者都**不是**
+  官方 stock。
+- 从 `/home/nuofang/t5m/os4_payload/payload.bin` 提取分区 `init_boot`，
+  得到 8,388,608 B，sha256 `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`；
+  与 `/home/nuofang/t5m/os4_boot/init_boot.img` 一致，带 AVB footer。
+- 用 fastboot 将同一官方镜像写入 `init_boot_a` 和 `init_boot_b`；重启后
+  两槽 sha256 均为 `3d2062ae…`，`sys.boot_completed=1`，内核仍为
+  `6.6.143-4k #3`。
+- 还原后回归：内置 KSU root 正常（`uid=0 context=u:r:ksu:s0`）；
+  `comp_algorithm` 在 Scene 启动后为 `[lz4kd]`，`backing_dev=/dev/block/dm-71`，
+  `xswapd0` 存活；pid_max 仍为 32768 且不可上调。
+- 还原前的 patched 镜像已备份为
+  `/home/nuofang/t5m/backup/init_boot_a_current_20261030.img` 和
+  `init_boot_b_current_20261030.img`，仅作回滚，不是原厂镜像。
+- 注意：本次只还原 init_boot；`boot_b` 仍是自编 6.6.143 #3。
