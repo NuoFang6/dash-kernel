@@ -1,0 +1,6 @@
+id=mihomo_alpha
+name=mihomo Alpha
+version=v1.19.33-alpha-ca8d7c4-r4-pgo
+versionCode=20261030
+author=NuoFang6
+description=Standalone mihomo Alpha KSU module: auto-start from /data/adb/mihomo/config.yaml; TUN/firewall behavior is controlled only by that config; persists tcp_fastopen=3.

@@ -119,3 +119,30 @@ fastboot reboot
 `lk` 或用户数据。官方 init_boot 可从 OS4 OTA 的 `payload.bin` 提取
 （`init_boot`，sha256 `3d2062ae…`）；还原前的 KernelSU patched 副本只作历史
 回滚，不要用于恢复原厂 init_boot。
+
+## 7. 启动失败与自动 fastboot（2026-10-30）
+
+**结论：内核源码无法可靠地把“启动失败/内核崩溃”变成自动进入 fastboot。**
+
+- 是否进入 fastboot 由 preloader/LK bootloader 决定：按键、`misc` 分区的
+  BCB，以及 bootloader 自己的启动模式逻辑。内核此时已经被加载或尚未成功加载。
+- 本机 `misc` 的 BCB 中可见 `bootonce-bootloader`，说明 LK 支持
+  “下一次复位进入 bootloader”的一次性命令；但它是**无条件**的，写入后下一次
+  复位直接进 fastboot，不会先尝试启动内核再在失败时切换。
+- 理论上可以加一个 **late panic notifier**：内核 panic 时把
+  `bootonce-bootloader` 写进 `misc`，再复位。它只能覆盖“内核已起来、块设备
+  可写”的 panic；早期启动崩溃、死机/看门狗复位、卡死都不会执行，panic 上下文
+  写块设备还有死锁风险。因此没有把它作为默认功能合入。
+- 不要把 `boot_para`/`misc` 的启动模式当成通用开关；错误值可能导致 bootloop
+  或需要按键恢复，且不同 LK 版本格式不同。
+
+实测中 `CONFIG_MPTCP=y` 的启动失败就是看门狗复位：屏幕花屏后重启，没有
+pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安全网仍然是：
+
+1. 保留完整 `boot_b` 备份（例如
+   `/home/nuofang/t5m/backup/boot_b_6.6.143-3_20261030.img`，sha256
+   `5d4e1ab1…`）；
+2. 测试新内核前确认 `adb reboot bootloader` / 按键组合可用；
+3. 失败后 `fastboot flash boot_b <backup>`，不要写 `lk`/`super`/用户数据；
+4. 需要临时进入 bootloader 时，按键 **音量下 + 电源**，或从系统
+   `adb reboot bootloader`。

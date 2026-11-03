@@ -18,6 +18,9 @@ clang **r614150**（23.0.1，PGO/BOLT/LTO 预编译），ThinLTO 已开启。
 | Root | BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.3.0 |
 | 厂商兼容 | 638 个 stock 模块 `hard_missing=0`，实机加载 586 个 |
 | 内存扩展 | stock vendor zram + ExtM 保留；lz4kd 通过 crypto API 选中 |
+| 网络代理 | mihomo Alpha/Android CLI：TUN+GSO、auto-route/auto-redirect、addrtype、IPv6 NAT；MPTCP 因启动失败关闭 |
+| TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
+| KSU 模块 | `dash/modules/mihomo_alpha` r4-pgo：Alpha 子模块/PGO + TFO + 音量键 action，重启后 `tcp_fastopen=3` |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
 
 详细状态、验证证据和剩余缺口见 [docs/README.md](docs/README.md)。
@@ -29,6 +32,7 @@ dash/                      构建工作区
   configs/                 stock 配置、ABI 白名单、功能开关
   patches/                 有序补丁系列（series 为唯一顺序）
   scripts/                 同步、打补丁、配置、构建、打包、校验
+  vendor-src/              厂商/用户提供源码快照（研究用，不参与构建）
   Makefile                 一键入口
 docs/                      项目文档与实测报告
 third_party/               上游/配套子模块
@@ -56,6 +60,7 @@ make source     # 浅克隆 AOSP 到 versions.env 指定 commit
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + features.fragment
 make build      # Image / Image.lz4 / vmlinux / System.map / config
+make brutal     # 外部 tcp-brutal v2.0.1 模块（可选）
 make boot       # 继承 stock boot header/vbmeta/AVB footer，只替换 kernel
 bash scripts/finalize.sh   # KCFI、stock 模块、boot 校验，写 SHA256SUMS
 ```
@@ -67,7 +72,7 @@ bash scripts/finalize.sh   # KCFI、stock 模块、boot 校验，写 SHA256SUMS
 
 ## 子模块
 
-`.gitmodules` 固定了 BakaSU、SUSFS、lz4kd、droidspaces、SukiSU patch 以及
+`.gitmodules` 固定了 BakaSU、SUSFS、lz4kd、mihomo Alpha、tcp-brutal、droidspaces、SukiSU patch 以及
 Content-Creation-Club 的 dash 构建/模块仓库。克隆后执行：
 
 ```bash
@@ -84,6 +89,7 @@ git submodule update --init --recursive
 - [docs/kernel/BOOT_PACKAGING.md](docs/kernel/BOOT_PACKAGING.md)：boot/AVB 封装硬规则
 - [docs/kernel/OPEN_ISSUES.md](docs/kernel/OPEN_ISSUES.md)：剩余缺口与风险
 - [docs/kernel/ZRAM_EXTM.md](docs/kernel/ZRAM_EXTM.md)：内存扩展与 lz4kd 实机结论
+- [docs/kernel/MIHOMO_ANDROID.md](docs/kernel/MIHOMO_ANDROID.md)：mihomo Alpha 实机运行、TCP Brutal 与 MPTCP 结论
 - [docs/kernel/LOG_AUDIT_20261030.md](docs/kernel/LOG_AUDIT_20261030.md)：系统日志审计
 
 ## 注意

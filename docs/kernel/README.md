@@ -6,7 +6,7 @@ REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
 clang 使用预编译 **r614150（23.0.1，PGO/BOLT/LTO）**。设备 stock 为
 `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支
 `android15-6.6`，KMI 字符串 `android15-8`，4K 页；stock 仍是 6.6.118，
-当前自编内核为 6.6.143。
+当前运行内核为 6.6.143 #8（boot_b `0dc871a5…`，IPv6 NAT/addrtype，MPTCP 关闭）。
 
 ## 目录
 
@@ -33,6 +33,7 @@ make source     # 浅克隆/更新 AOSP 到 2026-10_r2（6.6.143）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
 make build      # Image / Image.lz4 / vmlinux / System.map
+make brutal     # 外部 tcp-brutal v2.0.1 模块（需要先 build）
 make boot       # 从 stock boot_b 继承生成 boot.img
 bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
 make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.md（给 LLM 的避坑包）
@@ -74,6 +75,13 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   MMC/DMA/lazy-resched 调用点）和 2 个 LZ4 事件已恢复，LZ4 已实测触发；
   GKI dynamic task_struct（`arch_task_struct_size`、`vendor_data_pad`、
   1024B vendor 上限）。
+- mihomo Android root CLI：TUN `/dev/tun`、MTU 9000/GSO 65536、auto-route、
+  auto-redirect、DNS hijack、进程/包名匹配；`CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y`。
+  MPTCP 实测启动失败未启用；详见 [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)。
+- 外部 TCP Brutal v2.0.1：`third_party/tcp-brutal`，`make brutal` 产物
+  `brutal.ko`；ABI 白名单保留 `tcp_prot`、`tcpv6_prot` 及注册函数。
+- mihomo Alpha 子模块 `third_party/mihomo`；`dash/scripts/build-mihomo.sh`
+  支持 PGO，profile 在 `dash/profiles/mihomo-alpha-cpu.pgo`。
 - `TRIM_UNUSED_KSYMS=y`，使用 stock 导出表作为 ABI 白名单。
 
 详细差异、验证分层和未覆盖项见：
@@ -84,6 +92,10 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - [OPEN_ISSUES.md](OPEN_ISSUES.md)
 - [ZRAM_EXTM.md](ZRAM_EXTM.md)：内存扩展/ExtM 与 lz4kd 的实机结论（stock
   vendor zram + crypto lz4kd，不替换 zram 模块）
+- [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)：mihomo Alpha 实机运行、TUN/TProxy
+  内核能力、tcp-brutal 与 MPTCP 结论
+- [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
+  评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
   [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成，供 LLM 快速避坑。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。

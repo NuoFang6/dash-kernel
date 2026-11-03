@@ -1,7 +1,11 @@
-# dash 6.6.118 测试报告
+# dash GKI 6.6 测试报告
 
-测试日期：2026-10-29；2026-10-30 更新 stock parity 修复（内核构建 #29）。当前结论分为：
+测试日期：2026-10-29 起；2026-10-30 更新到 6.6.143 #8。当前结论分为：
 
+- **6.6.143 #8（2026-10-30 晚）**：boot_b `0dc871a5…`，KCFI 13/13，
+  638 stock 模块 `hard_missing=0`，586 个模块加载；mihomo TUN+GSO/
+  auto-route/auto-redirect 与 tcp-brutal 实机通过，MPTCP 因启动失败关闭；
+  详见 §18。
 - **已执行并通过**：clean 补丁应用、完整编译、静态符号检查、KCFI 原型检查、
   64MB AVB 保留式 boot 封装；自编内核实机启动成功（`6.6.118-4k`），KernelSU
   built-in、SUSFS、584 个 stock 模块、node_cache/os_cpu_qi/QoS 模块加载。
@@ -558,3 +562,69 @@ QoS sysfs 与 stock 行为一致：
   `/home/nuofang/t5m/backup/init_boot_a_current_20261030.img` 和
   `init_boot_b_current_20261030.img`，仅作回滚，不是原厂镜像。
 - 注意：本次只还原 init_boot；`boot_b` 仍是自编 6.6.143 #3。
+
+## 18. mihomo Alpha / TCP Brutal / IPv6 三模式实机（2026-10-30 晚）
+
+- 内核：`6.6.143-4k #8`，boot_b `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`；
+  config sha256 `9b586a24…`；Image `53aef1a9…`；KCFI 13/13、638 stock
+  模块 `hard_missing=0`、实机 586 模块。
+- 相对 #3 的内核配置偏离：`NETFILTER_XT_MATCH_ADDRTYPE=y` 和
+  `IP6_NF_NAT=y` + `IP6_NF_TARGET_MASQUERADE=y`。`ip6tables -t nat` 已实测
+  可用。
+  `CONFIG_MPTCP=y`（IPv6+diag）实测启动失败：花屏后看门狗复位，已回退；
+  MPTCP 当前关闭。
+- mihomo：Alpha `ca8d7c41` 调查，官方 Android arm64 `v1.19.33` 实测。
+  TUN `mihomo` MTU 9000、`gso_max_size=65536`、auto-route table 2022、
+  nat OUTPUT `mihomo-output` REDIRECT、DNS hijack、进程/包名匹配均生效。
+  `inbound-mptcp: false`；`inbound-tfo: true` 配合
+  `net.ipv4.tcp_fastopen=3`。
+- 连通性：busybox wget 经 TUN HTTP/HTTPS、经 `127.0.0.1:7890` HTTP 代理均
+  成功；mihomo 节点健康检查 alive（约 70–82 ms）。
+- iptables 规则安装：`addrtype`、`socket`、`TPROXY`、`MARK`、`REDIRECT`、
+  `DNAT` 全部 rc=0。
+- tcp-brutal v2.0.1 外部模块：`brutal.ko` 签名/vermagic 匹配，`insmod`
+  成功；`tcp_available_congestion_control` 含 `brutal`，
+  `/proc/net/tcp_brutal/rules` 存在；socket `getsockopt(TCP_CONGESTION)`
+  返回 `brutal`。ABI 白名单新增 `tcp_prot`、`tcpv6_prot`、
+  `tcp_register_congestion_control`、`tcp_unregister_congestion_control`。
+- ExtM/lz4kd 回归：`[lz4kd]`、`backing_dev=/dev/block/dm-71`、16 GiB swap；
+  `pid_max=32768`。
+- TFO 持久化：标准 `mihomo_alpha` KSU 模块安装后 #8 重启，
+  `tcp_fastopen=3`；当前值 3。
+- 标准 KSU 模块：`mihomo_alpha` r3，KSU `action=true`，自动启动等待默认路由；
+  `tun.enable:false` 实测无 TUN、无 mihomo iptables/ip rule；
+  `tun.enable:true` 自动 TUN 正常。action 10 秒无操作退出、音量上停止、
+  音量下重启 mihomo（sendevent 注入验证；PID 变化且 TUN 恢复，不重启设备）。
+- 三模式：
+  - **TUN**：IPv4 204 成功；IPv6 `[2606:4700:4700::1111]:80` 进入
+    `PROXY`（目标返回 400，不是链路失败）；`ip -6 rule`/table 2022 完整。
+  - **REDIRECT**：IPv4 和 IPv6 TCP 均命中 `REDIRECT` 并进入 `PROXY`；
+    nat REDIRECT 的 UDP 会丢失原始目的地址（mihomo 收到
+    127.0.0.1:7892 并拒绝 loopback），所以本机 UDP 不可用。
+  - **TPROXY**：IPv4 UDP 命中并进入 `PROXY`；TPROXY TCP 在 veth/netns
+    测试环境未 accept，且该环境普通 netns→host TCP 本身也不通，结论暂不确定；
+    本机 OUTPUT 不能用 TPROXY target。IPv6 TPROXY 未取得可信实测。
+- 只有 TUN 覆盖本机 IPv4/IPv6 TCP/UDP/ICMP；“三模式都不漏流量”不成立，
+  REDIRECT/TPROXY 有明确协议/转发范围限制。
+- 已知非内核问题：mihomo 的 `/data/system/packages.xml` fswatch 报
+  `watcher removed`；不影响 TUN/规则/连通性。
+- 自动 fastboot：内核无法保证；见
+  [BOOT_PACKAGING.md](BOOT_PACKAGING.md) §7。
+
+## 19. mihomo Alpha 子模块、60 应用 pprof 与 PGO（2026-10-30）
+
+- `third_party/mihomo` submodule 固定在 Alpha `ca8d7c4`，工作树无修改。
+- 应用遍历脚本：`dash/scripts/mihomo-app-loop.sh`（设备）+
+  `dash/scripts/profile-mihomo-apps.sh`（主机）。按 usage 排序，前 80 候选，
+  每应用只启动一次；1s 后 `mCurrentFocus` 验证，非前台跳过；每个成功前台
+  应用在 5s dwell 内请求 `pprof/profile?seconds=5`，因此没有尾部空闲窗口；
+  不 force-stop、不关闭应用窗口。
+- 结果：60 成功 / 70 尝试，wall 460s；理论 `60*(5+1)=360s`，余量约 100s。
+  60 个片段合并为 `dash/profiles/mihomo-alpha-cpu.pgo`（91 KiB），
+  Duration 300.48s，47.25s CPU samples（15.72%），284 节点；主要样本在
+  process 解析、rule wrapper、netlink/syscall 和 TUN 连接路径，质量合格。
+- PGO：`build-mihomo.sh` 使用上述 profile，`with_gvisor`、PIE、`-trimpath`、
+  strip；PGO binary `64,028,968B`，sha256
+  `6486910e6427b7ccd9a4e702feaa8d600f788881ed392368fa8f836a04670ace`，
+  已替换模块 `bin/mihomo` 并重启；模块 `mihomo_alpha` r4-pgo，
+  TUN、TFO、IPv6 回归正常。

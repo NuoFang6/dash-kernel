@@ -60,6 +60,20 @@ SOURCES: tuple[Note, ...] = (
     Note("docs/kernel/UPSTREAM_NOTES_REVIEW.md", "参考仓库工作笔记核对", "当前交付", "current"),
     Note("docs/kernel/UFS_HYBRID_EVIDENCE.md", "UFS/hybrid/fastdiscard 缺口证据与安全边界", "当前交付", "current"),
     Note(
+        "docs/kernel/NODE_CACHE_SOURCE.md",
+        "node_cache 源码评估与 stock 6.6.118 二进制差异",
+        "当前交付",
+        "current",
+        "用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。",
+    ),
+    Note(
+        "docs/kernel/MIHOMO_ANDROID.md",
+        "mihomo Alpha / TCP Brutal / MPTCP 实机结论",
+        "当前交付",
+        "current",
+        "MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。",
+    ),
+    Note(
         "docs/project/NAVIGATION.md",
         "仓库导航、子模块 pin 与资源索引",
         "仓库上下文",
@@ -411,7 +425,9 @@ def build_document(root: Path, out_path: Path, notes: tuple[Note, ...]) -> str:
     lines.append("- **F2FS iostat**：2026-10-30 已修正为 stock 单开关语义：只开 `en_iostat_enable=1` 即记录；stock `io_lat` 仍由 `iostat_enable` 控制。")
     lines.append("- **F2FS fault report**：`f2fs_fault_report` tracepoint 已补，只在同步 `f2fs_handle_error()` 触发；`/proc/fault_report` 已恢复。")
     lines.append("- **DroidSpaces**：本内核没有 SYSVIPC/POSIX_MQUEUE/PID_NS/USER_NS/DEVTMPFS/IP_SET 等容器配置；容器目标要另建变体。")
-    lines.append("- **旧状态**：`docs/project/NAVIGATION.md`/`GAP_RESEARCH.md` 里有 6.6.144/6.6.118 时代文字；当前构建是 6.6.143 #3，见 `BUILD_INFO`。")
+    lines.append("- **旧状态**：`docs/project/NAVIGATION.md`/`GAP_RESEARCH.md` 里有 6.6.144/6.6.118 时代文字；当前构建是 6.6.143 #8，见 `BUILD_INFO`。")
+    lines.append("- **MPTCP**：6.6.143 上 `CONFIG_MPTCP=y` + IPv6 + diag 实测启动失败（花屏/看门狗复位）；当前保持关闭，mihomo 必须 `inbound-mptcp: false`。")
+    lines.append("- **mihomo / TCP Brutal**：addrtype 已启用；TUN/GSO/auto-route/auto-redirect 实测通过；tcp-brutal 是外部模块，不并入内核源码。")
     lines.append("- **未补齐**：stock 1860 个 traceiter 全部存在（6.6.143 另有 46 个上游新增，LZ4 已恢复）；剩余是 hybrid UFS、EROFS/F2FS 多桶 iostat、SCSI fastdiscard、UFS 37 文件源、VIP 原始策略等，见 OPEN_ISSUES。")
     lines.append("")
     lines.append("## 源清单（Sources）")

@@ -19,3 +19,13 @@ CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024
 CONFIG_CRYPTO_LZ4KD=y
 CONFIG_LTO_CLANG_THIN=y
 # CONFIG_LTO_NONE is not set
+
+# mihomo Android runtime support (2026-10-30)
+# TProxy/redir scripts use "-m addrtype"; stock GKI disables this match.
+CONFIG_NETFILTER_XT_MATCH_ADDRTYPE=y
+# IPv6 REDIRECT/DNAT for REDIRECT-mode tests and DNS hijack.
+CONFIG_IP6_NF_NAT=y
+CONFIG_IP6_NF_TARGET_MASQUERADE=y
+# CONFIG_MPTCP is intentionally left disabled: enabling MPTCP (v6.6.143,
+# IPv6+diag) made dash hang before Android userspace started. mihomo runs with
+# "inbound-mptcp: false"; see docs/kernel/MIHOMO_ANDROID.md.

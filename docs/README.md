@@ -10,10 +10,10 @@
 |---|---|
 | 设备 | dash / REDMI Turbo 5 Max / MT6991 |
 | stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.143-4k #3`（AOSP `android15-6.6-2026-10_r2` / `bf768be0`，clang r614150，ThinLTO） |
-| `boot_b` | `5d4e1ab14785fff3379520f711ee5b765285cf8f58145bddd1e74df15546c93c` |
+| 当前内核 | `6.6.143-4k #8`（AOSP `android15-6.6-2026-10_r2` / `bf768be0`，clang r614150，ThinLTO；IPv6 NAT/addrtype，MPTCP 关闭） |
+| `boot_b` | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
-| 模块 | 586 个（当前实机加载；638 个 stock 清单 `hard_missing=0`）；KSU 内建 |
+| 模块 | 586 个（当前实机加载；638 个 stock 清单 `hard_missing=0`）；KSU 内建；mihomo_alpha r4-pgo |
 | 静态检查 | KCFI 13/13；638 stock 模块 `hard_missing=0 weak_missing=0` |
 | 安全 | SELinux `Enforcing`；SUSFS v2.3.0，9 项特性 |
 
@@ -36,6 +36,16 @@
   保留单 aggregate bucket；stock 的多桶/多阈值布局仍未复刻。
 - `/proc/iostat_enhance` 经复核不是 dash stock ABI；io_monitor 实际节点是
   `/proc/io_monitor/iostat/iostat_enabled`。
+- mihomo Alpha（v1.19.33）Android root CLI 实测跑通 TUN+mips、MTU 9000、
+  GSO 65536、auto-route/auto-redirect、DNS hijack、进程/包名匹配；IPv6
+  TUN/REDIRECT TCP 已验证；#8 已启用 `IP6_NF_NAT`，`ip6tables -t nat` 可用。
+- 标准 KSU 模块 `mihomo_alpha` 已安装：合并 TFO、自动启动、volume-key
+  action（上=停止 mihomo，下=重启 mihomo）；`tcp_fastopen=3` 已重启验证。
+- 集成外部 TCP Brutal v2.0.1：`third_party/tcp-brutal` + `make brutal`，
+  实机 `brutal` 模块加载、CC 可选；MPTCP 因启动失败未启用。
+- REDIRECT/TPROXY/UDP 与 IPv6 的限制见
+  [kernel/MIHOMO_ANDROID.md](kernel/MIHOMO_ANDROID.md)：TUN 是唯一覆盖
+  IPv4/IPv6 TCP/UDP/ICMP 的完整模式。
 
 仍未补齐的 stock-only 项：hybrid UFS、EROFS 多桶粒度（已 per-CPU）、
 SCSI fastdiscard、UFS 官方 37 文件源；详见
@@ -54,6 +64,9 @@ SCSI fastdiscard、UFS 官方 37 文件源；详见
 - 6.6.143 补丁序列已重生成：`patches/0000-6.6.143-dash-integration.patch`
   （整树 squash），旧 6.6.118 系列归档到 `patches/legacy-6.6.118/`；干净
   bf768 worktree 上 apply 后 87 个文件 hash 与当前工作树一致。
+- mihomo 支持：启用 `NETFILTER_XT_MATCH_ADDRTYPE` 与 IPv6
+  `IP6_NF_NAT`；保留 TUN/GSO、NAT/REDIRECT/TPROXY、策略路由、INET_DIAG、
+  BBR/fq；MPTCP 实测启动失败，保持关闭；TCP Brutal 以外部模块提供。
 
 ## 2. 权威顺序
 
@@ -80,6 +93,8 @@ SCSI fastdiscard、UFS 官方 37 文件源；详见
 | [TEST_REPORT.md](kernel/TEST_REPORT.md) | 静态检查、真机证据、AVB 复盘、stock parity 修复 | 当前 |
 | [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) | 未覆盖项、风险、剩余 stock 缺口 | 当前 |
 | [ZRAM_EXTM.md](kernel/ZRAM_EXTM.md) | 内存扩展 ExtM 与 lz4kd：stock vendor zram、backing_dev、xswapd、回写验证 | 当前 |
+| [MIHOMO_ANDROID.md](kernel/MIHOMO_ANDROID.md) | mihomo Alpha Android 运行、TUN/TProxy 内核能力、tcp-brutal、MPTCP 结论 | 当前 |
+| [NODE_CACHE_SOURCE.md](kernel/NODE_CACHE_SOURCE.md) | node_cache 源码评估、与 stock 6.6.118 二进制差异、6.6.143 适配清单 | 当前；来源是 6.12 API 重实现，不是 stock 原源码 |
 | [LOG_AUDIT_20261030.md](kernel/LOG_AUDIT_20261030.md) | 系统日志审计：kernel WARN、SELinux、crash/ANR、厂商噪声与结论 | 当前 |
 | [BOOT_PACKAGING.md](kernel/BOOT_PACKAGING.md) | boot 封装、AVB、恢复规则 | 当前 |
 | [STOCK_PARITY_AUDIT.md](kernel/STOCK_PARITY_AUDIT.md) | 实机 vs stock 6.6.118 的 config/模块/tracepoint/功能核对 | 当前 |

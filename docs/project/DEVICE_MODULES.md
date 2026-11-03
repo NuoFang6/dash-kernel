@@ -2,10 +2,14 @@
 
 > **定位：stock 运行态观察（2026-10-29），不是当前自编内核的实时快照。**
 > 文中的 `cur_cnt/cur_bytes` 等是 stock 启动后的历史值；当前 #29 内核的实测值见
-> [TEST_REPORT §8](../kernel/TEST_REPORT.md#8-真机运行验证)。公开源码仍未找到，
-> 以下是对 stock 二进制和运行时状态的推断。
+> [TEST_REPORT §8](../kernel/TEST_REPORT.md#8-真机运行验证)。公开的原厂
+> 6.6.118 源码仍未找到；2026-11-03 用户提供了一份 827 行、面向 6.12 API 的
+> `node_cache` 重实现，已保存到
+> [`dash/vendor-src/node_cache/node_cache.c`](../../dash/vendor-src/node_cache/node_cache.c)，
+> 它**不是** stock 原始源码。静态对照和 6.6.143 适配清单见
+> [NODE_CACHE_SOURCE.md](../kernel/NODE_CACHE_SOURCE.md)。
 
-调查方式：设备 `adb shell su` 只读检查（sysfs/proc/tracefs、模块状态、slab、dmesg）+ 电脑侧模块 ELF 的符号/字符串分析。没有写任何分区。公开源码仍未找到，以下是对 stock 二进制和运行时状态的推断。
+调查方式：设备 `adb shell su` 只读检查（sysfs/proc/tracefs、模块状态、slab、dmesg）+ 电脑侧模块 ELF 的符号/字符串分析。没有写任何分区。以下仍是对 stock 二进制和运行时状态的推断；用户提供的重实现只用于对照，当前设备继续运行 stock 模块。
 
 ## node_cache
 
@@ -89,7 +93,7 @@
 - 当前 6.6.118 + BakaSU 构建已导出 13 个 hook 和 LZ4，KCFI
   13/13 通过，真机加载 `node_cache`/`os_cpu_qi`；完整 hook 调用点仍需在压力、
   suspend/resume 和异常退出路径持续验证。
-- 公开源码仍未找到；只能从 stock 二进制/运行时行为推断，不能声称等价重写。
+- 公开的原厂源码仍未找到；2026-11-03 用户提供的重实现只用于静态对照，不能据此声称与 stock 等价重写。
 - 如果只想保证开机和基本功能，可以先不带这两个模块的厂商 hook；如果要在 HyperOS 下保留它们的性能/内存行为，必须保证 hook 原型和调用点安全，且注意 `node_cache` 的压缩 CPU 成本与 `os_cpu_qi` 的 boost 功耗。
 
 ## 证据位置

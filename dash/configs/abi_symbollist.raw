@@ -12945,10 +12945,12 @@ tcp_get_info
 tcp_hashinfo
 tcp_memory_pressure
 tcp_poll
+tcp_prot
 tcp_rate_check_app_limited
 tcp_read_done
 tcp_read_sock
 tcp_recv_skb
+tcp_register_congestion_control
 tcp_register_ulp
 tcp_reno_undo_cwnd
 tcp_send_active_reset
@@ -12956,6 +12958,7 @@ tcp_sendmsg_locked
 tcp_sock_set_cork
 tcp_sock_set_nodelay
 tcp_sync_mss
+tcp_unregister_congestion_control
 tcp_unregister_ulp
 tcpc_class
 tcpc_dev_get_by_name
@@ -13164,6 +13167,7 @@ tcpm_update_pd_status_event
 tcpm_update_pd_status_input
 tcpm_update_pd_status_temp
 tcpm_vbus_change
+tcpv6_prot
 tegra_bpmp_free_mrq
 tegra_bpmp_get
 tegra_bpmp_mrq_is_supported

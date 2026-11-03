@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := build
 
-.PHONY: deps toolchain source patches config build boot all clean distclean notes notes-check
+.PHONY: deps toolchain source patches config build boot brutal all clean distclean notes notes-check
 
 deps:
 	bash scripts/install-deps.sh
@@ -23,6 +23,9 @@ build: config
 
 boot: build
 	bash scripts/make-boot.sh
+
+brutal:
+	bash scripts/build-tcp-brutal.sh
 
 notes:
 	python3 scripts/collect-notes.py

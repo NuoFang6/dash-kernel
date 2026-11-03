@@ -58,11 +58,18 @@
 
 ### 结论
 
-**没有公开源码。** 只有 stock 二进制、符号依赖和 OS4 hooks 补丁；没有找到厂商实现或等价重写。
+**没有公开的原厂 6.6.118 源码。** 只有 stock 二进制、符号依赖和 OS4 hooks 补丁；没有找到厂商实现或等价重写。
+
+2026-11-03 用户提供了一份 827 行、面向 6.12 API 的 `node_cache.c` 重实现，已原样保存到
+[`dash/vendor-src/node_cache/node_cache.c`](../../dash/vendor-src/node_cache/node_cache.c)。
+它与 stock 6.6.118 二进制存在低内存保护、node 校验、非回收失效等差异，
+**不是原厂源码**；对照和 6.6.143 适配清单见
+[NODE_CACHE_SOURCE.md](../kernel/NODE_CACHE_SOURCE.md)。当前设备仍运行 stock 模块。
 
 ### 已确认
 
 - 设备 stock 模块：`node_cache.ko`（F2FS node cache，依赖 5 个 tracepoint + LZ4）、`os_cpu_qi.ko`（QoS，依赖 40 个 tracepoint）。
+- `node_cache` 的 5 个 hook 为 `do_new_mount_fc`、`filemap_get_folio_end`、`put_super`、`remove_mapping`、`remove_mapping_failed`；用户提供的重实现与这些原型一致。
 - [dash-droidspaces os4-vendor-hooks](https://github.com/lakitu12/kernel_dash_droidspaces/tree/main/patches/os4-vendor-hooks) 只补 hook 注册/调用点，不含这两个模块源码；作者报告 full call site bootloop。
 - MiCode/CC/DroidSpaces 源码树中没有 `node_cache`/`os_cpu_qi` 路径。
 
@@ -126,7 +133,7 @@
 1. 以 AOSP `android15-6.6-2026-01_r1` + 设备 stock config 为主基线；`mist-w-oss` 可作为 6.6.118 源参考。
 2. 从 MiCode `MTK_kernel_device_modules` sparse 取 `drivers/ufs`，替代 CC 逆向 UFS。
 3. 如必须补 boot_a/stock kernel/DTB，优先只拉 `oss-dash/poco_dash_dump` 的 `boot/`、`boot/dtb`、`ikconfig`、`kallsyms.txt`，不要拉整个 6.8GB 仓库。
-4. F2FS/EROFS/hybrid 和 `node_cache`/`os_cpu_qi` 没有公开源码；当前是行为级/接口级实现，不能声称与 stock 逐行等价。剩余差异需要原厂 6.6.118 源码、二进制反推或接受功能缺失。
+4. F2FS/EROFS/hybrid 和 `node_cache`/`os_cpu_qi` 没有公开原厂源码；当前是行为级/接口级实现，不能声称与 stock 逐行等价。`node_cache` 另有一份用户提供的 6.12 API 重实现可用于对照，但不是原厂 6.6.118 源码。剩余差异需要原厂源码、二进制反推或接受功能缺失。
 
 ### 2026-10-30 实现状态更新
 

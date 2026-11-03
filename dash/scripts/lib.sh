@@ -16,6 +16,11 @@ if [[ "$BAKASU_DIR" != /* ]]; then
 fi
 BAKASU_DIR="$(cd "$BAKASU_DIR" && pwd)"
 
+if [[ "$TCP_BRUTAL_DIR" != /* ]]; then
+	TCP_BRUTAL_DIR="$DASH_ROOT/$TCP_BRUTAL_DIR"
+fi
+TCP_BRUTAL_DIR="$(cd "$TCP_BRUTAL_DIR" && pwd)"
+
 die() {
 	echo "error: $*" >&2
 	exit 1

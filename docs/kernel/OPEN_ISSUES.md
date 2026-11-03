@@ -250,3 +250,29 @@ rmmod + insmod 自编 zram 模块会直接废掉 ExtM（`backing_dev=none`、无
 3. `abi_symbollist.raw` 保留 stock 导出名，构建产物仍不是原厂签名内核。
 4. `out/baseline-6.6.118/` 是旧式 mkbootimg 对照内核，**不是 stock 备份且不可
    启动**；恢复请使用 `out/device-backup/` 的完整原厂 boot/vbmeta。
+
+## 优先级 4：mihomo / TCP Brutal / MPTCP（2026-10-30）
+
+- **MPTCP 未启用。** 在 6.6.143 上 `CONFIG_MPTCP=y` +
+  `CONFIG_MPTCP_IPV6=y` + `CONFIG_INET_MPTCP_DIAG=y` 实测启动失败（花屏后
+  看门狗复位，无 pstore）；addrtype-only 正常启动。当前 mihomo 配置必须
+  `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6 子项隔离构建，
+  不要把它当默认项。
+- **Android auto-redirect 仅本机 IPv4 TCP。** mihomo Android 分支明确不用
+  nftables，也不做 IPv6/热点转发；`tproxy-port` 的自动 iptables 只在 Linux
+  执行，Android 需要手动规则。
+- **TCP Brutal 是外部模块。** `tcp-brutal` v2.0.1 已配置为 submodule 和
+  `make brutal`，但上游 GPL-3.0、`brutalctl` 的 Android 构建/`ip route
+  congctl` 支持未完成；mihomo 的 Hysteria2/ShadowQUIC brutal 是 QUIC 用户态，
+  不使用该模块。
+- **IPv6 REDIRECT 已启用并验证 TCP。** #8（`0dc871a5…`）开启
+  `IP6_NF_NAT`，`ip6tables -t nat` 正常，IPv4/IPv6 TCP REDIRECT 均进入
+  mihomo；nat REDIRECT 的 UDP 丢失原始目的地址，本机 UDP 仍不可用。
+- **TFO 持久化已安装并验证。** 标准 `mihomo_alpha` KSU 模块在 #8 重启后写入
+  `tcp_fastopen=3`，`post-fs-data.sh`/`service.sh` 都会重写。
+- **TPROXY TCP/IPv6 未形成可信结论。** TPROXY IPv4 UDP 已验证；
+  veth/netns 测试环境自身 TCP 路径异常，TPROXY TCP 未 accept；IPv6
+  TPROXY 也没有可信日志。本机 OUTPUT 不能使用 TPROXY target，需 TUN 或
+  REDIRECT 覆盖本机应用。
+- **自动 fastboot 未实现。** 需要 LK/BCB 层面的可靠机制；内核 panic
+  notifier 只能 best-effort 覆盖晚 panic，见 BOOT_PACKAGING.md §7。

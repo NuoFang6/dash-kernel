@@ -33,3 +33,10 @@
 	path = third_party/cc-dash-mtk-modules
 	url = https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules.git
 	branch = dash-w-oss
+[submodule "third_party/tcp-brutal"]
+	path = third_party/tcp-brutal
+	url = https://github.com/HyNetworks/tcp-brutal.git
+[submodule "third_party/mihomo"]
+	path = third_party/mihomo
+	url = https://github.com/MetaCubeX/mihomo.git
+	branch = Alpha

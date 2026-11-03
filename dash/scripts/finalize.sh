@@ -37,7 +37,9 @@ clang_version="$("$TOOLCHAIN_DIR/bin/clang" --version | head -1)"
 
 (
 	cd "$ARTIFACT_DIR"
-	sha256sum Image Image.lz4 boot.img config System.map > SHA256SUMS
+	files=(Image Image.lz4 boot.img config System.map)
+	[[ -f brutal.ko ]] && files+=(brutal.ko)
+	sha256sum "${files[@]}" > SHA256SUMS
 )
 cp "$ARTIFACT_DIR/BUILD_INFO" "$ARTIFACT_DIR/SHA256SUMS" "$DASH_ROOT/out/dash/"
 
