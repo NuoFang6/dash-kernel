@@ -16,6 +16,13 @@ The output is a single, LLM-friendly document (default: docs/kernel/DEV_NOTES.md
 The source files are never modified.  Run `--check` in CI or before a hand-off
 to detect a stale merged document.  Add or reorder notes in SOURCES below.
 
+`--check` masks the machine-local artifact sections (BUILD_INFO / SHA256SUMS /
+boot checksums, wrapped in `dash:local-artifacts` sentinels) and the
+generation-stamp line (source mtimes, reset by git checkout) on both sides
+before comparing, so it stays valid on a fresh clone or CI runner where
+`dash/out/` does not exist.  Everything derived from tracked source content is
+still compared byte-for-byte.
+
 Usage:
     python3 dash/scripts/collect-notes.py
     python3 dash/scripts/collect-notes.py --check
@@ -101,13 +108,9 @@ SOURCES: tuple[Note, ...] = (
         "requirements",
         "任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。",
     ),
-    Note(
-        "handoff/dash-gap-handoff/links/SOURCES.md",
-        "来源、pin 与“只记录不下载”的近失链接",
-        "需求",
-        "reference",
-        "来源清单中的 project/dash 描述是交接时状态（6.6.144）；当前实现已切到 6.6.118。",
-    ),
+    # handoff/dash-gap-handoff/links/SOURCES.md was dropped here: it lives in
+    # the gitignored handoff archive, and its pin/link content is superseded
+    # by dash/versions.env and docs/project/NAVIGATION.md section 8.
     Note(
         "third_party/dash-droidspaces/README.md",
         "dash-droidspaces 项目说明（上游参考）",
@@ -335,21 +338,46 @@ def demote_and_rewrite(text: str, source_dir: Path, out_dir: Path) -> tuple[str,
     return body, title, repaired_fence
 
 
+# Sections derived from machine-local, untracked build outputs are wrapped in
+# these sentinels.  The generation-stamp line embeds source mtimes, which a
+# git checkout resets.  `--check` masks both on either side of the comparison
+# so the check is stable on fresh clones / CI runners where dash/out/ does not
+# exist and mtimes differ.
+LOCAL_ARTIFACTS_START = "<!-- dash:local-artifacts:start -->"
+LOCAL_ARTIFACTS_END = "<!-- dash:local-artifacts:end -->"
+STAMP_LINE_RE = re.compile(r"^> 生成时间（源文件最新 mtime）：.*$", re.MULTILINE)
+
+
+def mask_volatile(text: str) -> str:
+    masked = re.sub(
+        re.escape(LOCAL_ARTIFACTS_START) + r".*?" + re.escape(LOCAL_ARTIFACTS_END) + r"\n?",
+        "",
+        text,
+        flags=re.DOTALL,
+    )
+    return STAMP_LINE_RE.sub("> 生成时间（源文件最新 mtime）：MASKED", masked)
+
+
 def load_snapshot(root: Path) -> str:
     chunks: list[str] = []
+    # local=True entries depend on untracked build outputs and must stay inside
+    # the sentinels in both the present and the missing variants.
     files = [
-        ("版本锁定", "dash/versions.env", "text"),
-        ("构建信息", "dash/out/artifacts/BUILD_INFO", "text"),
-        ("产物校验和", "dash/out/artifacts/SHA256SUMS", "text"),
-        ("boot 校验和", "dash/out/artifacts/boot.img.sha256", "text"),
+        ("版本锁定", "dash/versions.env", False),
+        ("构建信息", "dash/out/artifacts/BUILD_INFO", True),
+        ("产物校验和", "dash/out/artifacts/SHA256SUMS", True),
+        ("boot 校验和", "dash/out/artifacts/boot.img.sha256", True),
     ]
-    for label, rel, _kind in files:
+    for label, rel, local in files:
         path = root / rel
         if not path.is_file():
-            chunks.append(f"### {label}\n\n`{rel}` 不存在（构建未完成或产物已清理）。\n")
-            continue
-        content = read_text(path).strip()
-        chunks.append(f"### {label}\n\n来源：`{rel}`\n\n```text\n{content}\n```\n")
+            body = f"`{rel}` 不存在（构建未完成或产物已清理）。\n"
+        else:
+            content = read_text(path).strip()
+            body = f"来源：`{rel}`\n\n```text\n{content}\n```\n"
+        if local:
+            body = f"{LOCAL_ARTIFACTS_START}\n{body}{LOCAL_ARTIFACTS_END}\n"
+        chunks.append(f"### {label}\n\n{body}")
     return "\n".join(chunks)
 
 
@@ -514,7 +542,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"missing merged notes: {output}", file=sys.stderr)
             return 1
         current = output.read_text(encoding="utf-8")
-        if current != document:
+        if mask_volatile(current) != mask_volatile(document):
             print(f"stale merged notes: {output} (run collect-notes.py)", file=sys.stderr)
             return 1
         print(f"up to date: {output}")

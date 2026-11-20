@@ -1,0 +1,55 @@
+# Light CI: runs on every push/PR.  Heavy kernel builds live in
+# kernel-build.yml (manual dispatch) because a ThinLTO GKI build takes hours.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # DEV_NOTES.md is a generated merge of the curated docs; local artifact
+  # sections (BUILD_INFO/SHA256SUMS) and the mtime stamp are masked by the
+  # generator so this works on a fresh clone without dash/out/.  The note
+  # sources span three upstream-reference submodules, which are initialized
+  # shallow here (BakaSU etc. are not part of the curated notes).
+  notes-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Init note-source submodules
+        run: git submodule update --init --depth 1 third_party/dash-droidspaces third_party/hyperos-lz4kd third_party/susfs4ksu
+      - run: python3 dash/scripts/collect-notes.py --check
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # lib.sh variables are consumed by the scripts that source it, so the
+      # SC2034 warnings it emits are expected; warning severity keeps the gate
+      # on real issues.
+      - run: shellcheck -S warning dash/scripts/*.sh
+
+  # Replay the patch series against the pinned AOSP tag.  This is the core
+  # invariant of the repo: every build source tree is regenerated from
+  # shallow-clone + series, so a series that no longer applies is a broken
+  # build.  Only the BakaSU submodule is needed (KSU driver symlink).
+  patch-series:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Init BakaSU submodule
+        run: git submodule update --init --depth 1 BakaSU
+      - name: Sync pinned AOSP and apply patch series
+        run: make -C dash source patches

@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-07 22:30:42 +0800  
-> 覆盖 23 个源，272438 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 03:34:19 +0800  
+> 覆盖 22 个源，268192 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -92,6 +92,7 @@ MIHOMO_COMMIT=ca8d7c41bf620dbe41c8d221f35dc5435216def5
 
 ### 构建信息
 
+<!-- dash:local-artifacts:start -->
 来源：`dash/out/artifacts/BUILD_INFO`
 
 ```text
@@ -103,9 +104,11 @@ CLANG=Android (16713961, based on r614150) clang version 23.0.1 (https://android
 CONFIG_SHA256=9b586a24a51d8d116014c00dfa14f8f4d2e383d996431fcae01443b73d3e3d61
 BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 ```
+<!-- dash:local-artifacts:end -->
 
 ### 产物校验和
 
+<!-- dash:local-artifacts:start -->
 来源：`dash/out/artifacts/SHA256SUMS`
 
 ```text
@@ -116,14 +119,17 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 18f60a6514ea46c1c300b5dba90c0385b8a7424a8e923fc891e8f4a4de44a730  System.map
 7832a603cdd12f0d36e6762d2dcd82baf74500eb9c6af7aac2a0359a88cee350  brutal.ko
 ```
+<!-- dash:local-artifacts:end -->
 
 ### boot 校验和
 
+<!-- dash:local-artifacts:start -->
 来源：`dash/out/artifacts/boot.img.sha256`
 
 ```text
 0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e  /home/nuofang/code/mikernel/dash/out/artifacts/boot.img
 ```
+<!-- dash:local-artifacts:end -->
 
 ### 0.4 已知冲突 / 容易误读的地方
 
@@ -143,7 +149,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3408 | `d41fb5959c16771c` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 8486 | `13508b34548d0486` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 9095 | `918b71a05e6d7f47` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
 | 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 34809 | `ac1348ac62a6a4d1` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 21757 | `1dcb324bfe85ba22` | 当前交付（优先相信） |
@@ -157,16 +163,15 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
 | 15 | 需求 | 交接任务书与验收标准（历史输入） | [`docs/handoff/TASK_BRIEF.md`](../handoff/TASK_BRIEF.md) | 12697 | `6cc641eb2f82e514` | 任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。 |
-| 16 | 需求 | 来源、pin 与“只记录不下载”的近失链接 | [`handoff/dash-gap-handoff/links/SOURCES.md`](../../handoff/dash-gap-handoff/links/SOURCES.md) | 4855 | `2c5a8d73a4bf5443` | 来源清单中的 project/dash 描述是交接时状态（6.6.144）；当前实现已切到 6.6.118。 |
-| 17 | 上游参考 | dash-droidspaces 项目说明（上游参考） | [`third_party/dash-droidspaces/README.md`](../../third_party/dash-droidspaces/README.md) | 3567 | `b458cb4cfde6737c` | 上游基线 commit 与本机 stock 不完全相同；其 DroidSpaces 配置不是本交接目标。 |
-| 18 | 上游参考 | OS4 vendor hooks / CRC / CI 单变量开关（上游参考） | [`third_party/dash-droidspaces/patches/README.md`](../../third_party/dash-droidspaces/patches/README.md) | 8397 | `0a8516136bfbec0a` | 上游 README 的 full-call-site bootloop 与本仓库实测不同；详见 docs/kernel/TEST_REPORT.md §10。 |
-| 19 | 上游参考 | vendor_boot v15 逐字节变更记录（上游参考） | [`third_party/dash-droidspaces/docs/vendor-boot-v15-changeset.md`](../../third_party/dash-droidspaces/docs/vendor-boot-v15-changeset.md) | 6613 | `9f4db4eb626b2f7d` | 上游参考（版本可能漂移） |
-| 20 | 上游参考 | gz/Trusty 被擦除与 nvhe 启动变更（上游参考） | [`third_party/dash-droidspaces/docs/gz-erased-changeset.md`](../../third_party/dash-droidspaces/docs/gz-erased-changeset.md) | 7269 | `fa4a4878660c70f2` | 本仓库使用 stock cmdline（kvm-arm.mode=protected），未合入 trusty-rescue/nvhe。 |
-| 21 | 通用参考 | GKI / LZ4KD 通用避坑指南（外部通用指南） | [`third_party/hyperos-lz4kd/Android_GKI_通用内核定制与LZ4KD实战避坑全指南.md`](../../third_party/hyperos-lz4kd/Android_GKI_通用内核定制与LZ4KD实战避坑全指南.md) | 19197 | `24a08fae5abc330b` | 通用指南的 AVB/解锁结论不适用于本机 hidden-unlock；boot 封装以 docs/kernel/BOOT_PACKAGING.md 为准。 |
-| 22 | 上游参考 | hyperos-lz4kd 项目说明（上游参考） | [`third_party/hyperos-lz4kd/README.md`](../../third_party/hyperos-lz4kd/README.md) | 18119 | `02074aa9cd5a5d3f` | 该 README 在“七、开机”处截断，内容与完整避坑指南重复；保留仅用于记录上游现状。 源文件代码围栏未闭合，已在合并稿中补齐。 |
-| 23 | 上游参考 | SUSFS 上游集成说明（上游参考） | [`third_party/susfs4ksu/README.md`](../../third_party/susfs4ksu/README.md) | 7058 | `e5b8c8a2cdeefb99` | 上游参考（版本可能漂移） |
+| 16 | 上游参考 | dash-droidspaces 项目说明（上游参考） | [`third_party/dash-droidspaces/README.md`](../../third_party/dash-droidspaces/README.md) | 3567 | `b458cb4cfde6737c` | 上游基线 commit 与本机 stock 不完全相同；其 DroidSpaces 配置不是本交接目标。 |
+| 17 | 上游参考 | OS4 vendor hooks / CRC / CI 单变量开关（上游参考） | [`third_party/dash-droidspaces/patches/README.md`](../../third_party/dash-droidspaces/patches/README.md) | 8397 | `0a8516136bfbec0a` | 上游 README 的 full-call-site bootloop 与本仓库实测不同；详见 docs/kernel/TEST_REPORT.md §10。 |
+| 18 | 上游参考 | vendor_boot v15 逐字节变更记录（上游参考） | [`third_party/dash-droidspaces/docs/vendor-boot-v15-changeset.md`](../../third_party/dash-droidspaces/docs/vendor-boot-v15-changeset.md) | 6613 | `9f4db4eb626b2f7d` | 上游参考（版本可能漂移） |
+| 19 | 上游参考 | gz/Trusty 被擦除与 nvhe 启动变更（上游参考） | [`third_party/dash-droidspaces/docs/gz-erased-changeset.md`](../../third_party/dash-droidspaces/docs/gz-erased-changeset.md) | 7269 | `fa4a4878660c70f2` | 本仓库使用 stock cmdline（kvm-arm.mode=protected），未合入 trusty-rescue/nvhe。 |
+| 20 | 通用参考 | GKI / LZ4KD 通用避坑指南（外部通用指南） | [`third_party/hyperos-lz4kd/Android_GKI_通用内核定制与LZ4KD实战避坑全指南.md`](../../third_party/hyperos-lz4kd/Android_GKI_通用内核定制与LZ4KD实战避坑全指南.md) | 19197 | `24a08fae5abc330b` | 通用指南的 AVB/解锁结论不适用于本机 hidden-unlock；boot 封装以 docs/kernel/BOOT_PACKAGING.md 为准。 |
+| 21 | 上游参考 | hyperos-lz4kd 项目说明（上游参考） | [`third_party/hyperos-lz4kd/README.md`](../../third_party/hyperos-lz4kd/README.md) | 18119 | `02074aa9cd5a5d3f` | 该 README 在“七、开机”处截断，内容与完整避坑指南重复；保留仅用于记录上游现状。 源文件代码围栏未闭合，已在合并稿中补齐。 |
+| 22 | 上游参考 | SUSFS 上游集成说明（上游参考） | [`third_party/susfs4ksu/README.md`](../../third_party/susfs4ksu/README.md) | 7058 | `e5b8c8a2cdeefb99` | 上游参考（版本可能漂移） |
 
-快速跳转：[01](#src-01) · [02](#src-02) · [03](#src-03) · [04](#src-04) · [05](#src-05) · [06](#src-06) · [07](#src-07) · [08](#src-08) · [09](#src-09) · [10](#src-10) · [11](#src-11) · [12](#src-12) · [13](#src-13) · [14](#src-14) · [15](#src-15) · [16](#src-16) · [17](#src-17) · [18](#src-18) · [19](#src-19) · [20](#src-20) · [21](#src-21) · [22](#src-22) · [23](#src-23)
+快速跳转：[01](#src-01) · [02](#src-02) · [03](#src-03) · [04](#src-04) · [05](#src-05) · [06](#src-06) · [07](#src-07) · [08](#src-08) · [09](#src-09) · [10](#src-10) · [11](#src-11) · [12](#src-12) · [13](#src-13) · [14](#src-14) · [15](#src-15) · [16](#src-16) · [17](#src-17) · [18](#src-18) · [19](#src-19) · [20](#src-20) · [21](#src-21) · [22](#src-22)
 
 ---
 
@@ -246,7 +251,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 8486 字节 · SHA256 `13508b34548d048660d7178d6c90d8a764c4648f96f36de496f2d49de0f3585d`
+> 来源：[`docs/kernel/README.md`](README.md) · 9095 字节 · SHA256 `918b71a05e6d7f47b24ff0e7b3297018cbd63f37e13a957d7d9e5d5eeebe9058`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -294,6 +299,16 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动。
 
 产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
+
+### CI（GitHub Actions）
+
+- [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)：push/PR 轻量
+  检查——`collect-notes.py --check`（生成器会掩码本机产物段，fresh clone 可跑）、
+  `shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP + `make patches`）。
+- [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
+  手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
+  boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
+  manifest，仍只在本机执行。
 
 ### 当前功能
 
@@ -3556,75 +3571,7 @@ MANIFEST.sha256
 ---
 
 <a id="src-16"></a>
-## 16. 来源、pin 与“只记录不下载”的近失链接
-
-> 来源：[`handoff/dash-gap-handoff/links/SOURCES.md`](../../handoff/dash-gap-handoff/links/SOURCES.md) · 4855 字节 · SHA256 `2c5a8d73a4bf54435e6f0088595da758826a5d3e7b7bb0a940088fce802a337d`
-> 类别：需求 · 状态：来源索引
-> 注意：来源清单中的 project/dash 描述是交接时状态（6.6.144）；当前实现已切到 6.6.118。
-
-### Local exact assets (included in this package)
-
-- Device: dash / REDMI Turbo 5 Max (MT6991), Android 17/SDK 37, stock `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`.
-- Active slot `_b`; bootloader reported `flash.locked=1`, verifiedbootstate=green, but per owner it is hidden-unlocked; **do not flash lk**.
-- `boot/` contains stock `boot_b.img` (64MB), `init_boot_b.img` (8MB), `vendor_boot_b.img` (64MB), `dtbo_b.img` (8MB), `vbmeta_b.img` (8MB).
-- `device/` contains stock config, kallsyms, getprop/lsmod/dmesg, module manifest/exports.
-- `modules/` contains all 638 stock modules: vendor ramdisk 275, vendor_dlkm 289, system_dlkm 78; plus `node_cache.ko`/`os_cpu_qi.ko` copies at top.
-- `project/dash/` contains current build scripts, patch series, config, and current 6.6.144 artifact config/BUILD_INFO.
-- `source/ufs/` contains official MediaTek UFS source extracted from MiCode `MTK_kernel_device_modules` branch `dash-w-oss`.
-- `source/memfd-ashmem-shim/` contains MiCode `mm/memfd-ashmem-shim*` source.
-
-### AOSP / kernel source
-
-- AOSP common 6.6.118 tag: https://android.googlesource.com/kernel/common/+/refs/tags/android15-6.6-2026-01_r1
-- AOSP common branch: https://android.googlesource.com/kernel/common/+/refs/heads/android15-6.6
-- AOSP clang r510928: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 (branch `main-kernel-build-2024`)
-- MiCode dash: https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/dash-w-oss (6.6.89 only)
-- MiCode `mist-w-oss`: https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/mist-w-oss (6.6.118, other device; no Xiaomi F2FS features)
-- MiCode `dada-v-oss`: https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/dada-v-oss (6.6.30)
-- MiCode MTK device modules: https://github.com/MiCode/MTK_kernel_device_modules/tree/dash-w-oss
-- MiCode MTK modules: https://github.com/MiCode/MTK_kernel_modules/tree/dash-w-oss
-
-### Reference projects
-
-- Re-s/Mi15-Droidspaces-Kernel: https://github.com/Re-s/Mi15-Droidspaces-Kernel
-  - Explicit stock string `b9cc6ec16bc8`; contains `docs/stock-6.6.118-android15-8.config`, DroidSpaces patches, boot tooling. Not dash kernel source.
-- CC dash kernel: https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash (6.6.144, LineageOS, not stock)
-- CC device modules: https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_device_modules (DTS/config/reimplemented modules; reverse-engineered)
-- CC MTK modules: https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules
-- CC build: https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_build
-- CC Bazel rules: https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_bazel_mgk_rules
-- lakitu dash DroidSpaces: https://github.com/lakitu12/kernel_dash_droidspaces (os4-vendor-hooks; experimental, full call sites bootloop)
-- SukiSU patch: https://github.com/SukiSU-Ultra/SukiSU_patch
-- SUSFS4KSU: https://gitlab.com/simonpunk/susfs4ksu (branch `gki-android15-6.6`)
-- BakaSU: https://github.com/Baka-SU/BakaSU
-- HyperOS LZ4KD: https://github.com/2108282/hyperos-lz4kd
-
-### Related dumps / near misses (recorded, NOT downloaded)
-
-- oss-dash/poco_dash_dump: https://github.com/oss-dash/poco_dash_dump
-  - dash / POCO X8 Pro Max, OS3.1, kernel 6.6.118, release-keys. Contains `boot/kernel` 36.8MB, `boot.elf` 42MB, `boot/dtb`, `boot/dts`, `ikconfig`, `kallsyms.txt`, split boot/vendor_boot, system_dlkm/vendor_dlkm, `aosp-device-tree` with BoardConfig. Not kernel source.
-- xiaomi-dash-dev/redmi_dash_dump: https://github.com/xiaomi-dash-dev/redmi_dash_dump (dash, OS3.0, 6.6.89)
-- xiaomi-mt6991/poco_dash_dump: https://github.com/xiaomi-mt6991/poco_dash_dump (dash, 6.6.118)
-- HexaUnion/redmi_dash_dump: https://github.com/HexaUnion/redmi_dash_dump (dash, 6.6.118)
-- ONFIX dash ROM: https://onfix.cn/course?bid=1&mid=30095 (boot/init_boot resources; paid)
-- ghostlock version map: https://github.com/YuKongA/ghostlock-app/blob/main/README_ZH.md
-- donyanchen sm8850: https://github.com/donyanchen/android_kernel_xiaomi_sm8850 (6.12, not 6.6.118)
-- hgn284 xiaomi_17pro_max_sm8850: https://github.com/hgn284/xiaomi_17pro_max_sm8850
-- Apr-YT/gg-rwproc33-driver: https://github.com/Apr-YT/gg-rwproc33-driver
-- wfqefwqf/share-poc-XRing-O1: https://github.com/wfqefwqf/share-poc-XRing-O1
-- klarnet2009/dada-closed-modules: https://github.com/klarnet2009/dada-closed-modules
-
-### Search conclusion
-
-- Exact dash 6.6.118 vendor source: **not found publicly**.
-- `XIAOMI_ENHANCED_IOSTAT`, `XIAOMI_EROFS_IOSTAT`, `F2FS_VIP_FILE`, `F2FS_FS_HYBRID_UFS`, `BLOCK_HYBRID_UFS` implementation: **not found publicly** (config/symbols only).
-- `node_cache.ko` / `os_cpu_qi.ko` source: **not found publicly** (binaries + behavior only).
-- Official UFS source: found in MiCode `MTK_kernel_device_modules/drivers/ufs`.
-
----
-
-<a id="src-17"></a>
-## 17. dash-droidspaces 项目说明（上游参考）
+## 16. dash-droidspaces 项目说明（上游参考）
 
 > 来源：[`third_party/dash-droidspaces/README.md`](../../third_party/dash-droidspaces/README.md) · 3567 字节 · SHA256 `b458cb4cfde6737ced8007521475825c8ab51f6ec66a07d11b03eb4a0e533b87`
 > 类别：上游参考 · 状态：上游参考（版本可能漂移）
@@ -3695,8 +3642,8 @@ USER_NS、TMPFS_XATTR/POSIX_ACL、NETFILTER_XT_MATCH_ADDRTYPE、IP_SET —
 
 ---
 
-<a id="src-18"></a>
-## 18. OS4 vendor hooks / CRC / CI 单变量开关（上游参考）
+<a id="src-17"></a>
+## 17. OS4 vendor hooks / CRC / CI 单变量开关（上游参考）
 
 > 来源：[`third_party/dash-droidspaces/patches/README.md`](../../third_party/dash-droidspaces/patches/README.md) · 8397 字节 · SHA256 `0a8516136bfbec0afdd440ca381a58b650e855f68983aa97ab7aa6392c62c59a`
 > 类别：上游参考 · 状态：上游参考（版本可能漂移）
@@ -3852,8 +3799,8 @@ os_cpu_qi.ko 直接加载，不再需要构建后钉值。
 
 ---
 
-<a id="src-19"></a>
-## 19. vendor_boot v15 逐字节变更记录（上游参考）
+<a id="src-18"></a>
+## 18. vendor_boot v15 逐字节变更记录（上游参考）
 
 > 来源：[`third_party/dash-droidspaces/docs/vendor-boot-v15-changeset.md`](../../third_party/dash-droidspaces/docs/vendor-boot-v15-changeset.md) · 6613 字节 · SHA256 `9f4db4eb626b2f7d4d3067db921881806e52c442705cc4abdc2decf02be8dc90`
 > 类别：上游参考 · 状态：上游参考（版本可能漂移）
@@ -3968,8 +3915,8 @@ v15 的 §1/§2/§3 三处改动在 **gz 在位态同样存在且实测无害**�
 
 ---
 
-<a id="src-20"></a>
-## 20. gz/Trusty 被擦除与 nvhe 启动变更（上游参考）
+<a id="src-19"></a>
+## 19. gz/Trusty 被擦除与 nvhe 启动变更（上游参考）
 
 > 来源：[`third_party/dash-droidspaces/docs/gz-erased-changeset.md`](../../third_party/dash-droidspaces/docs/gz-erased-changeset.md) · 7269 字节 · SHA256 `fa4a4878660c70f26e4766d5f2afbbfc2b6d4d6194a47c915379f6eae253d8da`
 > 类别：上游参考 · 状态：上游参考（版本可能漂移）
@@ -4081,8 +4028,8 @@ Mali 闸门最多使受保护视频通路退化，未实测，标注为待验）
 
 ---
 
-<a id="src-21"></a>
-## 21. GKI / LZ4KD 通用避坑指南（外部通用指南）
+<a id="src-20"></a>
+## 20. GKI / LZ4KD 通用避坑指南（外部通用指南）
 
 > 来源：[`third_party/hyperos-lz4kd/Android_GKI_通用内核定制与LZ4KD实战避坑全指南.md`](../../third_party/hyperos-lz4kd/Android_GKI_通用内核定制与LZ4KD实战避坑全指南.md) · 19197 字节 · SHA256 `24a08fae5abc330bb7304dbd66732a11c6b1e9131c8a58a740410932c1478624`
 > 类别：通用参考 · 状态：通用指南（设备差异处不适用）
@@ -4464,8 +4411,8 @@ grep -A 8 "lz4kd" /proc/crypto
 
 ---
 
-<a id="src-22"></a>
-## 22. hyperos-lz4kd 项目说明（上游参考）
+<a id="src-21"></a>
+## 21. hyperos-lz4kd 项目说明（上游参考）
 
 > 来源：[`third_party/hyperos-lz4kd/README.md`](../../third_party/hyperos-lz4kd/README.md) · 18119 字节 · SHA256 `02074aa9cd5a5d3fea9a035988b6bf2ede5ef8295d114b523203f25f8d5d14bb`
 > 类别：上游参考 · 状态：上游参考（版本可能漂移）
@@ -4834,8 +4781,8 @@ cat /proc/version
 
 ---
 
-<a id="src-23"></a>
-## 23. SUSFS 上游集成说明（上游参考）
+<a id="src-22"></a>
+## 22. SUSFS 上游集成说明（上游参考）
 
 > 来源：[`third_party/susfs4ksu/README.md`](../../third_party/susfs4ksu/README.md) · 7058 字节 · SHA256 `e5b8c8a2cdeefb99a075a863b9cb33236e33dd50a357caa85e0b3960d5047a57`
 > 类别：上游参考 · 状态：上游参考（版本可能漂移）

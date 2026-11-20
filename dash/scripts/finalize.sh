@@ -20,7 +20,7 @@ STOCK_BOOT_IMG="${STOCK_BOOT_IMG:-$DASH_ROOT/../handoff/dash-gap-handoff/boot/bo
 	"$DASH_ROOT/scripts/make-boot.sh"
 
 kernel_version="$(strings "$ARTIFACT_DIR/Image" | sed -n 's/^Linux version \([^ ]*\).*/\1/p' | head -1)"
-kernel_release="$(LOCALVERSION= make -s -C "$AOSP_DIR" O="$OUT_DIR" ARCH=arm64 kernelrelease 2>/dev/null || true)"
+kernel_release="$(LOCALVERSION='' make -s -C "$AOSP_DIR" O="$OUT_DIR" ARCH=arm64 kernelrelease 2>/dev/null || true)"
 config_sha="$(sha256sum "$OUT_DIR/.config" | cut -d' ' -f1)"
 aosp_commit="$(git -C "$AOSP_DIR" rev-parse HEAD)"
 clang_version="$("$TOOLCHAIN_DIR/bin/clang" --version | head -1)"

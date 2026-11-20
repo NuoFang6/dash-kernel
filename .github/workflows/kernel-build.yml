@@ -1,0 +1,68 @@
+# Full kernel build, manual dispatch only: a ThinLTO GKI build takes 1.5-3h
+# on the 4-core hosted runner, and the ThinLTO link stage can approach the
+# 16GB RAM limit.  Boot packaging and finalize.sh stay local on purpose: they
+# need the gitignored stock boot_b.img and vendor module manifest.
+name: kernel-build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kernel-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # apply-patches.sh symlinks BakaSU/kernel as drivers/kernelsu; no other
+      # submodule takes part in the kernel build.
+      - name: Init BakaSU submodule
+        run: git submodule update --init --depth 1 BakaSU
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -q
+          make -C dash deps
+
+      # ~1GB sparse clang checkout; keyed on versions.env so a pin bump
+      # invalidates it.  fetch-toolchain.sh no-ops when the cache hit.
+      - name: Restore clang toolchain cache
+        uses: actions/cache@v4
+        with:
+          path: dash/toolchains/clang-prebuilt
+          key: clang-${{ hashFiles('dash/versions.env') }}
+
+      - name: Build Image (source → patches → config → build)
+        run: make -C dash build
+
+      - name: Smoke-check kernel image
+        run: |
+          version="$(strings dash/out/artifacts/Image \
+            | sed -n 's/^Linux version \(.*\)/\1/p' | head -1)"
+          echo "kernel: ${version:-NOT FOUND}"
+          [[ -n "$version" ]]
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p upload
+          cp dash/out/artifacts/Image dash/out/artifacts/Image.lz4 \
+             dash/out/artifacts/System.map dash/out/artifacts/config upload/
+          cp dash/out/dash/vmlinux upload/
+          gzip -9 -c dash/out/dash/build.log > upload/build.log.gz
+          ls -lh upload/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dash-kernel-${{ github.sha }}
+          path: upload/
+          retention-days: 14
+          if-no-files-found: error

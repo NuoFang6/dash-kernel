@@ -46,6 +46,16 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
 
+## CI（GitHub Actions）
+
+- [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)：push/PR 轻量
+  检查——`collect-notes.py --check`（生成器会掩码本机产物段，fresh clone 可跑）、
+  `shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP + `make patches`）。
+- [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
+  手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
+  boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
+  manifest，仍只在本机执行。
+
 ## 当前功能
 
 > 本节是构建范围说明；验证状态以 [docs/STATUS.md](../STATUS.md) 为准，

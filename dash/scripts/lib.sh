@@ -5,9 +5,14 @@ DASH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # shellcheck source=../versions.env
 source "$DASH_ROOT/versions.env"
 
+# Shared paths consumed by every script that sources this library.
+# shellcheck disable=SC2034
 AOSP_DIR="$DASH_ROOT/src/aosp/common"
+# shellcheck disable=SC2034
 OUT_DIR="$DASH_ROOT/out/${DEVICE:-dash}"
+# shellcheck disable=SC2034
 ARTIFACT_DIR="$DASH_ROOT/out/artifacts"
+# shellcheck disable=SC2034
 TOOLCHAIN_DIR="$DASH_ROOT/toolchains/clang-prebuilt/clang-$CLANG_VERSION"
 JOBS="${JOBS:-$(nproc)}"
 
