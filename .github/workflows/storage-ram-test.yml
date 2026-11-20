@@ -165,7 +165,7 @@ jobs:
           echo "--- baseline swap ---"; swapon --show
           sudo swapoff -a
           best="$(df -B1 --output=avail,target / /mnt | tail -n +2 | sort -n | tail -1 | awk '{print $2}')"
-          fstype="$(df -T --output=fstype "$best" | tail -1)"
+          fstype="$(findmnt -no FSTYPE "$best")"
           echo "swap target: $best (fstype $fstype), planned 16G"
           sudo fallocate -l 16G "$best/swapfile" 2>/dev/null || \
             sudo dd if=/dev/zero of="$best/swapfile" bs=1M count=16384 status=none
@@ -194,7 +194,9 @@ jobs:
           echo "device: $dev"
           echo zstd | sudo tee "/sys/block/$zdev/comp_algorithm" >/dev/null 2>&1 \
             || echo "zstd rejected, falling back"
-          echo "comp_algorithm now: $(cat "/sys/block/$zdev/comp_algorithm")"
+          algo="$(cat "/sys/block/$zdev/comp_algorithm")"
+          active="$(grep -o '\[[a-z0-9-]*\]' <<<"$algo" | tr -d '[]' || true)"
+          echo "comp_algorithm now: $algo (active: ${active:-unknown})"
           echo 8G | sudo tee "/sys/block/$zdev/disksize" >/dev/null
           sudo mkswap "$dev"
           sudo swapon -p 100 "$dev"
@@ -202,7 +204,7 @@ jobs:
           echo
           free -h
           sum '```'
-          echo "RESULT|mem|zram|8G algo=$(cat "/sys/block/$zdev/comp_algorithm" | tr -d '[]')"
+          echo "RESULT|mem|zram|8G active=$active"
       - name: zswap in front of swap
         run: |
           sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
@@ -217,9 +219,14 @@ jobs:
             exit 0
           fi
           echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null 2>&1 || echo "compressor=zstd rejected"
-          echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || echo "zpool=zsmalloc rejected"
+          # kernel 7.0 removed the zpool parameter; write it only when present
+          if [[ -f /sys/module/zswap/parameters/zpool ]]; then
+            echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || echo "zpool=zsmalloc rejected"
+          else
+            echo "zpool param: absent on this kernel"
+          fi
           echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
-          grep -H . /sys/module/zswap/parameters/enabled /sys/module/zswap/parameters/compressor /sys/module/zswap/parameters/zpool
+          grep -H . /sys/module/zswap/parameters/enabled /sys/module/zswap/parameters/compressor 2>/dev/null || true
           sum '```'
           echo "RESULT|mem|zswap|enabled=$(cat /sys/module/zswap/parameters/enabled) compressor=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null)"
       - name: Final state
@@ -276,7 +283,8 @@ jobs:
           sudo modprobe zsmalloc 2>/dev/null || true
           if sudo modprobe zswap 2>/dev/null || [[ -d /sys/module/zswap ]]; then
             echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null 2>&1 || true
-            echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || true
+            [[ -f /sys/module/zswap/parameters/zpool ]] \
+              && echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || true
             echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
           fi
           echo "--- final memory ---"
