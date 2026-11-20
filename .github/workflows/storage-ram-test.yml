@@ -1,0 +1,293 @@
+# Empirical comparison of storage/RAM expansion options for the ThinLTO
+# kernel build on hosted runners.  Dispatch only (no auto triggers).
+#
+# Jobs run on fresh runners in parallel:
+#   probe                - baseline: disks, memory, swap, kernel-module
+#                          availability (zram/zswap/zsmalloc), du of the big
+#                          preinstalled dirs (= DIY rm potential)
+#   cleanup-jlumbroso    - jlumbroso/free-disk-space@v2, freed GiB + duration
+#   cleanup-enderson     - endersonmenezes/free-disk-space@v4 (opt-in, rmz),
+#                          freed GiB + duration
+#   memory-expansion     - swapfile + zram(zstd) + zswap, one by one, final
+#                          free -h / swapon / zramctl
+#   combined-plan        - the candidate kernel-build setup end to end:
+#                          cleanup -> 16G swapfile -> zram(zstd) -> zswap
+#
+# Every job writes markdown to the run summary; key numbers are also printed
+# as "RESULT|job|key|value" lines so they are greppable from job logs.
+name: storage-ram-test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Baseline environment report
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          sum "## Baseline environment"
+          sum ""
+          sum '```text'
+          uname -r | sed 's/^/kernel: /'
+          sum '```'
+          sum ""
+          sum "### Filesystems"
+          sum ""
+          sum '```text'
+          df -hT / /mnt /tmp
+          sum '```'
+          sum ""
+          sum "### Memory / swap"
+          sum ""
+          sum '```text'
+          free -h
+          echo
+          swapon --show
+          sum '```'
+          sum ""
+          sum "### Kernel module availability (zram / zswap / zsmalloc / zstd)"
+          sum ""
+          sum '```text'
+          for m in zram zswap zsmalloc; do
+            if sudo modprobe "$m" 2>/tmp/modprobe-err; then
+              echo "modprobe $m: OK"
+              sudo modprobe -r "$m" 2>/dev/null || true
+            else
+              echo "modprobe $m: FAIL ($(tr -d '\n' </tmp/modprobe-err))"
+            fi
+          done
+          command -v zstd >/dev/null && echo "zstd binary: $(zstd --version 2>/dev/null | head -1)" || echo "zstd binary: missing"
+          [[ -d /sys/module/zswap ]] && echo "zswap: built-in/loaded" || echo "zswap: not loaded"
+          sum '```'
+          sum ""
+          sum "### Big preinstalled dirs (DIY rm potential)"
+          sum ""
+          sum '```text'
+          sudo du -sh /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /opt/hostedtoolcache /usr/lib/jvm /usr/share/swift \
+            /opt/microsoft /usr/local/share/boost 2>/dev/null || true
+          sudo docker image ls --format '{{.Repository}}:{{.Tag}} {{.Size}}' 2>/dev/null | head -5 || true
+          sum '```'
+          echo "RESULT|probe|kernel|$(uname -r)"
+          echo "RESULT|probe|df-root-avail-GB|$(($(df -B1 / --output=avail | tail -1) / 1024 / 1024 / 1024))"
+          echo "RESULT|probe|df-mnt-avail-GB|$(($(df -B1 /mnt --output=avail | tail -1) / 1024 / 1024 / 1024))"
+
+  cleanup-jlumbroso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Measure before
+        id: before
+        run: |
+          df -hT / /mnt | tee df-before.txt
+          echo "root_before=$(df -B1 / --output=avail | tail -1)" >> "$GITHUB_OUTPUT"
+          echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: jlumbroso/free-disk-space@v2 (defaults, swap kept)
+        uses: jlumbroso/free-disk-space@v2
+        with:
+          swap-storage: false
+      - name: Measure after
+        env:
+          ROOT_BEFORE: ${{ steps.before.outputs.root_before }}
+          START: ${{ steps.before.outputs.start }}
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          dur=$(( $(date +%s) - START ))
+          df -hT / /mnt | tee df-after.txt
+          root_after="$(df -B1 / --output=avail | tail -1)"
+          freed=$(( (root_after - ROOT_BEFORE) / 1024 / 1024 / 1024 ))
+          sum "## jlumbroso/free-disk-space@v2（默认组，保留 swap）"
+          sum ""
+          sum '```text'
+          cat df-before.txt df-after.txt
+          sum '```'
+          sum ""
+          sum "- root 可用增量 **${freed} GiB**，耗时 ${dur}s"
+          echo "RESULT|jlumbroso|root-freed-GB|$freed"
+          echo "RESULT|jlumbroso|duration-s|$dur"
+
+  cleanup-enderson:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Measure before
+        id: before
+        run: |
+          df -hT / /mnt | tee df-before.txt
+          echo "root_before=$(df -B1 / --output=avail | tail -1)" >> "$GITHUB_OUTPUT"
+          echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+      - name: endersonmenezes/free-disk-space@v4 (rmz, opt-in set)
+        uses: endersonmenezes/free-disk-space@v4
+        with:
+          remove_dotnet: "true"
+          remove_android: "true"
+          remove_haskell: "true"
+          remove_tool_cache: "true"
+          rm_cmd: "rmz"
+      - name: Measure after
+        env:
+          ROOT_BEFORE: ${{ steps.before.outputs.root_before }}
+          START: ${{ steps.before.outputs.start }}
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          dur=$(( $(date +%s) - START ))
+          df -hT / /mnt | tee df-after.txt
+          root_after="$(df -B1 / --output=avail | tail -1)"
+          freed=$(( (root_after - ROOT_BEFORE) / 1024 / 1024 / 1024 ))
+          sum "## endersonmenezes/free-disk-space@v4（rmz）"
+          sum ""
+          sum '```text'
+          cat df-before.txt df-after.txt
+          sum '```'
+          sum ""
+          sum "- root 可用增量 **${freed} GiB**，耗时 ${dur}s"
+          echo "RESULT|enderson|root-freed-GB|$freed"
+          echo "RESULT|enderson|duration-s|$dur"
+
+  memory-expansion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: swapfile 16G on the biggest filesystem
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          sum "## Memory expansion"
+          sum ""
+          sum "### 1) swapfile 16G"
+          sum ""
+          sum '```text'
+          echo "--- baseline swap ---"; swapon --show
+          sudo swapoff -a
+          best="$(df -B1 --output=avail,target / /mnt | tail -n +2 | sort -n | tail -1 | awk '{print $2}')"
+          fstype="$(df -T --output=fstype "$best" | tail -1)"
+          echo "swap target: $best (fstype $fstype), planned 16G"
+          sudo fallocate -l 16G "$best/swapfile" 2>/dev/null || \
+            sudo dd if=/dev/zero of="$best/swapfile" bs=1M count=16384 status=none
+          sudo chmod 600 "$best/swapfile"
+          sudo mkswap "$best/swapfile"
+          sudo swapon -p 10 "$best/swapfile"
+          swapon --show
+          free -h
+          sum '```'
+          echo "RESULT|mem|swap|16G on $best ($fstype)"
+      - name: zram with zstd
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          sum "### 2) zram (8G, 请求 zstd)"
+          sum ""
+          sum '```text'
+          if ! sudo modprobe zram 2>/tmp/modprobe-err; then
+            echo "zram: UNAVAILABLE ($(tr -d '\n' </tmp/modprobe-err))"
+            echo "RESULT|mem|zram|unavailable"
+            sum '```'
+            exit 0
+          fi
+          dev=/dev/zram0
+          [[ -b "$dev" ]] || dev="/dev/zram$(cat /sys/class/zram-control/hot_add 2>/dev/null || echo 0)"
+          zdev="$(basename "$dev")"
+          echo "device: $dev"
+          echo zstd | sudo tee "/sys/block/$zdev/comp_algorithm" >/dev/null 2>&1 \
+            || echo "zstd rejected, falling back"
+          echo "comp_algorithm now: $(cat "/sys/block/$zdev/comp_algorithm")"
+          echo 8G | sudo tee "/sys/block/$zdev/disksize" >/dev/null
+          sudo mkswap "$dev"
+          sudo swapon -p 100 "$dev"
+          zramctl
+          echo
+          free -h
+          sum '```'
+          echo "RESULT|mem|zram|8G algo=$(cat "/sys/block/$zdev/comp_algorithm" | tr -d '[]')"
+      - name: zswap in front of swap
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          sum "### 3) zswap (请求 zstd/zsmalloc)"
+          sum ""
+          sum '```text'
+          sudo modprobe zsmalloc 2>/dev/null && echo "zsmalloc: loaded" || echo "zsmalloc: load failed"
+          if ! sudo modprobe zswap 2>/dev/null && [[ ! -d /sys/module/zswap ]]; then
+            echo "zswap: UNAVAILABLE"
+            echo "RESULT|mem|zswap|unavailable"
+            sum '```'
+            exit 0
+          fi
+          echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null 2>&1 || echo "compressor=zstd rejected"
+          echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || echo "zpool=zsmalloc rejected"
+          echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
+          grep -H . /sys/module/zswap/parameters/enabled /sys/module/zswap/parameters/compressor /sys/module/zswap/parameters/zpool
+          sum '```'
+          echo "RESULT|mem|zswap|enabled=$(cat /sys/module/zswap/parameters/enabled) compressor=$(cat /sys/module/zswap/parameters/compressor 2>/dev/null)"
+      - name: Final state
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          sum "### Final"
+          sum ""
+          sum '```text'
+          free -h; echo; swapon --show; echo; zramctl 2>/dev/null || true
+          sum '```'
+
+  combined-plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Measure before
+        id: before
+        run: |
+          df -hT / /mnt | tee df-before.txt
+          echo "root_before=$(df -B1 / --output=avail | tail -1)" >> "$GITHUB_OUTPUT"
+      - name: Cleanup (jlumbroso v2, keep swap baseline)
+        uses: jlumbroso/free-disk-space@v2
+        with:
+          swap-storage: false
+      - name: Rebuild 16G swap + zram(zstd) + zswap
+        env:
+          ROOT_BEFORE: ${{ steps.before.outputs.root_before }}
+        run: |
+          sum() { printf '%s\n' "$*" >> "$GITHUB_STEP_SUMMARY"; }
+          sum "## Combined plan（kernel-build 候选配置）"
+          sum ""
+          sum '```text'
+          echo "--- df after cleanup ---"
+          df -hT / /mnt
+          sudo swapoff -a
+          best="$(df -B1 --output=avail,target / /mnt | tail -n +2 | sort -n | tail -1 | awk '{print $2}')"
+          echo "swap target: $best"
+          sudo fallocate -l 16G "$best/swapfile" 2>/dev/null || \
+            sudo dd if=/dev/zero of="$best/swapfile" bs=1M count=16384 status=none
+          sudo chmod 600 "$best/swapfile"
+          sudo mkswap "$best/swapfile"
+          sudo swapon -p 10 "$best/swapfile"
+          if sudo modprobe zram 2>/dev/null; then
+            dev=/dev/zram0
+            [[ -b "$dev" ]] || dev="/dev/zram$(cat /sys/class/zram-control/hot_add 2>/dev/null || echo 0)"
+            zdev="$(basename "$dev")"
+            echo zstd | sudo tee "/sys/block/$zdev/comp_algorithm" >/dev/null 2>&1 || true
+            echo 8G | sudo tee "/sys/block/$zdev/disksize" >/dev/null
+            sudo mkswap "$dev" >/dev/null
+            sudo swapon -p 100 "$dev"
+          else
+            echo "zram: unavailable"
+          fi
+          sudo modprobe zsmalloc 2>/dev/null || true
+          if sudo modprobe zswap 2>/dev/null || [[ -d /sys/module/zswap ]]; then
+            echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null 2>&1 || true
+            echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || true
+            echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
+          fi
+          echo "--- final memory ---"
+          free -h; echo; swapon --show; echo; zramctl 2>/dev/null || true
+          echo "--- final disk ---"
+          df -hT / /mnt
+          sum '```'
+          root_after="$(df -B1 / --output=avail | tail -1)"
+          freed=$(( (root_after - ROOT_BEFORE) / 1024 / 1024 / 1024 ))
+          sum ""
+          sum "- 清理后 root 可用增量 **${freed} GiB**；swap+zram 合计 **$(free --si -h | awk '/^Swap:/{print $2}')**"
+          echo "RESULT|combined|root-freed-GB|$freed"
+          echo "RESULT|combined|swap-total|$(free --si -h | awk '/^Swap:/{print $2}')"
+          echo "RESULT|combined|mem-total|$(free --si -h | awk '/^Mem:/{print $2}')"
