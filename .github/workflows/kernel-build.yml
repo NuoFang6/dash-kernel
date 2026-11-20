@@ -1,7 +1,8 @@
 # Full kernel build, manual dispatch only: a ThinLTO GKI build takes 1.5-3h
-# on the 4-core hosted runner, and the ThinLTO link stage can approach the
-# 16GB RAM limit.  Boot packaging and finalize.sh stay local on purpose: they
-# need the gitignored stock boot_b.img and vendor module manifest.
+# on the 4-core hosted runner; the memory-expansion step below covers the
+# ThinLTO link stage's RAM spikes (measured setup, see storage-ram-test.yml).
+# Boot packaging and finalize.sh stay local on purpose: they need the
+# gitignored stock boot_b.img and vendor module manifest.
 name: kernel-build
 
 on:
@@ -33,6 +34,34 @@ jobs:
         run: |
           sudo apt-get update -q
           make -C dash deps
+
+      # ThinLTO link can approach the 16GB RAM limit; extend it the way
+      # storage-ram-test validated on kernel 7.0.0-1019-azure (run 44809707378):
+      # 16G swapfile + 8G zram with active=zstd + zswap(zstd) -> 16G RAM plus
+      # ~24G swap/zram.  No disk cleanup needed: the runner has ~87GB free.
+      - name: Expand memory (swap 16G + zram 8G zstd + zswap)
+        run: |
+          sudo swapoff -a
+          sudo fallocate -l 16G /swapfile || \
+            sudo dd if=/dev/zero of=/swapfile bs=1M count=16384 status=none
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon -p 10 /swapfile
+          if sudo modprobe zram; then
+            echo zstd | sudo tee /sys/block/zram0/comp_algorithm >/dev/null || true
+            echo 8G | sudo tee /sys/block/zram0/disksize >/dev/null
+            sudo mkswap /dev/zram0 >/dev/null
+            sudo swapon -p 100 /dev/zram0
+          fi
+          sudo modprobe zsmalloc 2>/dev/null || true
+          if sudo modprobe zswap 2>/dev/null || [[ -d /sys/module/zswap ]]; then
+            echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null 2>&1 || true
+            [[ -f /sys/module/zswap/parameters/zpool ]] \
+              && echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || true
+            echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
+          fi
+          free -h
+          swapon --show
 
       # ~1GB sparse clang checkout; keyed on versions.env so a pin bump
       # invalidates it.  fetch-toolchain.sh no-ops when the cache hit.

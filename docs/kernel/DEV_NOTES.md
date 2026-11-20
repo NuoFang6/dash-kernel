@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 03:55:42 +0800  
-> 覆盖 22 个源，269254 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 04:20:51 +0800  
+> 覆盖 22 个源，269840 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -150,7 +150,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3408 | `d41fb5959c16771c` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 9927 | `764119c06e112fd2` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 10513 | `7ba7b3e262ecae5c` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
 | 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 34809 | `ac1348ac62a6a4d1` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 21757 | `1dcb324bfe85ba22` | 当前交付（优先相信） |
@@ -252,7 +252,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 9927 字节 · SHA256 `764119c06e112fd28247dde150a92405caec15b831be50a064b784022194995a`
+> 来源：[`docs/kernel/README.md`](README.md) · 10513 字节 · SHA256 `7ba7b3e262ecae5c1f9a04cbf9e182ff92f641c93305597a4f1936e6ffd2f6ca`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -313,8 +313,15 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
   手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
-  boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
-  manifest，仍只在本机执行。
+  构建前做内存扩展（16G swapfile + 8G zram/zstd + zswap），方案经
+  `storage-ram-test` 实测；磁盘清理 action 不采用——runner 基线约 87GB
+  空闲，足够 ThinLTO 构建。boot 打包和 `finalize.sh` 需要 gitignored 的
+  stock `boot_b.img` 与模块 manifest，仍只在本机执行。
+- [`.github/workflows/storage-ram-test.yml`](../../../.github/workflows/storage-ram-test.yml)：
+  手动 dispatch 的存储/内存方案对比：基线探测、两个磁盘清理 action 实测
+  （jlumbroso v2：28GiB/257s；endersonmenezes v4 rmz：26GiB/40s）、
+  swap/zram/zswap 可用性与组合彩排。结论：zram/zswap 在 runner 上可用，
+  清理 action 非必需。
 - [`.github/workflows/upstream-check.yml`](../../../.github/workflows/upstream-check.yml)：
   手动 dispatch 对比子模块 pin 与远端分支头，漂移时报单条 issue；CC 系列仓库
   上游已不可达，会一直显示 (unreachable)。

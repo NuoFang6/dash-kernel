@@ -58,8 +58,15 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
   手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
-  boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
-  manifest，仍只在本机执行。
+  构建前做内存扩展（16G swapfile + 8G zram/zstd + zswap），方案经
+  `storage-ram-test` 实测；磁盘清理 action 不采用——runner 基线约 87GB
+  空闲，足够 ThinLTO 构建。boot 打包和 `finalize.sh` 需要 gitignored 的
+  stock `boot_b.img` 与模块 manifest，仍只在本机执行。
+- [`.github/workflows/storage-ram-test.yml`](../../../.github/workflows/storage-ram-test.yml)：
+  手动 dispatch 的存储/内存方案对比：基线探测、两个磁盘清理 action 实测
+  （jlumbroso v2：28GiB/257s；endersonmenezes v4 rmz：26GiB/40s）、
+  swap/zram/zswap 可用性与组合彩排。结论：zram/zswap 在 runner 上可用，
+  清理 action 非必需。
 - [`.github/workflows/upstream-check.yml`](../../../.github/workflows/upstream-check.yml)：
   手动 dispatch 对比子模块 pin 与远端分支头，漂移时报单条 issue；CC 系列仓库
   上游已不可达，会一直显示 (unreachable)。
