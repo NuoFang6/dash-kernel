@@ -14,13 +14,14 @@ configs/stock.config          设备 stock 配置，构建起点
 configs/abi_symbollist.raw    stock 导出白名单，保持 TRIM_UNUSED_KSYMS
 configs/features.fragment     本次新增配置摘要
 patches/                      有序补丁系列；series 是唯一应用顺序
-patches/susfs/                SUSFS 内核侧新增文件
-patches/vendor-hooks/         node_cache/os_cpu_qi 的 13 个 trace hooks
 scripts/                      同步、打补丁、配置、构建、boot 打包和静态检查
 src/aosp/common/              clean AOSP 浅克隆，可随时重置
 toolchains/                   clang r614150（clang 23.0.1）
 out/                          构建目录和 artifacts
 ```
+
+> SUSFS 内核文件（`fs/susfs.c`、`include/linux/susfs*.h`）不存仓库副本，
+> apply 时从 pinned 的 `third_party/susfs4ksu` 子模块安装。
 
 ## 快速开始
 
@@ -39,8 +40,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 ```
 
 > **6.6.143 补丁序列（2026-10-30 已重生成）**：`patches/series` 现在是
-> `0000-6.6.143-dash-integration.patch`（整树 squash），旧 6.6.118 拆分系列
-> 已移入 `patches/legacy-6.6.118/`。已在干净 bf768 worktree 验证 apply 后
+> `0000-6.6.143-dash-integration.patch`（整树 squash）；旧 6.6.118 拆分系列
+> 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 apply 后
 > 84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致，无 warning。
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动。
 
@@ -49,12 +50,19 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 ## CI（GitHub Actions）
 
 - [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)：push/PR 轻量
-  检查——`collect-notes.py --check`（生成器会掩码本机产物段，fresh clone 可跑）、
-  `shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP + `make patches`）。
+  检查——`shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP +
+  `make patches`）。DEV_NOTES 的刷新/校验（`make notes`、
+  `collect-notes.py --check`）只在本地做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
   手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
   boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
   manifest，仍只在本机执行。
+- [`.github/workflows/upstream-check.yml`](../../../.github/workflows/upstream-check.yml)：
+  每周对比子模块 pin 与远端分支头，漂移时报单条 issue；CC 系列仓库上游已
+  不可达，会一直显示 (unreachable)。
+- [`.github/workflows/bump-submodule.yml`](../../../.github/workflows/bump-submodule.yml)：
+  手动 dispatch，把指定子模块 bump 到分支头并同步 `versions.env` pin，以
+  `make source patches` 重放为门禁后自动开 PR；合并与刷机始终是人工决定。
 
 ## 当前功能
 
@@ -115,8 +123,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 ## 厂商 `.ko` 兼容
 
-集成补丁中的 `CONFIG_VENDOR_KO_COMPAT`（历史拆分见
-`patches/legacy-6.6.118/0001-vendor-ko-compat.patch`）在模块加载路径跳过：
+集成补丁中的 `CONFIG_VENDOR_KO_COMPAT`（6.6.118 时代拆分补丁已删，见 git
+历史）在模块加载路径跳过：
 
 - 模块签名验证（保留 GKI 签名配置本身）
 - vermagic 检查
@@ -125,8 +133,7 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - GKI protected export 限制
 
 符号仍然必须真实存在。集成补丁同时适配 BakaSU 三参数
-`ksu_handle_sys_read`（历史拆分见
-`patches/legacy-6.6.118/0004-susfs-bakasu-hooks.patch`）。关闭校验会降低安全性，
+`ksu_handle_sys_read`。关闭校验会降低安全性，
 仅用于已解锁的自有设备。
 
 ## 更新规则
@@ -136,8 +143,10 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   `0000-6.6.143-dash-integration.patch`，不要手改补丁文件。流程见
   [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
-- 更新 SUSFS：更新 `SUSFS_COMMIT`，重新取上游 patch 和
-  `patches/susfs/{susfs.c,susfs.h,susfs_def.h}`。
+- 更新 SUSFS：更新 `SUSFS_COMMIT` 并 bump `third_party/susfs4ksu` 子模块即可；
+  SUSFS 文件 apply 时从子模块安装，不需要手动取。bump 可走
+  `.github/workflows/bump-submodule.yml`（自动 PR），漂移检测见
+  `scripts/upstream-check.sh`（CI 每周跑，报 issue）。
 - 源码目录可以随时由脚本重置；长期修改只保存在 `patches/`、`configs/` 和报告。
 - 版本、哈希、模块数和验证结论只更新 [docs/STATUS.md](../STATUS.md)；本文件
   只记录构建流程和稳定的构建范围。

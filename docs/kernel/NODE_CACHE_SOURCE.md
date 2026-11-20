@@ -77,8 +77,8 @@
 本仓库补了 4 个：`filemap_get_folio_end`、`remove_mapping`、
 `remove_mapping_failed`、`put_super`；`do_new_mount_fc` 在 AOSP 6.6 树里已有。
 头文件原型在
-[`patches/legacy-6.6.118/vendor-hooks/0001-trace-hooks-add-dash-os4-vendor-hooks.patch`](../../dash/patches/legacy-6.6.118/vendor-hooks/0001-trace-hooks-add-dash-os4-vendor-hooks.patch)
-和 6.6.143 整树补丁中固定。源码里的回调签名与这些原型逐字一致：
+[`third_party/dash-droidspaces/patches/os4-vendor-hooks/0001-trace-hooks-add-dash-os4-vendor-hooks.patch`](../../third_party/dash-droidspaces/patches/os4-vendor-hooks/0001-trace-hooks-add-dash-os4-vendor-hooks.patch)
+（上游原始拆分）和 6.6.143 整树补丁中固定。源码里的回调签名与这些原型逐字一致：
 
 ```c
 void (*)(void *, struct address_space *, struct folio *, bool);

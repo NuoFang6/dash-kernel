@@ -21,6 +21,11 @@ if [[ "$BAKASU_DIR" != /* ]]; then
 fi
 BAKASU_DIR="$(cd "$BAKASU_DIR" && pwd)"
 
+if [[ "$SUSFS_DIR" != /* ]]; then
+	SUSFS_DIR="$DASH_ROOT/$SUSFS_DIR"
+fi
+SUSFS_DIR="$(cd "$SUSFS_DIR" && pwd)"
+
 if [[ "$TCP_BRUTAL_DIR" != /* ]]; then
 	TCP_BRUTAL_DIR="$DASH_ROOT/$TCP_BRUTAL_DIR"
 fi

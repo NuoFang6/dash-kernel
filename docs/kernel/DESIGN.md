@@ -24,8 +24,10 @@
 | 补丁/目录 | 内容 |
 |---|---|
 | `0000-6.6.143-dash-integration.patch` | 整树 squash：vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、stock parity hooks、OS4 vendor hooks |
-| `patches/susfs/` | `susfs.c`、`susfs.h`、`susfs_def.h`，由 `scripts/apply-patches.sh` 安装 |
-| `patches/legacy-6.6.118/` | 旧 6.6.118 拆分系列（0000–0009 + vendor-hooks），仅历史参考，不再应用 |
+| `third_party/susfs4ksu`（子模块） | `kernel_patches/` 下的 SUSFS 内核文件，由 `scripts/apply-patches.sh` 安装，仓库不存副本 |
+
+旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）已于 2026-11-21 从仓库删除，
+仅存 git 历史（commit `1e5c8f4` 之前）。
 
 BakaSU 以固定提交的本地符号链接接入，不复制上游历史。集成补丁在干净
 `bf768be0` 上 apply 后，84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致。
@@ -59,8 +61,8 @@ tracepoint：
 ### stock core tracepoint / dynamic task_struct
 
 当前集成补丁以 AOSP `android15-6.6-2026-10_r2` 为参考，回移 stock 6.6.118
-有、2026-01 AOSP 没有的 51 个 hook，并回移其中 44 个的调用点（历史拆分见
-`patches/legacy-6.6.118/0007-stock-parity-hooks.patch`）。`dma_heap_buffer_alloc_lat_*`、`mmc_*`/`sdhci_get_cd`、
+有、2026-01 AOSP 没有的 51 个 hook，并回移其中 44 个的调用点（历史拆分补丁
+`0007-stock-parity-hooks.patch` 已删，见 git 历史）。`dma_heap_buffer_alloc_lat_*`、`mmc_*`/`sdhci_get_cd`、
 `restore_curr_resched` 在上游只有声明/导出，保持相同的“事件可用、无内核调用点”
 状态。`lz4_decompress_start/end` 没有公开源码，按 stock BTF 的
 `inputsize/outputsize/ret/bypass` 字段在 EROFS LZ4 解压路径实现；它记录的是
@@ -78,8 +80,7 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 - 内建 `CONFIG_KSU=y`、`CONFIG_KSU_MULTI_MANAGER_SUPPORT=y`。
 - `CONFIG_KSU_SUSFS=y`，关闭 tracepoint/manual hook，使用 inline hook。
 - 集成补丁中的 `CONFIG_VENDOR_KO_COMPAT` 只放宽模块加载校验，不伪造缺失符号；
-  未知符号仍会导致加载失败（历史拆分见
-  `legacy-6.6.118/0001-vendor-ko-compat.patch`）。
+  未知符号仍会导致加载失败。
 - 安全影响：模块签名/CRC/vermagic/protected-export 检查被关闭，仅适用于已解锁的
   自有设备。`MODULE_SIG_PROTECT=y` 本身保留，以便随时关闭兼容开关回到严格模式。
 

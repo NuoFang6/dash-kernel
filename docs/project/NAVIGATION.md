@@ -30,6 +30,11 @@
 
 注意：CC 的 device modules 中很多厂商模块是**反汇编/逆向重实现**，不是原厂源码；README 明确写“it compiles doesn't mean it works”，且**不要直接刷到 HyperOS 上**。只作为接口/实现参考。
 
+> **2026-11-21：Content-Creation-Club 全部仓库（4 个子模块 + 主内核树）已
+> 404/私有化，无法重新获取。** 上表 pin 的 commit 与本地浅克隆是唯一副本，
+> `scripts/upstream-check.sh` 会持续报告 (unreachable)。如需异地备份，对
+> `third_party/cc-dash-*` 子模块做 git bundle。
+
 ## 2. 大源码树（非子模块，浅克隆/本地）
 
 | 路径 | 上游 | pin / 分支 | 用途 |
@@ -39,7 +44,7 @@
 | [dash/src/MTK_kernel_device_modules](../../dash/src/MTK_kernel_device_modules) | https://github.com/MiCode/MTK_kernel_device_modules.git | `9c62564` / `dash-w-oss` | 官方公开 dash DTS/device modules 参考 |
 | [dash/src/MTK_kernel_modules](../../dash/src/MTK_kernel_modules) | https://github.com/MiCode/MTK_kernel_modules.git | `8c88cf7` / `dash-w-oss` | 官方公开 MTK camera/WiFi 等模块参考 |
 | [dash/toolchains/clang-prebuilt](../../dash/toolchains/clang-prebuilt) | https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 | `main-kernel` | AOSP clang r614150（23.0.1），当前构建链 |
-| `/tmp/cc_dash_tree`（临时） | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash.git | `86b65f8476c7` / `dash-w-oss`（6.6.144） | CC 主内核参考；2.8GB，**故意不做子模块**，需要时按 shallow 方式取 |
+| `/tmp/cc_dash_tree`（临时） | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash.git | `86b65f8476c7` / `dash-w-oss`（6.6.144） | CC 主内核参考；2.8GB。**上游已 404（2026-11-21），无法再取** |
 
 大源码树的更新方式：
 
@@ -55,9 +60,8 @@ git -C src/aosp/common checkout --detach <commit>
 git clone --depth=1 --filter=blob:none --no-checkout \
   -b dash-w-oss https://github.com/MiCode/Xiaomi_Kernel_OpenSource.git dash/src/micode-kernel
 
-# CC 主内核（只在需要时，2.8GB）
-git clone --depth=1 --filter=blob:none \
-  -b dash-w-oss https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash.git /tmp/cc_dash_tree
+# CC 主内核：上游已 404（2026-11-21），无法再克隆；本地浅克隆若已丢失，
+# 参考价值只能靠 third_party/cc-dash-* 子模块的 bundle 备份。
 ```
 
 ## 3. 原厂设备审计资产
@@ -86,8 +90,7 @@ git clone --depth=1 --filter=blob:none \
 | [dash/versions.env](../../dash/versions.env) | AOSP / BakaSU / SUSFS / clang 版本锁定 |
 | [dash/Makefile](../../dash/Makefile) | `deps/toolchain/source/patches/config/build` 入口 |
 | [dash/scripts](../../dash/scripts) | 源码同步、补丁、配置、构建脚本 |
-| [dash/patches/series](../../dash/patches/series) | 当前唯一补丁 `0000-6.6.143-dash-integration.patch`（整树 squash；含 vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、OS4 vendor hooks） |
-| [dash/patches/legacy-6.6.118](../../dash/patches/legacy-6.6.118) | 旧 6.6.118 拆分系列，仅作历史参考，不再应用 |
+| [dash/patches/series](../../dash/patches/series) | 当前唯一补丁 `0000-6.6.143-dash-integration.patch`（整树 squash；含 vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、OS4 vendor hooks）；SUSFS 文件 apply 时从 `third_party/susfs4ksu` 安装，仓库不存副本 |
 | [dash/out/artifacts](../../dash/out/artifacts) | 当前 6.6.143 构建产物：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS` |
 
 当前产物版本、哈希和验证结论见 [docs/STATUS.md](../STATUS.md)；证据见
@@ -98,8 +101,8 @@ git clone --depth=1 --filter=blob:none \
 - 想让 agent/LLM 接手：先读根目录 [AGENTS.md](../../AGENTS.md) 和 [docs/STATUS.md](../STATUS.md)；`DEV_NOTES.md` 是生成物，不是当前状态的权威来源。
 - 想构建/更新内核：从 [docs/kernel/README.md](../kernel/README.md) 开始，版本改 [dash/versions.env](../../dash/versions.env)。
 - 想恢复原厂 boot/kernel：用 [phone-dump](../../dash/out/device-audit/phone-dump) 里的 `boot_b.img` 等；不要碰 `lk`。
-- 想改 BakaSU/KSU：看 [BakaSU/kernel](../../BakaSU/kernel) 和 [0002-bakasu-integration.patch](../../dash/patches/legacy-6.6.118/0002-bakasu-integration.patch)。
-- 想改 SUSFS：看 [third_party/susfs4ksu](../../third_party/susfs4ksu)，对应 [0003](../../dash/patches/legacy-6.6.118/0003-susfs-gki-android15-6.6.patch)；注意 BakaSU 三参数 `ksu_handle_sys_read` 的 [0004](../../dash/patches/legacy-6.6.118/0004-susfs-bakasu-hooks.patch)。
+- 想改 BakaSU/KSU：看 [BakaSU/kernel](../../BakaSU/kernel)；6.6.118 时代的拆分补丁已删（git 历史保留）。
+- 想改 SUSFS：看 [third_party/susfs4ksu](../../third_party/susfs4ksu)（`kernel_patches/`，apply 时直接安装）；BakaSU 三参数 `ksu_handle_sys_read` 的适配在 `0000-6.6.143-dash-integration.patch`。
 - 想研究 lz4kd/zram：看 [third_party/sukisu-patch/other/zram](../../third_party/sukisu-patch/other/zram)、[third_party/hyperos-lz4kd](../../third_party/hyperos-lz4kd)；当前结论是 delta 未真正接入 zram。
 - 想找 dash DTS / 原厂模块接口：看 [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules)，尤其是 `arch/arm64/boot/dts/mediatek/dash*`、`kernel/configs/dash*.config`、`drivers/ufs/`、`drivers/input/touchscreen/`、`drivers/misc/xiaomi/`。这些是逆向重实现，不是 stock 源码。
 - 想找 OS4 vendor hooks：看 [third_party/dash-droidspaces/patches/os4-vendor-hooks](../../third_party/dash-droidspaces/patches/os4-vendor-hooks)；上游 README 报告过 full call site bootloop，但本仓库完整 13-hook + 全调用点镜像已实机启动，冲突时以 [docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md) 为准。
@@ -137,7 +140,7 @@ git submodule update --remote --merge third_party/susfs4ksu
 - SukiSU patches：https://github.com/SukiSU-Ultra/SukiSU_patch
 - dash DroidSpaces 参考：https://github.com/lakitu12/kernel_dash_droidspaces
 - HyperOS LZ4KD 参考：https://github.com/2108282/hyperos-lz4kd
-- CC dash 主内核：https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash
+- CC dash 主内核：https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash （已 404，2026-11-21）
 - MiCode dash：https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/dash-w-oss
 - MiCode 6.6.118（其他设备）：https://github.com/MiCode/Xiaomi_Kernel_OpenSource/tree/mist-w-oss
 - Mi15 6.6.118 参考（含 stock config/构建脚本）：https://github.com/Re-s/Mi15-Droidspaces-Kernel

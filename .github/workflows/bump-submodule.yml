@@ -1,0 +1,123 @@
+# Semi-automatic upstream bump: move one submodule pin to the head of a
+# branch, replay the patch series as a gate, and open a PR.  Merging the PR
+# is always a human decision; flashing the result stays a local, on-device
+# verification step.
+#
+# BakaSU / susfs4ksu bumps additionally update the pins in dash/versions.env
+# (apply-patches.sh enforces them).  These two flow into the build without
+# regenerating the squash patch: BakaSU is a symlink, SUSFS files are
+# installed from the submodule.
+name: bump-submodule
+
+on:
+  workflow_dispatch:
+    inputs:
+      submodule:
+        description: "Submodule path to bump"
+        required: true
+        type: choice
+        options:
+          - BakaSU
+          - third_party/susfs4ksu
+          - third_party/sukisu-patch
+          - third_party/dash-droidspaces
+          - third_party/hyperos-lz4kd
+          - third_party/cc-dash-build
+          - third_party/cc-dash-device-modules
+          - third_party/cc-dash-bazel-rules
+          - third_party/cc-dash-mtk-modules
+          - third_party/tcp-brutal
+          - third_party/mihomo
+      branch:
+        description: "Branch to bump to (empty: tracked branch, else remote HEAD)"
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve target commit
+        id: target
+        run: |
+          path="${{ inputs.submodule }}"
+          name=""
+          for key in $(git config --file .gitmodules --name-only --get-regexp '^submodule\..*\.path$'); do
+            if [[ "$(git config --file .gitmodules --get "$key")" == "$path" ]]; then
+              name="${key%.path}"; name="${name#submodule.}"
+              break
+            fi
+          done
+          [[ -n "$name" ]] || { echo "no submodule with path $path in .gitmodules"; exit 1; }
+          url="$(git config --file .gitmodules --get "submodule.${name}.url")"
+          branch="${{ inputs.branch }}"
+          if [[ -z "$branch" ]]; then
+            branch="$(git config --file .gitmodules --get "submodule.${name}.branch" || true)"
+          fi
+          ref="refs/heads/$branch"
+          [[ -n "$branch" ]] || ref="HEAD"
+          sha="$(git ls-remote "$url" "$ref" | awk 'NR==1{print $1}')"
+          [[ -n "$sha" ]] || { echo "cannot resolve $url $ref"; exit 1; }
+          echo "path=$path sha=$sha ref=$ref" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+
+      - name: Move submodule pin
+        env:
+          SHA: ${{ steps.target.outputs.sha }}
+          REF: ${{ steps.target.outputs.ref }}
+        run: |
+          path="${{ inputs.submodule }}"
+          git submodule update --init --depth 1 "$path"
+          # fetch the branch ref (some hosts refuse bare-SHA fetches), then
+          # detach exactly at the resolved commit
+          git -C "$path" fetch --depth 1 origin "$REF"
+          git -C "$path" checkout --detach "$SHA"
+          git add "$path"
+          # keep versions.env pins in sync where apply-patches enforces them
+          case "$path" in
+            BakaSU)
+              sed -i "s/^BAKASU_COMMIT=.*/BAKASU_COMMIT=$SHA/" dash/versions.env ;;
+            third_party/susfs4ksu)
+              sed -i "s/^SUSFS_COMMIT=.*/SUSFS_COMMIT=$SHA/" dash/versions.env ;;
+          esac
+          git add dash/versions.env
+
+      - name: Replay patch series (gate)
+        run: |
+          git submodule update --init --depth 1 BakaSU third_party/susfs4ksu
+          make -C dash source patches
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.target.outputs.sha }}
+        run: |
+          short="${SHA::12}"
+          name="$(basename "${{ inputs.submodule }}")"
+          branch="bump/$name-$short"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -m "chore: bump ${{ inputs.submodule }} to $short
+
+          Remote branch head resolved by bump-submodule.yml; patch series
+          replayed successfully against the pinned AOSP tag as a gate.
+          Build + on-device verification still required before flashing."
+          git push origin "$branch"
+          gh pr create --title "chore: bump ${{ inputs.submodule }} to $short" \
+            --body "Automated submodule bump: \`${{ inputs.submodule }}\` -> \`${short}\` (${{ steps.target.outputs.ref }}).
+
+          - patch series replay: OK
+          - next steps: dispatch kernel-build, then verify on device before flashing" \
+            --head "$branch"

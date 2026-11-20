@@ -1,0 +1,46 @@
+# Weekly read-only check: does any pinned submodule differ from the head of
+# its tracked branch upstream?  On drift the run goes red and a single
+# tracking issue is created/updated with the comparison table.
+name: upstream-check
+
+on:
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check submodule drift
+        id: check
+        run: |
+          set +e
+          bash dash/scripts/upstream-check.sh | tee upstream-report.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Write run summary
+        if: always()
+        run: |
+          touch upstream-report.txt
+          cat upstream-report.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update drift issue
+        if: steps.check.outputs.exitcode != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="upstream submodule drift detected"
+          existing="$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number' || true)"
+          if [[ -n "$existing" ]]; then
+            gh issue comment "$existing" --body-file upstream-report.txt
+          else
+            gh issue create --title "$title" --body-file upstream-report.txt
+          fi
