@@ -1,11 +1,10 @@
-# Weekly read-only check: does any pinned submodule differ from the head of
-# its tracked branch upstream?  On drift the run goes red and a single
-# tracking issue is created/updated with the comparison table.
+# Read-only check, manual dispatch only (no schedule by owner's choice):
+# does any pinned submodule differ from the head of its tracked branch
+# upstream?  On drift the run goes red and a single tracking issue is
+# created/updated with the comparison table.
 name: upstream-check
 
 on:
-  schedule:
-    - cron: "17 3 * * 1"
   workflow_dispatch:
 
 permissions:

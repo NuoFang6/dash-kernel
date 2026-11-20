@@ -1,11 +1,9 @@
-# Light CI: runs on every push/PR.  Heavy kernel builds live in
-# kernel-build.yml (manual dispatch) because a ThinLTO GKI build takes hours.
+# Light CI, manual dispatch only (no push/PR auto triggers by owner's
+# choice).  Heavy kernel builds live in kernel-build.yml for the same reason:
+# a ThinLTO GKI build takes hours.
 name: ci
 
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:

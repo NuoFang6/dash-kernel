@@ -49,17 +49,20 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 ## CI（GitHub Actions）
 
-- [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)：push/PR 轻量
-  检查——`shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP +
-  `make patches`）。DEV_NOTES 的刷新/校验（`make notes`、
-  `collect-notes.py --check`）只在本地做，不在 CI 里跑。
+> 所有工作流**只保留手动 dispatch 触发**（push/PR/schedule 自动触发已按
+> 仓库主人的要求关闭）；跑到 Actions 页手动触发。
+
+- [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)：轻量检查——
+  `shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP + `make patches`）。
+  DEV_NOTES 的刷新/校验（`make notes`、`collect-notes.py --check`）只在本地
+  做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
   手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
   boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
   manifest，仍只在本机执行。
 - [`.github/workflows/upstream-check.yml`](../../../.github/workflows/upstream-check.yml)：
-  每周对比子模块 pin 与远端分支头，漂移时报单条 issue；CC 系列仓库上游已
-  不可达，会一直显示 (unreachable)。
+  手动 dispatch 对比子模块 pin 与远端分支头，漂移时报单条 issue；CC 系列仓库
+  上游已不可达，会一直显示 (unreachable)。
 - [`.github/workflows/bump-submodule.yml`](../../../.github/workflows/bump-submodule.yml)：
   手动 dispatch，把指定子模块 bump 到分支头并同步 `versions.env` pin，以
   `make source patches` 重放为门禁后自动开 PR；合并与刷机始终是人工决定。
