@@ -1,38 +1,34 @@
-# dash 6.6.118 内核设计说明
+# dash 6.6 内核设计说明（当前 6.6.143）
 
 ## 1. 基线与交付边界
 
 - 设备：`dash` / REDMI Turbo 5 Max / MT6991，stock
   `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`。
-- AOSP 基线：`android15-6.6-2026-01_r1`，peeled commit
-  `f9c84f40b6ba6152b6f51daba0193c9564af4172`（`SUBLEVEL=118`）。
-- 工具链：AOSP `clang-r510928`。
+- AOSP 基线：`android15-6.6-2026-10_r2`，commit
+  `bf768be0eed008588dc4e0db0b2f76c026a35818`（`SUBLEVEL=143`）；
+  当前版本和产物见 [STATUS.md](../STATUS.md)。
+- 工具链：AOSP `clang-r614150`（23.0.1），构建全程 clang/LLD。
 - 配置起点：[stock.config](../../dash/configs/stock.config)，不是 `gki_defconfig`。
 - 页面大小 4K；保留 `CFI_CLANG`、`SHADOW_CALL_STACK`、`MODVERSIONS`、
-  `MODULE_SIG_PROTECT`、`LTO_NONE` 和 `TRIM_UNUSED_KSYMS`。
+  `MODULE_SIG_PROTECT` 和 `TRIM_UNUSED_KSYMS`；启用
+  `CONFIG_LTO_CLANG_THIN=y`，AutoFDO 未启用。
 - 交付物不写 `lk`、`super` 或用户数据；实机测试只使用 `boot_b`，并在写入前备份
   完整 boot/vbmeta 分区。默认仍应优先无写入验证，任何刷机由设备所有者决定。
 
 ## 2. 补丁系列
 
-[patches/series](../../dash/patches/series) 是唯一应用顺序：
+[patches/series](../../dash/patches/series) 是唯一应用顺序。当前 6.6.143 只有
+一个整树集成补丁；详细原因、生成和应用流程见
+[patches/README.md](../../dash/patches/README.md)。
 
-| 补丁 | 内容 |
+| 补丁/目录 | 内容 |
 |---|---|
-| `0000-tools-libbpf-const-strchr.patch` | 6.6.118 host `libbpf` 与 r510928 的 `const` 诊断修复，只影响构建主机 |
-| `0001-vendor-ko-compat.patch` | 跳过厂商 `.ko` 的签名、vermagic、CRC、namespace 和 GKI protected-export 检查 |
-| `0002-bakasu-integration.patch` | BakaSU 内建接入 |
-| `0003-susfs-gki-android15-6.6.patch` | SUSFS inline 支持，已适配 6.6.118 |
-| `0004-susfs-bakasu-hooks.patch` | BakaSU `ksu_handle_sys_read` 三参数适配 |
-| `0005-xiaomi-f2fs-features.patch` | 增强 iostat、fault report、lock/priority、VIP manager、hybrid UFS 接口、block Kconfig |
-| `0006-xiaomi-erofs-iostat.patch` | EROFS 每 CPU iostat 与 sysfs |
-| `0007-stock-parity-hooks.patch` | 51 个 stock-only hook、44 个调用点、2 个 LZ4 事件、GKI dynamic task_struct |
-| `0008-mmc-dma-hook-callsites.patch` | MMC attach/reset/cd、sdhci get_cd、dma-heap alloc latency 调用点 |
-| `0009-lazy-resched-hooks.patch` | `restore_curr_resched` 的 arm64 lazy-resched 调用点 |
-| `vendor-hooks/0001..0010` | node_cache/os_cpu_qi 需要的 13 个 `android_vh_*` hooks、导出和调用点 |
+| `0000-6.6.143-dash-integration.patch` | 整树 squash：vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、stock parity hooks、OS4 vendor hooks |
+| `patches/susfs/` | `susfs.c`、`susfs.h`、`susfs_def.h`，由 `scripts/apply-patches.sh` 安装 |
+| `patches/legacy-6.6.118/` | 旧 6.6.118 拆分系列（0000–0009 + vendor-hooks），仅历史参考，不再应用 |
 
-`susfs.c`、`susfs.h`、`susfs_def.h` 由 `scripts/apply-patches.sh` 从
-`patches/susfs/` 安装；BakaSU 以固定提交的本地符号链接接入，不复制上游历史。
+BakaSU 以固定提交的本地符号链接接入，不复制上游历史。集成补丁在干净
+`bf768be0` 上 apply 后，84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致。
 
 ## 3. 厂商模块与 trace hooks
 
@@ -62,9 +58,9 @@ tracepoint：
 
 ### stock core tracepoint / dynamic task_struct
 
-`0007-stock-parity-hooks.patch` 以 AOSP `android15-6.6-2026-10_r2` 为参考，
-回移 stock 6.6.118 有、2026-01 AOSP 没有的 51 个 hook，并回移其中 44 个的
-调用点。`dma_heap_buffer_alloc_lat_*`、`mmc_*`/`sdhci_get_cd`、
+当前集成补丁以 AOSP `android15-6.6-2026-10_r2` 为参考，回移 stock 6.6.118
+有、2026-01 AOSP 没有的 51 个 hook，并回移其中 44 个的调用点（历史拆分见
+`patches/legacy-6.6.118/0007-stock-parity-hooks.patch`）。`dma_heap_buffer_alloc_lat_*`、`mmc_*`/`sdhci_get_cd`、
 `restore_curr_resched` 在上游只有声明/导出，保持相同的“事件可用、无内核调用点”
 状态。`lz4_decompress_start/end` 没有公开源码，按 stock BTF 的
 `inputsize/outputsize/ret/bypass` 字段在 EROFS LZ4 解压路径实现；它记录的是
@@ -81,14 +77,15 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 
 - 内建 `CONFIG_KSU=y`、`CONFIG_KSU_MULTI_MANAGER_SUPPORT=y`。
 - `CONFIG_KSU_SUSFS=y`，关闭 tracepoint/manual hook，使用 inline hook。
-- `0001` 的 `CONFIG_VENDOR_KO_COMPAT` 只放宽模块加载校验，不伪造缺失符号；
-  未知符号仍会导致加载失败。
+- 集成补丁中的 `CONFIG_VENDOR_KO_COMPAT` 只放宽模块加载校验，不伪造缺失符号；
+  未知符号仍会导致加载失败（历史拆分见
+  `legacy-6.6.118/0001-vendor-ko-compat.patch`）。
 - 安全影响：模块签名/CRC/vermagic/protected-export 检查被关闭，仅适用于已解锁的
   自有设备。`MODULE_SIG_PROTECT=y` 本身保留，以便随时关闭兼容开关回到严格模式。
 
 ## 5. memfd ashmem shim
 
-交接说明假设需要从 MiCode 6.6.89 移植，但 AOSP 6.6.118 树已经包含：
+交接说明假设需要从 MiCode 6.6.89 移植，但 AOSP 6.6.118/6.6.143 树已经包含：
 
 - `mm/memfd-ashmem-shim.c`
 - `mm/memfd-ashmem-shim.h`
@@ -128,9 +125,10 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 - 新增 `include/trace/events/f2fs.h` 中的 `f2fs_fault_report` tracepoint，原型
   与 stock BTF 一致：`(struct super_block *sb, unsigned int err_code,
   const char *function, unsigned int line)`。
-- 在同步错误路径 `f2fs_handle_error()` 触发；没有放在
-  `f2fs_handle_error_async()`/`f2fs_stop_checkpoint()`，因为 `fault_report.ko`
-  的回调会 `stack_trace_save()`/`queue_work()`，不适合原子上下文。
+- 同步错误路径 `f2fs_handle_error()` 和 task-context 的
+  `f2fs_handle_error_async()` 都会触发；原子 end_io 路径由 `in_task()` 过滤，
+  避免 `fault_report.ko` 的 `stack_trace_save()`/`queue_work()` 在原子上下文
+  执行。`f2fs_stop_checkpoint()` 等路径仍未上报，见 OPEN_ISSUES §2.7。
 - `fault_report.ko` 通过 `for_each_kernel_tracepoint()` 找到事件，启动日志不再
   报 `tracepoint f2fs_fault_report not found`，`/proc/fault_report` 已出现。
 
@@ -208,5 +206,5 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
   细节和失败对照见 [BOOT_PACKAGING.md](BOOT_PACKAGING.md)。
 - 源码树可随时由 `scripts/apply-patches.sh` 重置并重新应用，长期修改只在
   `patches/`、`configs/` 和报告文件中。
-- `out/baseline-6.6.118/` 保留一份未加 hooks/功能补丁的内核和旧式 mkbootimg
-  boot；该 boot 不可启动，仅作内核对照，不得误当作 stock 原厂镜像。
+- `out/baseline-6.6.118/` 是 6.6.118 时期的对照内核和旧式 mkbootimg boot；
+  该 boot 不可启动，仅作历史对照，不得误当作 stock 原厂镜像。

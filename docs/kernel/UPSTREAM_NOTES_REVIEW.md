@@ -151,5 +151,5 @@
    profile；BBRv3/ZSTD 仍待 A/B。
 3. **DroidSpaces**：若确实需要容器，单独变体加 SYSVIPC kABI 6/7/8 + namespace
    配置，不混入 stock parity。
-4. **hybrid/fastdiscard/UFS core**：继续按 [UNRESOLVED_GAPS.md](UNRESOLVED_GAPS.md)
+4. **hybrid/fastdiscard/UFS core**：继续按 [OPEN_ISSUES.md](OPEN_ISSUES.md) §2
    的证据路线推进。

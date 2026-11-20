@@ -4,26 +4,18 @@
 GKI 源码为基线，叠加 BakaSU、SUSFS、厂商 `.ko` 兼容层和 stock parity
 补丁，并提供从同步源码到打包 boot 镜像的完整脚本。
 
-当前内核为 **6.6.143**（AOSP `android15-6.6-2026-10_r2` / `bf768be0`），
-clang **r614150**（23.0.1，PGO/BOLT/LTO 预编译），ThinLTO 已开启。
 设备 stock 为 `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`。
+当前自编版本、工具链、产物哈希和实机状态统一见
+[docs/STATUS.md](docs/STATUS.md)。
 
 ## 当前状态
 
-| 项 | 值 |
-|---|---|
-| 同步基线 | `android15-6.6-2026-10_r2`（6.6.143） |
-| 工具链 | clang r614150 / LLD 23.0.1，构建全程 clang |
-| 优化 | `CONFIG_LTO_CLANG_THIN=y`；AutoFDO 未启用（需要 profile） |
-| Root | BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.3.0 |
-| 厂商兼容 | 638 个 stock 模块 `hard_missing=0`，实机加载 586 个 |
-| 内存扩展 | stock vendor zram + ExtM 保留；lz4kd 通过 crypto API 选中 |
-| 网络代理 | mihomo Alpha/Android CLI：TUN+GSO、auto-route/auto-redirect、addrtype、IPv6 NAT；MPTCP 因启动失败关闭 |
-| TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
-| KSU 模块 | `dash/modules/mihomo_alpha` r4-pgo：Alpha 子模块/PGO + TFO + 音量键 action，重启后 `tcp_fastopen=3` |
-| PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
+当前自编内核已完成 ThinLTO、BakaSU/SUSFS、厂商模块兼容、mihomo TUN/IPv6
+NAT、TCP Brutal 的实机验证；MPTCP 保持关闭。
 
-详细状态、验证证据和剩余缺口见 [docs/README.md](docs/README.md)。
+具体版本、产物哈希、模块数、最近验证和已知限制统一见
+[docs/STATUS.md](docs/STATUS.md)；文档索引、权威顺序和剩余缺口见
+[docs/README.md](docs/README.md)。
 
 ## 仓库结构
 
@@ -83,7 +75,8 @@ git submodule update --init --recursive
 
 ## 文档
 
-- [docs/README.md](docs/README.md)：文档入口、权威顺序、当前状态
+- [docs/STATUS.md](docs/STATUS.md)：当前版本、产物哈希、实机验证与已知限制
+- [docs/README.md](docs/README.md)：文档索引、权威顺序、维护规则
 - [docs/kernel/README.md](docs/kernel/README.md)：构建流程、功能与更新规则
 - [docs/kernel/TEST_REPORT.md](docs/kernel/TEST_REPORT.md)：真机验证与修复记录
 - [docs/kernel/BOOT_PACKAGING.md](docs/kernel/BOOT_PACKAGING.md)：boot/AVB 封装硬规则

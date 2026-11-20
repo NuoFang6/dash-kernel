@@ -1,13 +1,35 @@
 #!/system/bin/sh
-# mihomo Alpha service. The config is authoritative: this script never
-# creates firewall/TUN rules. Only mihomo itself configures TUN when
-# tun.enable: true in /data/adb/mihomo/config.yaml.
+# mihomo Alpha service. TUN/routes remain controlled by mihomo's own config.
+# The only firewall rules added here are FORWARD accepts for the TUN device:
+# Android's tetherctrl_FORWARD chain only accepts downstream<->upstream pairs
+# and ends with DROP, so hotspot traffic routed into the TUN by auto-route
+# would otherwise be dropped before mihomo can proxy it.
 MODDIR=${0%/*}
 CONFIG_DIR=/data/adb/mihomo
 CONFIG="$CONFIG_DIR/config.yaml"
 BIN="$MODDIR/bin/mihomo"
 PIDFILE="$CONFIG_DIR/mihomo.pid"
 LOG="$CONFIG_DIR/mihomo.log"
+
+tun_name() {
+    name="$(awk '
+        /^tun:[[:space:]]*$/ { in_tun = 1; next }
+        /^[^[:space:]#]/ { in_tun = 0 }
+        in_tun && $1 == "device:" { gsub(/"/, "", $2); print $2; exit }
+    ' "$CONFIG" 2>/dev/null)"
+    [ -n "$name" ] && printf '%s\n' "$name" || printf '%s\n' mihomo
+}
+
+add_tun_forward_accepts() {
+    tun="$1"
+    for ipt in iptables ip6tables; do
+        command -v "$ipt" >/dev/null 2>&1 || continue
+        "$ipt" -C FORWARD -o "$tun" -j ACCEPT 2>/dev/null ||
+            "$ipt" -I FORWARD 1 -o "$tun" -j ACCEPT 2>/dev/null
+        "$ipt" -C FORWARD -i "$tun" -j ACCEPT 2>/dev/null ||
+            "$ipt" -I FORWARD 1 -i "$tun" -j ACCEPT 2>/dev/null
+    done
+}
 
 until [ "$(getprop sys.boot_completed)" = "1" ]; do
     sleep 1
@@ -50,6 +72,9 @@ for p in $(pidof mihomo 2>/dev/null); do
     kill -KILL "$p" 2>/dev/null
 done
 rm -f "$PIDFILE"
+
+TUN="$(tun_name)"
+add_tun_forward_accepts "$TUN"
 
 cd "$CONFIG_DIR" || exit 1
 nohup "$BIN" -d "$CONFIG_DIR" -f "$CONFIG" >> "$LOG" 2>&1 &

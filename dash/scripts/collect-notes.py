@@ -50,13 +50,13 @@ class Note:
 # then upstream/generic references.  Do not add a whole source tree here; these
 # are the notes an engineer or LLM should actually read before touching dash.
 SOURCES: tuple[Note, ...] = (
+    Note("docs/STATUS.md", "当前状态：版本、产物哈希与实机结论", "当前交付", "current"),
     Note("docs/kernel/README.md", "dash 构建与交付入口", "当前交付", "current"),
     Note("docs/kernel/BOOT_PACKAGING.md", "boot / AVB 封装踩坑与硬规则", "当前交付", "current"),
     Note("docs/kernel/TEST_REPORT.md", "测试报告：静态检查、真机证据与 AVB 复盘", "当前交付", "current"),
-    Note("docs/kernel/OPEN_ISSUES.md", "未覆盖项、风险与上游同步评估", "当前交付", "current"),
+    Note("docs/kernel/OPEN_ISSUES.md", "未完成项、风险与验证缺口", "当前交付", "current"),
     Note("docs/kernel/DESIGN.md", "实现路径、与 stock 的差异和回退", "当前交付", "current"),
     Note("docs/kernel/STOCK_PARITY_AUDIT.md", "实机 vs stock 特性核对", "当前交付", "current"),
-    Note("docs/kernel/UNRESOLVED_GAPS.md", "未完成项按性能影响排序", "当前交付", "current"),
     Note("docs/kernel/UPSTREAM_NOTES_REVIEW.md", "参考仓库工作笔记核对", "当前交付", "current"),
     Note("docs/kernel/UFS_HYBRID_EVIDENCE.md", "UFS/hybrid/fastdiscard 缺口证据与安全边界", "当前交付", "current"),
     Note(
@@ -191,10 +191,12 @@ HARD_RULES = r"""
 8. **`mmap_lock_init/free` 的 EXPORT 必须在 declaration-only TU**（本仓库
    `drivers/android/dash_os4_decl_exports.c`），否则 genksyms CRC 与 stock
    `os_cpu_qi.ko` 的 `__versions` 不一致，整条 QoS 链拒载。
-9. **F2FS 增强 iostat 当前需要两个开关**：`iostat_enable=1` 和
-   `en_iostat_enable=1`；只开后者计数为 0。这是已知实现差异，不要误判为没实现。
-10. **stock 模块全部加载的判断要看逐名对比**：本机 585 个模块 = 584 个 stock
-    非 LKM + 额外 `mkp`；stock `kernelsu` LKM 被内建驱动替代，没有双加载。
+9. **F2FS 增强 iostat 的开关语义**：只开 `en_iostat_enable=1` 即可记录 Xiaomi
+   iostat；stock `io_lat` 仍由 `iostat_enable` 控制。布局仍是 5 类聚合，不是
+   stock 的 20 槽/per-CPU，不要宣称逐字等价。
+10. **stock 模块是否全部加载要看逐名对比**：不要用固定总数判断；当前计数和
+    `hard_missing` 见 `docs/STATUS.md` 与 `check-vendor-modules.py` 的输出。
+    stock `kernelsu` LKM 被内建驱动替代，没有双加载。
 11. **SELinux 保持 Enforcing。** 不应为了读 sysfs 关闭 SELinux；root（KSU 域）
     已经能读 node_cache/QoS/F2FS/EROFS 数值。
 12. **DroidSpaces 不是本交接内核的目标。** 上游加的 SYSVIPC/POSIX_MQUEUE/
@@ -204,9 +206,8 @@ HARD_RULES = r"""
     完整 13-hook + 全调用点已实机启动；其 `exp/ksu-*` 分支更像是在查它自己的
     KSU/SUSFS early hang，不要据此删掉本仓库的调用点。
 14. **不要相信旧状态行。** `docs/project/NAVIGATION.md` /
-    `docs/project/GAP_RESEARCH.md` 保留了 6.6.144 调研痕迹；当前构建/运行结论
-    以 `docs/kernel/TEST_REPORT.md`、`dash/out/artifacts/BUILD_INFO`、
-    `SHA256SUMS` 为准。
+    `docs/project/GAP_RESEARCH.md` 保留了早期调研痕迹；当前构建/运行结论以
+    `docs/STATUS.md`、`dash/out/artifacts/BUILD_INFO`、`SHA256SUMS` 为准。
 """
 
 

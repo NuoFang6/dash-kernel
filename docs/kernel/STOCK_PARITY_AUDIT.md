@@ -1,8 +1,8 @@
-# dash 实机 vs stock 6.6.118 特性核对（历史 #29 表；当前 #8）
+# dash 实机 vs stock 6.6.118 特性核对（历史 #29 表）
 
-> 更新（2026-10-30 晚）：当前设备已到 `6.6.143-4k #8`（AOSP 2026-10_r2 +
-> ThinLTO）。本文表格仍是 6.6.118 #29 快照；6.6.143 下 stock 的 1860 个
-> traceiter 全部保留，另有 46 个上游新增，LZ4 事件已恢复；详见
+> 本文表格是 6.6.118 #29 的历史快照，不是当前状态；当前版本见
+> [STATUS.md](../STATUS.md)。6.6.143 下 stock 的 1860 个 traceiter 全部保留，
+> 另有 46 个上游新增，LZ4 事件已恢复；详见
 > [TEST_REPORT.md](TEST_REPORT.md) §15。
 
 对象：当前设备运行的自编内核 `6.6.118-4k #29`，对比设备 stock
@@ -23,11 +23,11 @@
 
 ## 1.1 安全补丁差异
 
-本机 stock 的安全补丁是 `2026-10-01`（`ro.build.version.security_patch`）；
-当前基线 tag 是 `android15-6.6-2026-01_r1`（6.6.118），缺少 2026-02..10 的
-LTS/安全修复。
-KMI 字符串仍是 `android15-8`，升级 sublevel 不改变 KMI；但需要重放补丁并复验。
-详见 [UNRESOLVED_GAPS.md](UNRESOLVED_GAPS.md)。
+本机 stock 的安全补丁是 `2026-10-01`（`ro.build.version.security_patch`）。
+2026-10-30 已把基线升级到 `android15-6.6-2026-10_r2`（6.6.143）；旧版本文中
+“当前基线 6.6.118、缺少 2026-02..10 LTS”是历史状态，已不再成立。
+KMI 字符串仍是 `android15-8`；当前版本和验证状态见 [STATUS.md](../STATUS.md)，
+版本升级复核清单见 [UPSTREAM_NOTES_REVIEW.md](UPSTREAM_NOTES_REVIEW.md) §6。
 
 ## 2. config 差异
 

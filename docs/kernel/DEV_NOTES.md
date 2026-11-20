@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-03 10:14:20 +0800  
-> 覆盖 23 个源，272435 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-07 22:30:42 +0800  
+> 覆盖 23 个源，272438 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -42,10 +42,12 @@
 8. **`mmap_lock_init/free` 的 EXPORT 必须在 declaration-only TU**（本仓库
    `drivers/android/dash_os4_decl_exports.c`），否则 genksyms CRC 与 stock
    `os_cpu_qi.ko` 的 `__versions` 不一致，整条 QoS 链拒载。
-9. **F2FS 增强 iostat 当前需要两个开关**：`iostat_enable=1` 和
-   `en_iostat_enable=1`；只开后者计数为 0。这是已知实现差异，不要误判为没实现。
-10. **stock 模块全部加载的判断要看逐名对比**：本机 585 个模块 = 584 个 stock
-    非 LKM + 额外 `mkp`；stock `kernelsu` LKM 被内建驱动替代，没有双加载。
+9. **F2FS 增强 iostat 的开关语义**：只开 `en_iostat_enable=1` 即可记录 Xiaomi
+   iostat；stock `io_lat` 仍由 `iostat_enable` 控制。布局仍是 5 类聚合，不是
+   stock 的 20 槽/per-CPU，不要宣称逐字等价。
+10. **stock 模块是否全部加载要看逐名对比**：不要用固定总数判断；当前计数和
+    `hard_missing` 见 `docs/STATUS.md` 与 `check-vendor-modules.py` 的输出。
+    stock `kernelsu` LKM 被内建驱动替代，没有双加载。
 11. **SELinux 保持 Enforcing。** 不应为了读 sysfs 关闭 SELinux；root（KSU 域）
     已经能读 node_cache/QoS/F2FS/EROFS 数值。
 12. **DroidSpaces 不是本交接内核的目标。** 上游加的 SYSVIPC/POSIX_MQUEUE/
@@ -55,9 +57,8 @@
     完整 13-hook + 全调用点已实机启动；其 `exp/ksu-*` 分支更像是在查它自己的
     KSU/SUSFS early hang，不要据此删掉本仓库的调用点。
 14. **不要相信旧状态行。** `docs/project/NAVIGATION.md` /
-    `docs/project/GAP_RESEARCH.md` 保留了 6.6.144 调研痕迹；当前构建/运行结论
-    以 `docs/kernel/TEST_REPORT.md`、`dash/out/artifacts/BUILD_INFO`、
-    `SHA256SUMS` 为准。
+    `docs/project/GAP_RESEARCH.md` 保留了早期调研痕迹；当前构建/运行结论以
+    `docs/STATUS.md`、`dash/out/artifacts/BUILD_INFO`、`SHA256SUMS` 为准。
 
 ### 0.3 当前状态快照（从文件自动生成，不靠旧 prose）
 
@@ -141,18 +142,18 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 7998 | `7132ec75eb30be99` | 当前交付（优先相信） |
-| 02 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 03 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 34584 | `158ed39baa9fd34a` | 当前交付（优先相信） |
-| 04 | 当前交付 | 未覆盖项、风险与上游同步评估 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 17382 | `c4f6b217f5c2e64a` | 当前交付（优先相信） |
-| 05 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12478 | `bdc0be77f25b44b6` | 当前交付（优先相信） |
-| 06 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10106 | `1db93debb3eb9765` | 当前交付（优先相信） |
-| 07 | 当前交付 | 未完成项按性能影响排序 | [`docs/kernel/UNRESOLVED_GAPS.md`](UNRESOLVED_GAPS.md) | 8747 | `3f9ef674524e1d87` | 当前交付（优先相信） |
-| 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12240 | `321164e8f9bff5a9` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3408 | `d41fb5959c16771c` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 8486 | `13508b34548d0486` | 当前交付（优先相信） |
+| 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 34809 | `ac1348ac62a6a4d1` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 21757 | `1dcb324bfe85ba22` | 当前交付（优先相信） |
+| 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12276 | `a455ecb18946b1ef` | 当前交付（优先相信） |
+| 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10173 | `36c227c44e9410ce` | 当前交付（优先相信） |
+| 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12236 | `9ea863d66a8b6589` | 当前交付（优先相信） |
 | 09 | 当前交付 | UFS/hybrid/fastdiscard 缺口证据与安全边界 | [`docs/kernel/UFS_HYBRID_EVIDENCE.md`](UFS_HYBRID_EVIDENCE.md) | 5569 | `40b17b16dee1d3a2` | 当前交付（优先相信） |
 | 10 | 当前交付 | node_cache 源码评估与 stock 6.6.118 二进制差异 | [`docs/kernel/NODE_CACHE_SOURCE.md`](NODE_CACHE_SOURCE.md) | 16990 | `ac63def2665511c3` | 用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。 |
-| 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 17528 | `d8f2ebe4812483c1` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
-| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 15271 | `4d4d9050556e2caf` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
+| 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 19744 | `ca14aa9ac879d839` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
+| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 13448 | `c1aabba218f84103` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
 | 15 | 需求 | 交接任务书与验收标准（历史输入） | [`docs/handoff/TASK_BRIEF.md`](../handoff/TASK_BRIEF.md) | 12697 | `6cc641eb2f82e514` | 任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。 |
@@ -170,18 +171,90 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 ---
 
 <a id="src-01"></a>
-## 1. dash 构建与交付入口
+## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/kernel/README.md`](README.md) · 7998 字节 · SHA256 `7132ec75eb30be995c6670f2d1a5164985f19712361e219a93cd4072e5a10015`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 3408 字节 · SHA256 `d41fb5959c16771c48acbc9994c8236a033efa8bee87253e88bb7a2cdabd7aa6`
+> 类别：当前交付 · 状态：当前交付（优先相信）
+
+> 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
+> 只链接到这里，不再复制版本号、哈希、模块数和验证结论。
+>
+> 最后核对：2026-11-07。刷新方法见文末。
+
+### 1. 版本与产物
+
+| 项 | 值 |
+|---|---|
+| 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
+| 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
+| 当前内核 | `6.6.143-4k #8` |
+| AOSP 基线 | `android15-6.6-2026-10_r2` / `bf768be0eed008588dc4e0db0b2f76c026a35818` |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；ThinLTO 已开启，AutoFDO 未启用 |
+| 运行槽位 | `boot_b` |
+| `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
+| `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
+| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.3.0（9 项特性） |
+| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；实机加载 586 个；KCFI 13/13 |
+| KSU 模块 | `mihomo_alpha` `v1.19.33-alpha-ca8d7c4-r5-pgo` |
+| PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
+| 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
+| 网络代理 | mihomo Alpha：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT；MPTCP 关闭 |
+| TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
+
+完整产物哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
+`dash/out/artifacts/BUILD_INFO`；这两处与真机实测冲突时以它们为准。
+
+### 2. 最近验证
+
+- **2026-11-07**：`mihomo_alpha` r5-pgo 增加热点转发所需的 FORWARD 放行；
+  真实 Wi-Fi 客户端 IPv4/IPv6、DNS、TUN 转发实测通过。见
+  [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md) §5.6。
+- **2026-10-30**：6.6.143 #8 实机启动；IPv6 NAT/addrtype、ThinLTO、
+  lz4kd+ExtM、mihomo TUN、TFO 持久化、tcp-brutal 验证通过。见
+  [TEST_REPORT.md](TEST_REPORT.md) §18/§19。
+- **更早的证据**：按日期保留在 [TEST_REPORT.md](TEST_REPORT.md)，
+  不在本文件重复。
+
+### 3. 已知限制
+
+完整清单和逐项原因见 [OPEN_ISSUES.md](OPEN_ISSUES.md)。
+
+- stock-only 的 hybrid UFS、SCSI fastdiscard、EROFS 多桶 iostat、UFS 官方
+  37 文件 core 未复刻；F2FS/EROFS iostat 是行为级实现，不是逐字 ABI。
+- 网络覆盖：TUN 是唯一覆盖本机 IPv4/IPv6 TCP/UDP/ICMP 的完整模式；
+  REDIRECT/TPROXY 有 UDP/转发/IPv6 缺口。
+- MPTCP 开启会导致启动失败，保持关闭。
+- 没有 stock vs 自编的 A/B 性能/功耗、suspend/resume、fsck/power-loss 数据，
+  不能声明性能收益。
+- 厂商模块兼容跳过了签名/CRC/vermagic，仅适用于自有已解锁设备。
+
+### 4. 如何刷新
+
+| 数据 | 来源 |
+|---|---|
+| 内核版本、AOSP commit、配置哈希 | `dash/out/artifacts/BUILD_INFO` |
+| Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS` |
+| 模块版本 | `dash/modules/mihomo_alpha/module.prop` |
+| 实机证据 | `docs/kernel/TEST_REPORT.md` |
+| 缺口状态 | `docs/kernel/OPEN_ISSUES.md` |
+
+更新规则：只改本文件的状态行；不要同步复制到根 README、`docs/README.md`、
+`docs/kernel/README.md` 或 `docs/project/NAVIGATION.md`。
+
+---
+
+<a id="src-02"></a>
+## 2. dash 构建与交付入口
+
+> 来源：[`docs/kernel/README.md`](README.md) · 8486 字节 · SHA256 `13508b34548d048660d7178d6c90d8a764c4648f96f36de496f2d49de0f3585d`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
 
-当前内核源码同步到 **AOSP `android15-6.6-2026-10_r2`（6.6.143）**，
-clang 使用预编译 **r614150（23.0.1，PGO/BOLT/LTO）**。设备 stock 为
-`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支
-`android15-6.6`，KMI 字符串 `android15-8`，4K 页；stock 仍是 6.6.118，
-当前运行内核为 6.6.143 #8（boot_b `0dc871a5…`，IPv6 NAT/addrtype，MPTCP 关闭）。
+设备 stock 为 `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，
+GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编版本、
+工具链、产物哈希和实机状态见 [docs/STATUS.md](../STATUS.md)；本文件只维护
+构建/更新流程。
 
 ### 目录
 
@@ -224,6 +297,9 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 ### 当前功能
 
+> 本节是构建范围说明；验证状态以 [docs/STATUS.md](../STATUS.md) 为准，
+> 实现细节以 [DESIGN.md](DESIGN.md) 和各功能文档为准。
+
 - BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS inline hook。
 - 厂商 `.ko` 加载兼容（签名、vermagic、CRC、namespace、GKI protected export）。
 - 13 个 dash OS4 `android_vh_*` trace hooks，供 `node_cache.ko` /
@@ -246,8 +322,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   “不支持”，不会重定向写入。
 - Xiaomi EROFS iostat sysfs。
 - stock core tracepoint：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
-  上游额外 46 个（合计 1906）。51 个 stock-only hook（含 0008/0009 补齐的
-  MMC/DMA/lazy-resched 调用点）和 2 个 LZ4 事件已恢复，LZ4 已实测触发；
+  上游额外 46 个（合计 1906）。51 个 stock-only hook（含 legacy 0008/0009
+  补齐的 MMC/DMA/lazy-resched 调用点）和 2 个 LZ4 事件已恢复，LZ4 已实测触发；
   GKI dynamic task_struct（`arch_task_struct_size`、`vendor_data_pad`、
   1024B vendor 上限）。
 - mihomo Android root CLI：TUN `/dev/tun`、MTU 9000/GSO 65536、auto-route、
@@ -272,12 +348,14 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
-  [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成，供 LLM 快速避坑。
+  [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。
+  日常任务按 [AGENTS.md](../../AGENTS.md) 读单个文档即可，不需要先读全文。
 
 ### 厂商 `.ko` 兼容
 
-`0001-vendor-ko-compat.patch` 新增 `CONFIG_VENDOR_KO_COMPAT`，在模块加载路径跳过：
+集成补丁中的 `CONFIG_VENDOR_KO_COMPAT`（历史拆分见
+`patches/legacy-6.6.118/0001-vendor-ko-compat.patch`）在模块加载路径跳过：
 
 - 模块签名验证（保留 GKI 签名配置本身）
 - vermagic 检查
@@ -285,18 +363,23 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - namespace import 检查
 - GKI protected export 限制
 
-符号仍然必须真实存在。`0004-susfs-bakasu-hooks.patch` 适配 BakaSU 三参数
-`ksu_handle_sys_read`。关闭校验会降低安全性，仅用于已解锁的自有设备。
+符号仍然必须真实存在。集成补丁同时适配 BakaSU 三参数
+`ksu_handle_sys_read`（历史拆分见
+`patches/legacy-6.6.118/0004-susfs-bakasu-hooks.patch`）。关闭校验会降低安全性，
+仅用于已解锁的自有设备。
 
 ### 更新规则
 
 - 更新 AOSP：改 `versions.env` 的 `AOSP_TAG`/`AOSP_COMMIT`，运行
-  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后用 `git diff`
-  重新导出对应补丁。
+  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后重新生成整树
+  `0000-6.6.143-dash-integration.patch`，不要手改补丁文件。流程见
+  [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
 - 更新 SUSFS：更新 `SUSFS_COMMIT`，重新取上游 patch 和
   `patches/susfs/{susfs.c,susfs.h,susfs_def.h}`。
 - 源码目录可以随时由脚本重置；长期修改只保存在 `patches/`、`configs/` 和报告。
+- 版本、哈希、模块数和验证结论只更新 [docs/STATUS.md](../STATUS.md)；本文件
+  只记录构建流程和稳定的构建范围。
 
 ### 注意
 
@@ -317,8 +400,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 ---
 
-<a id="src-02"></a>
-## 2. boot / AVB 封装踩坑与硬规则
+<a id="src-03"></a>
+## 3. boot / AVB 封装踩坑与硬规则
 
 > 来源：[`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) · 8132 字节 · SHA256 `5d915db8442c3dda9a4a1d901e6ebbc8106fcb887625b14ad9ce53098f884c8f`
 > 类别：当前交付 · 状态：当前交付（优先相信）
@@ -472,11 +555,15 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 
 ---
 
-<a id="src-03"></a>
-## 3. 测试报告：静态检查、真机证据与 AVB 复盘
+<a id="src-04"></a>
+## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 34584 字节 · SHA256 `158ed39baa9fd34ac9c3cabe532ed662488bb11d785568df84a879b2618ea822`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 34809 字节 · SHA256 `ac1348ac62a6a4d164ad9646753d36086f2c22c2b52011e4c50c3915ab8536a3`
 > 类别：当前交付 · 状态：当前交付（优先相信）
+
+> 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
+> 当前版本、哈希和结论见 [STATUS.md](../STATUS.md)；缺口见
+> [OPEN_ISSUES.md](OPEN_ISSUES.md)。
 
 测试日期：2026-10-29 起；2026-10-30 更新到 6.6.143 #8。当前结论分为：
 
@@ -1109,164 +1196,203 @@ QoS sysfs 与 stock 行为一致：
 
 ---
 
-<a id="src-04"></a>
-## 4. 未覆盖项、风险与上游同步评估
+<a id="src-05"></a>
+## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 17382 字节 · SHA256 `c4f6b217f5c2e64a19e6418a901fa3dcc7b82b2983f26647aadab97235a38b1b`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 21757 字节 · SHA256 `1dcb324bfe85ba22eaece9a595e7507f73395c50ecfc1604e32ddcd0ce532d06`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
-### 优先级 0：启动与封装
+> 本文件是缺口/风险/未完成项的**唯一台账**。当前版本与实机状态见
+> [STATUS.md](../STATUS.md)；已完成项的证据见
+> [STOCK_PARITY_AUDIT.md](STOCK_PARITY_AUDIT.md) 和
+> [TEST_REPORT.md](TEST_REPORT.md)。
+>
+> 最后更新：2026-11-07。
+
+### 0. 未完成项总表（按性能影响排序）
+
+本表只列**确实尝试过但仍无法完成**的项；排序依据是“对实际 I/O/存储/调度性能的
+潜在影响”，不是实现难度。影响方向可能是提升也可能是退化，均按潜在幅度排序。
+
+**安全/LTS 说明（2026-10-30 已关闭）**：本机 stock
+`ro.build.version.security_patch=2026-10-01`。旧文档中“当前基线 6.6.118、
+缺 2026-02..10 LTS”是历史状态；现已升级到 AOSP `android15-6.6-2026-10_r2`
+（6.6.143），该缺口不再成立，不要再列为未完成项。
+
+| # | 项 | 潜在性能影响 | 当前状态 | 为什么不能完成 |
+|---|---|---|---|---|
+| 1 | **F2FS hybrid UFS 双区域分配** | **高**：写放置/GC/寿命/吞吐 | sysfs/挂载参数存在，`f2fs_hw_support_hybrid()` 固定 false，`hybrid=1` 返回 `-EOPNOTSUPP` | 缺 ext LUN 映射、die 分区发现、GC 分配策略；无公开源码，无法安全伪造地址 |
+| 2 | **UFS 官方 core 变体** | **高（未证实）**：UFS 初始化、电源/时钟、I/O 路径 | stock `ufs_mediatek_mod_ise.ko` 可加载；AOSP core 未替换 | 官方 37 文件源是 device_modules 模块形态，依赖 MTK block/clk/power 头和 vendor 对象；独立变体未完成 |
+| 3 | **SCSI fastdiscard / 多 descriptor UNMAP** | **中高**：discard/TRIM 吞吐、GC、寿命 | 通用 `sd` discard 正常；`max_discard_segments=1`；`CONFIG_SCSI_DISCARD`/`FASTDISCARD` 缺失 | 公开源码无实现；stock 的 `xiaomi_fastdiscard_info` 是 SCSI disk 层批处理，需改命令构造和硬件验证 |
+| 4 | **F2FS VIP 原厂选择策略** | **中**：前台/存储优先级、UI 延迟 | hook + 保守 fallback，`vip_inode_count` 可用；manager 布局是简化版 | 原厂“哪些 inode 进入 VIP”的策略无公开来源；只恢复了 `f2fs_vip_manager` 48B 布局 |
+| 5 | **F2FS 增强 iostat 精确布局** | **低-中**：观测开销/统计精度 | 单开关语义正确，5 类聚合 | stock 是 20 槽窗口 + 10 档粒度 + per-CPU 私有布局；槽位语义未知，不伪造 |
+| 6 | **EROFS iostat 多桶布局** | **低**：观测；对 I/O 路径影响很小 | 已 per-CPU，单 aggregate bucket | stock 是每 CPU 10 window + 10 abnormal + 5 daily + 5 阈值；桶语义未知 |
+| 7 | **F2FS fault_report 全路径** | **极低**：可靠性/诊断，不是吞吐 | 同步 + task-context 异步已上报 | `f2fs_stop_checkpoint()` 等路径是否上报未确认；不能确定 stock 行为 |
+| 8 | **`MODULE_SCMVERSION`/版本串** | **无**：仅元数据/可追溯性 | 未启用 | 打开 `LOCALVERSION_AUTO` 会把 release 变成 `6.6.118-gf9c84f40b6ba-dirty`，丢掉 `-4k` 并改变 vermagic；已实测后回退 |
+| 9 | **深度性能/稳定性 A/B** | 无法量化 | 未做 | 缺 stock 运行时 A/B、suspend/resume、fsck/power-loss、长时压力；不是“功能缺失”，是验证缺口 |
+
+### 1. 启动、封装与安全约束
 
 1. **boot 封装已解决，但必须继续遵守约束。** 已实测成功的方式是从 stock 64MB
    boot 继承 header、OEM vbmeta 和 AVB footer，只替换 kernel；详见
-   [BOOT_PACKAGING.md](BOOT_PACKAGING.md)。不要再使用旧 mkbootimg 镜像、短镜像、
+   [BOOT_PACKAGING.md](BOOT_PACKAGING.md)。不要再用旧 mkbootimg 镜像、短镜像、
    清零 AVB 尾部的镜像，或改 `--disable-verity/--disable-verification` 的 vbmeta。
    这些均已实测 bootloop。
 2. **本机隐藏解锁的启动语义。** `fastboot getvar unlocked=yes`，但系统属性仍是
    `vbmeta.device_state=locked`、`verifiedbootstate=green`、`flash.locked=1`。
    它接受保留 OEM 签名 vbmeta/footer、但 boot hash 不匹配的镜像，拒绝缺失或签名
    损坏的元数据。不要把该行为当成通用 AVB 绕过。
-3. **运行时已初步通过。** 完整 hooks/功能构建成功启动：
-   - `6.6.118-4k`，KernelSU built-in v4.2.0-rc3，SUSFS 2.3.0；
-   - 584 个 stock 非 LKM 模块全部加载，`node_cache`、`os_cpu_qi` 及 QoS 依赖链
-     正常；stock `kernelsu` LKM 被内建替换，没有双加载；
-   - 启动日志无 KCFI `brk`、未知符号、CRC/vermagic 拒载。
-   仍需长时运行、压力、suspend/resume 和具体功能行为验证。
-4. **sysfs 数值已补采（2026-10-29 晚）。** root（KSU 域）已成功读取
-   node_cache/QoS/F2FS/EROFS 数值，系统始终保持 Enforcing，没有关闭 SELinux；
-   具体值见 `TEST_REPORT.md` §8。此前读失败是权限/上下文问题，不是节点未注册。
-5. **恢复资产。** 完整 `boot_a`、`boot_b`、`vbmeta_b`、`oops` 备份在
+3. **恢复资产。** 完整 `boot_a`、`boot_b`、`vbmeta_b`、`oops` 备份在
    `out/device-backup/`；还原前的 KernelSU patched init_boot A/B 副本在
    `/home/nuofang/t5m/backup/init_boot_{a,b}_current_20261030.img`。任何时候
    不要写 `lk`、`super` 或用户数据。恢复 boot 必须使用完整 64MB 分区镜像。
-6. **init_boot 已还原官方。** 2026-10-30 已把 `init_boot_a/b` 都写回
-   OS4.0.3.0 payload 中的 `init_boot`（sha256 `3d2062ae…`）；实机启动、
-   内置 KSU root、zram ExtM 均正常。旧的 KernelSU patched 副本只作回滚，
-   不再把 init_boot 视为未还原项。
+4. **init_boot 已还原官方。** `init_boot_a/b` 都是 OS4.0.3.0 官方镜像
+   （sha256 `3d2062ae…`）；旧的 KernelSU patched 副本只作回滚，不再把
+   init_boot 视为未还原项。当前哈希见 [STATUS.md](../STATUS.md)。
+5. **legacy vendor-hooks 分组回退表（未来改动时）。** 完整 13-hook 系列已实机
+   启动，不再需要先证明“能否开机”。以后若 hooks 或调用点变更后出现异常，可按
+   旧 6.6.118 拆分系列的分组回退定位（当前 6.6.143 已并入整树补丁）：
 
-#### hooks 分组测试（未来改动时）
+   ```text
+   vendor-hooks/0004  remove_mapping / remove_mapping_failed
+   vendor-hooks/0005  filemap_get_folio_end
+   vendor-hooks/0006  put_super
+   vendor-hooks/0007  fuse_request_end_ext / fetch
+   vendor-hooks/0008  mmap_lock_init / free
+   vendor-hooks/0009  percpu_rwsem_init
+   vendor-hooks/0010  rcu_boost_* / sync_rcu_wait_*
+   ```
 
-本次完整 13-hook 系列已成功启动，不再需要先证明“能否开机”。以后若 hooks 或
-调用点变更后出现异常，可按以下组回退定位：
+6. **启动后采集命令。** 以下命令已在 root（KSU 域）实际执行成功，不需要关闭
+   SELinux；历史数值见 [TEST_REPORT.md](TEST_REPORT.md) §8。
 
-```text
-vendor-hooks/0004  remove_mapping / remove_mapping_failed
-vendor-hooks/0005  filemap_get_folio_end
-vendor-hooks/0006  put_super
-vendor-hooks/0007  fuse_request_end_ext / fetch
-vendor-hooks/0008  mmap_lock_init / free
-vendor-hooks/0009  percpu_rwsem_init
-vendor-hooks/0010  rcu_boost_* / sync_rcu_wait_*
-```
+   ```bash
+   adb shell su -c 'uname -a; cat /proc/version; getprop ro.boot.slot_suffix'
+   adb shell su -c 'cat /proc/modules | grep -E "node_cache|os_cpu_qi|zsmalloc"'
+   adb shell su -c 'find /sys/kernel/node_cache -maxdepth 1 -type f -exec sh -c "echo {}; cat {}" \;'
+   adb shell su -c 'cat /sys/kernel/qos_inherit/inherit_enable; cat /sys/kernel/qos_sched/sched_enable; cat /sys/kernel/qos_sched/rt_prio'
+   ```
 
-#### 启动后采集命令
+#### 安全注意事项
 
-```bash
-adb shell su -c 'uname -a; cat /proc/version; getprop ro.boot.slot_suffix'
-adb shell su -c 'cat /proc/modules | grep -E "node_cache|os_cpu_qi|zsmalloc"'
-adb shell su -c 'find /sys/kernel/node_cache -maxdepth 1 -type f -exec sh -c "echo {}; cat {}" \;'
-adb shell su -c 'cat /sys/kernel/qos_inherit/inherit_enable; cat /sys/kernel/qos_sched/sched_enable; cat /sys/kernel/qos_sched/rt_prio'
-```
+1. 关闭模块签名/vermagic/CRC/protected-export 检查会允许任意匹配架构的模块
+   加载；仅用于自有、已解锁设备。
+2. 内核包含 BakaSU/SUSFS，会改变 root 与隐藏行为；不要用于不受控设备。
+3. `abi_symbollist.raw` 保留 stock 导出名，构建产物仍不是原厂签名内核。
+4. `out/baseline-6.6.118/` 是旧式 mkbootimg 对照内核，**不是 stock 备份且不可
+   启动**；恢复请使用 `out/device-backup/` 的完整原厂 boot/vbmeta。
 
-这些命令已在 2026-10-29 晚用 root 实际执行成功（node_cache/QoS 数值见
-`TEST_REPORT.md` §8），不需要关闭 SELinux。若换 manager/域后读不到，再用有权限的
-调试域，不能为此关闭用户数据保护。
+### 2. 功能未完全等价（stock-only）
 
-### 优先级 1：功能未完全等价
+#### 2.1 Hybrid UFS（最高性能影响）
 
-#### Hybrid UFS
+- 已知：stock BTF `f2fs_hybrid_info` 192B（`main/ext f2fs_die_info` 72B、
+  `free_ratio`、`gc_threshold`、`large_file_threshold`、`main/ext_new_seg_ratio`、
+  `gc_alloc_mode[5]`）；`f2fs_hw_hybrid_get_avail`、`f2fs_hybrid_die_info_show`
+  等函数存在。
+- 当前：`CONFIG_F2FS_FS_HYBRID_UFS` 和 `CONFIG_BLOCK_HYBRID_UFS` 已启用，
+  sysfs/挂载参数/函数接口存在，但 `f2fs_hw_support_hybrid()` 固定为 `false`，
+  `hybrid=1` 返回 `-EOPNOTSUPP`。
+- 已尝试：恢复布局、sysfs/挂载参数、能力查询、安全回退；从 stock 二进制和
+  BTF 找分配器未果。
+- 为什么停：没有 ext LUN 地址映射和 die 发现契约，错误映射可能把数据写到错误
+  介质；这是数据安全问题，不是性能取舍。
+- 下一步：从 stock `vmlinux` 反汇编 `device_hybrid_capable`/GC 分配路径，或取得
+  原厂 6.6.118 源码；在双区域设备上先做只读校验。在实现前不要声称与 stock
+  hybrid 等价。
 
-这是最大的行为缺口。`CONFIG_F2FS_FS_HYBRID_UFS` 和 `CONFIG_BLOCK_HYBRID_UFS`
-已启用，sysfs/挂载参数/函数接口存在，但 `f2fs_hw_support_hybrid()` 固定为
-`false`，`hybrid=1` 返回 `-EOPNOTSUPP`。没有 AOSP 可用的配对 ext LUN 和 block
-hybrid allocator，伪造映射有写错介质风险。
+#### 2.2 UFS 官方 core 变体（高，未证实）
 
-后续路径：从 stock 内核反汇编/恢复 `device_hybrid_capable`、die 分区发现和
-GC 分配策略；在具备双区域 UFS 的设备上做只读验证和故障注入，才可启用。
-在实现前不要声称与 stock hybrid 等价。
+- 已知：MiCode `dash-w-oss` 的 `drivers/ufs` 已 sparse checkout（25 + 13 文件）；
+  `ufs-mediatek.c` 在 6.6.118 头文件下可以编译，但 modpost 缺
+  `ufs_mtk_init_sysfs`、`ufs_mb_init`、`ufs_mb_queue_error`、`ufsm_disable_intr`、
+  `mt_irq_dump_status` 等 sibling/vendor 符号。包内 37 个 MTK UFS 文件保留为参考。
+- 已尝试：独立 `M=` 编译探针；依赖 `DEVICE_MODULES_PATH`、MTK block/clk/power
+  头、`drivers/ufs/vendor`。
+- 为什么停：不能单文件替换；整体替换 AOSP core 会改变启动初始化链，且本机
+  无法在无写入条件下验证 UFS 初始化/电源路径。替换会扩大启动风险，当前优先级
+  低于已验证的 GKI 构建。
+- 下一步：用 MTK device_modules 的 out-of-tree 构建做独立 boot 变体，只读 A/B
+  UFS monitor、电源/时钟和 I/O 延迟。
 
-#### VIP file
+#### 2.3 SCSI fastdiscard / 多 descriptor UNMAP（中高）
 
-`vip_file_enable`、排序 manager 和 `f2fs_vip_bsearch/insert/remove` 已实现。
-2026-10-30 增加了 `android_vh_f2fs_is_hiprio_task`/`is_usr_task` hook 调用；
-当前没有 stock 模块注册这两个 hook，因此使用保守 fallback：有用户地址空间的
-RT 或 negative-nice 任务以写方式打开普通文件时调用 `f2fs_vip_insert`，inode
-删除/evict 时移除；fallback 管理器上限 8192 个 inode。
-真机验证：high-priority 写打开使 `vip_inode_count` 增加，普通写不增加，删除
-减少，关闭 `vip_file_enable` 清零。`vip_inode_count` 是调试属性，不是 stock ABI。
-与 stock 的差异是 fallback 选择策略和 manager 布局（stock 在 `f2fs_nm_info`，
-当前在 `f2fs_sb_info`），不是接口不可用。
+- 已知：stock BTF `xiaomi_fastdiscard_info` 16B
+  （`fastdiscard_enable`、`max_unmap_descriptors`、`multi_unmap_len_max`），
+  内嵌在 `struct scsi_disk` 的 `xiaomi_feature_info`；字符串有
+  `multi_unmap_len_max_show`、`[FASTDISCARD debug]`。
+- 当前：通用 discard 可用；`/sys/block/sda/queue/max_discard_segments=1`；
+  stock 有 `CONFIG_SCSI_DISCARD`/`CONFIG_SCSI_FASTDISCARD`，AOSP 树和当前构建没有。
+- 已尝试：BTF/字符串恢复、AOSP `sd_setup_unmap_cmnd` 路径核对、公开源码检索
+  （只命中 config/ikconfig）。
+- 为什么停：需要多 descriptor UNMAP 命令构造和真实 UFS/分区验证；错误实现可能
+  丢数据。没有 stock 源码和可安全丢弃的测试分区。
+- 下一步：实现/验证多 descriptor UNMAP 的边界、错误处理和 `max_discard_segments`，
+  在 scratch 分区上做 A/B。`persist.sys.stability.fastdiscard` 目前为空，默认不
+  触发；在没有私有源码和有效属性前不伪造“fastdiscard 已启用”。
 
-#### F2FS lock / priority
+#### 2.4 F2FS VIP 原厂选择策略（中）
 
-已移植 stock/上游 `fs/f2fs/lock.c`：`f2fs_lock_context`、
-`f2fs_lock_elapsed_time`、`f2fs_priority_uplift/restore`、
-`max_lock_elapsed_time`/`adjust_lock_priority`/`lock_duration_priority`/
-`critical_task_priority`。默认 `adjust_lock_priority=0`，不改变任务优先级。
-真机实测：开启 cp_rwsem bit 后，`f2fs_priority_uplift/restore` 对
-`cp_rwsem` 的 orig/new prio 120/110 成对出现；`f2fs_lock_elapsed_time` 在
-threshold=0 时记录 cp_rwsem/node_change 的等待时间；删除临时文件后设置复原。
-2026-10-30 已把剩余 `gc_lock` 调用点全部接入 trace wrapper：GC 线程、前台
-GC ioctl、balance_fs、checkpoint、discard/trim、disable/enable checkpoint 和
-resize 路径均使用 `f2fs_*_trace()`；真机用 foreground GC ioctl 验证
-`gc_lock` 的 uplift 130→120、restore 和 elapsed 事件。
+- 已知：`f2fs_vip_manager` 48B（sorted/unsorted/count/capacity/
+  unsorted_buf_size/head/tail/lock/enabled），`vip_inode_sorted` 8B
+  （`ino` + `unsorted_idx`），`vip_inode_unsorted` 4B。
+- 当前：`vip_file_enable`、排序 manager 和 `f2fs_vip_bsearch/insert/remove`
+  已实现；`android_vh_f2fs_is_hiprio_task`/`is_usr_task` hook 已有调用点。
+  当前没有 stock 模块注册这两个 hook，因此使用保守 fallback：有用户地址空间的
+  RT 或 negative-nice 任务以写方式打开普通文件时调用 `f2fs_vip_insert`，inode
+  删除/evict 时移除；fallback 管理器上限 8192 个 inode。
+- 真机验证：high-priority 写打开使 `vip_inode_count` 增加，普通写不增加，删除
+  减少，关闭 `vip_file_enable` 清零。`vip_inode_count` 是调试属性，不是 stock ABI。
+- 为什么停：没有公开的选择策略/阈值/调用时机；恢复布局但不恢复策略只是“看起来
+  像”，不能宣称等价。与 stock 的差异是 fallback 选择策略和 manager 布局
+  （stock 在 `f2fs_nm_info`，当前在 `f2fs_sb_info`），不是接口不可用。
+- 下一步：从 stock Image 恢复 `f2fs_vip_insert` 调用点和 manager 操作，或取得原厂
+  源码。
 
-#### F2FS iostat
+#### 2.5 F2FS 增强 iostat 精确布局（低-中）
 
-sysfs 名称和 window/daily/阈值语义存在，但输出格式与内部布局不是 stock 的逐字
-复制；统计来自正常 F2FS bio 完成路径，而非原厂 percpu 20 槽实现。性能开销
-低于原厂完整采样，但窗口边界和分类粒度不完全相同。
+- 当前：`en_iostat_enable` 单开关、window/daily/阈值、5 类聚合。
+- stock：20 槽窗口、10 档粒度、per-CPU 私有布局；输出格式也不保证逐字相同。
+- 已修复：`__update_iostat_latency()` 现在分别判断 stock `iostat_enable` 和
+  Xiaomi `en_iostat_enable`；只开 `en_iostat_enable=1`、保持
+  `iostat_enable=0` 时，4MiB 写入已实测记录
+  read/write_sync/write_async/meta 计数，stock `io_lat` 仍只在
+  `iostat_enable=1` 时更新。剩余差异是布局/粒度，不是开关语义。
+- 为什么停：槽位/粒度语义未知，强行按名字实现会给出错误统计。
+- 下一步：取得原厂 `f2fs_iostat` 结构/调用点，或接受“行为级统计”并明确不做逐字
+  ABI 兼容。
 
-**单开关语义已修复（2026-10-30）**：`__update_iostat_latency()` 现在分别判断
-stock `iostat_enable` 和 Xiaomi `en_iostat_enable`；只开
-`en_iostat_enable=1`、保持 `iostat_enable=0` 时，4MiB 写入已实测记录
-read/write_sync/write_async/meta 计数，stock `io_lat` 仍只在
-`iostat_enable=1` 时更新。剩余差异是 5 类聚合 vs stock 20 槽/per-CPU 布局，
-不是开关语义。
+#### 2.6 EROFS iostat 多桶布局（低）
 
-#### F2FS fault report
+- 当前：`read_folio`/`readahead` 正常读路径已覆盖；每 CPU 统计
+  （`alloc_percpu`，sysfs 汇总各 CPU），单 aggregate bucket，`iostat_config`
+  输出 `percpu=1`。
+- stock：每 CPU 10 window + 10 abnormal + 5 daily + 5 阈值；布局已知，
+  桶语义未知。
+- 已实测：drop_caches 后读取 `/product/.../AiasstVision.apk`，window/daily
+  均记录 `count>=1 bytes>=4096`；缓存命中不重复计数是预期行为。
+- 下一步：从 stock show/record 函数恢复语义；在此之前保留聚合统计。
 
-`f2fs_fault_report` tracepoint 已补，原型与 stock BTF 一致；
-`fault_report.ko` 启动日志不再报 `tracepoint ... not found`，`/proc/fault_report`
-已出现。同步 `f2fs_handle_error()` 和 task context 的
-`f2fs_handle_error_async()` 都会触发；原子 end_io 路径由 `in_task()` 过滤，
-避免回调在原子上下文做 `stack_trace_save()`/`queue_work()`。
-`f2fs_stop_checkpoint()` 等路径未额外上报，F2FS 实际故障注入/长时验证仍未做。
+#### 2.7 F2FS fault_report 全路径（极低）
 
-#### EROFS iostat
+- 当前：`f2fs_fault_report` tracepoint 原型与 stock BTF 一致；
+  `fault_report.ko` 不再报 `tracepoint ... not found`，`/proc/fault_report`
+  已出现。同步 `f2fs_handle_error()` 和 task context 的
+  `f2fs_handle_error_async()` 都会触发；原子 end_io 路径由 `in_task()` 过滤，
+  避免回调在原子上下文做 `stack_trace_save()`/`queue_work()`。
+- 未覆盖：`f2fs_stop_checkpoint()` 等路径未额外上报，避免原子上下文调用可能
+  睡眠的回调；F2FS 实际故障注入/长时验证仍未做。
+- 下一步：确认 stock 在这些路径是否上报，再决定是否加 `in_task()` 保护。
 
-已覆盖 `read_folio`/`readahead` 的正常读路径，2026-10-30 改为 **每 CPU**
-统计（`alloc_percpu`，sysfs 汇总各 CPU），不再用全局锁聚合一整棵挂载点。
-剩余差异是 stock 的 10 个 window 槽/10 个 abnormal 槽/5 个 daily 槽和 5 档阈值
-没有逐桶复刻；当前每 CPU 一个 aggregate bucket，`iostat_config` 输出
-`percpu=1`。2026-10-30 实测 drop_caches 后读取 `/product/.../AiasstVision.apk`，
-window/daily 均记录 `count>=1 bytes>=4096`；缓存命中不重复计数是预期行为。
+#### 2.8 `MODULE_SCMVERSION` / 版本串（无性能影响）
 
-#### `MEMFD_ASHMEM_SHIM`
+- 已实测：打开 `LOCALVERSION_AUTO`/`MODULE_SCMVERSION` 后 release 变为
+  `6.6.118-gf9c84f40b6ba-dirty`，丢失 `-4k` 并改变自编模块 vermagic，已回退。
+- 只影响 `/sys/module/*/scmversion` 和版本可追溯性。
+- 下一步：如果只需模块 scmversion，可只对自编模块启用，不改变内核 release；
+  需要单独验证。
 
-AOSP 6.6.118 自带实现，已启用；没有移植 MiCode 6.6.89 的重复版本。缺少
-Android 上层 `libmemfd`/ashmem 用户态回归测试。
-
-#### UFS 官方源码
-
-包内 37 个 MTK UFS 文件保留为参考，没有整体替换 AOSP UFS 核心。替换会扩大启动
-风险，且当前任务的可选优先级低于已验证的 GKI 构建。后续如需官方 UFS，应单独
-做厂商 UFS 驱动/设备树/初始化链路测试。
-
-#### lz4kd/zram（2026-10-30 已闭环）
-
-已用实机确认：stock vendor zram 的 zcomp 走 crypto API，本内核注册了
-`lz4kd-generic`（type=compression），所以无需替换 zram 模块，直接在 zram
-未初始化时 `echo lz4kd > /sys/block/zram0/comp_algorithm` 即可选中；当前
-Scene 开机配置已选中 `[lz4kd]`。
-
-同时确认本机“内存扩展”是小米 ExtM，宿主是 vendor_boot 里的 ExtM 版
-`zram.ko`（含 xswapd/zgroup/mctrl/smart_cache）。此前为了 lz4kd 而
-rmmod + insmod 自编 zram 模块会直接废掉 ExtM（`backing_dev=none`、无
-`xswapd0`），不要再这样做。完整链路、启动时序、回写验证和恢复步骤见
-[ZRAM_EXTM.md](ZRAM_EXTM.md)。
-
-#### 6.6.143 偏离项状态（2026-10-30）
+#### 2.9 6.6.143 有意偏离项（不是缺口）
 
 - **ThinLTO**：已构建并实机启动；`pid.o` 为 LLVM bitcode、`.cmd` 含
   `-flto=thin`。尚无性能/功耗 A/B，不能声明收益。
@@ -1276,47 +1402,7 @@ rmmod + insmod 自编 zram 模块会直接废掉 ExtM（`backing_dev=none`、无
 - **补丁序列**：已重生成 `patches/0000-6.6.143-dash-integration.patch`；
   旧 6.6.118 系列归档，不再参与构建。
 
-#### 仍缺的 stock-only 实现（2026-10-30 复核）
-
-- **stock core tracepoint 已对齐**：stock 的 1860 个 `__traceiter_*` 全部存在；
-  6.6.143 上游额外 46 个，当前共 1906 个（missing=0，extra 均为上游新增）。
-  补丁 `0007-stock-parity-hooks.patch` 从 AOSP
-  `android15-6.6-2026-10_r2` 回移了 51 个缺失 hook，其中 44 个同时回移调用点；
-  剩余 7 个 export-only hook 已在 `0008`/`0009` 补上调用点
-  （MMC/DMA/lazy resched），当前所有目标 hook 都有调用点。
-  2 个 LZ4 事件按 stock BTF 字段在 EROFS LZ4 解压路径实现，已实测触发
-  （2026-10-30 6.6.143 同步时曾丢失，已恢复）。
-  这些 hook 默认无注册者，回调路径需要厂商模块主动注册；本构建只保证事件/
-  符号/调用点与 stock 形状一致。
-- **SCSI fastdiscard 未实现**：stock 有 `CONFIG_SCSI_DISCARD` /
-  `CONFIG_SCSI_FASTDISCARD`，AOSP 树和当前构建没有；只剩通用 `sd` discard。
-  BTF/字符串证据表明确实是多 descriptor UNMAP 的 `xiaomi_fastdiscard_info`
-  路径，但公开源码没有实现；详见
-  [UFS_HYBRID_EVIDENCE.md](UFS_HYBRID_EVIDENCE.md)。`persist.sys.stability.fastdiscard`
-  目前为空，默认不触发；在没有私有源码和有效属性前不伪造“fastdiscard 已启用”。
-- **GKI dynamic task_struct 已实现**：`CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE=y`、
-  `GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024`；新增 `arch_task_struct_size`、
-  `vendor_data_pad`（GPL 导出）和 `android_arch_task_struct_size=` early param。
-  未传参数时大小为 4800B/217 成员，与 stock BTF 一致；传参时按页对齐扩大
-  task_struct slab 的分配大小。
-- **UFS 内核侧未替换**：`ufs_mediatek_mod_ise` 仍是 stock 模块，AOSP
-  UFS/SCSI core 不是原厂 37 文件源。2026-10-30 复核：stock vmlinux 和
-  `ufs-mediatek-mod-ise.ko` 的字符串都只有 `monitor`，当前
-  `/sys/devices/.../monitor/monitor_enable` 与模块自身一致；只有
-  `vendor_file_contexts` 里的 `/ufs_monitor` 路径，未找到对应的内核节点或写入者。
-  因此不再把“monitor 路径不一致”列为已确认缺口；仍需 UFS 官方 core 的独立
-  变体做 A/B。
-- **`/proc/iostat_enhance` 不是 dash 的 stock ABI**：stock 的 `io_monitor.ko`
-  实际创建 `/proc/io_monitor/...`，iostat 开关在
-  `/proc/io_monitor/iostat/iostat_enabled`；本机模块已加载且这些节点存在。
-  之前文档中的 `/proc/iostat_enhance/enable` 是误记，不再作为缺口。
-- **`MODULE_SCMVERSION`/`LOCALVERSION_AUTO`**：当前为可复现构建关闭
-  `LOCALVERSION_AUTO`，因此 `MODULE_SCMVERSION` 及 `/sys/module/*/scmversion`
-  缺失；只影响版本元数据，不影响运行时逻辑。
-
-完整核对表见 [STOCK_PARITY_AUDIT.md](STOCK_PARITY_AUDIT.md)。
-
-### 优先级 2：验证缺口
+### 3. 验证缺口
 
 - **KCFI 运行时**：13/13 静态哈希已校验；完整 hooks 镜像已实机启动且没有出现
   `brk #0x8228`。仍需在压力、suspend/resume、异常进程退出等路径持续观察。
@@ -1331,12 +1417,44 @@ rmmod + insmod 自编 zram 模块会直接废掉 ExtM（`backing_dev=none`、无
 - **boot/AVB**：最终 64MB boot 保留 OEM vbmeta/footer，已实机启动。`fastboot boot`
   不可用；boot 的 kernel hash 与 OEM vbmeta 描述不一致，依赖本机隐藏解锁接受该
   组合。其它设备或更严格 bootloader 不保证可用；不要在没有恢复方案时写 `lk`。
-- **性能/功耗**：没有 A/B 数据，不能对 zram、node_cache、QoS、启动时延作收益
-  声明。
+- **`MEMFD_ASHMEM_SHIM`**：AOSP 6.6.118 自带实现，已启用；没有移植 MiCode
+  6.6.89 的重复版本。缺少 Android 上层 `libmemfd`/ashmem 用户态回归测试。
+- **性能/功耗与深度 A/B**：未做 stock vs 自编的 zram/node_cache/QoS/启动时延、
+  suspend/resume、fsck/power-loss、长时压力。没有这些数据，不能对任何性能收益
+  作声明。下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram
+  测试，再做 suspend/resume 和长时压力。
 - **SELinux**：系统保持 Enforcing；本次 root 读取 sysfs 成功，没有关闭 SELinux
   或修改上下文。`setenforce 0` 等降级策略仍不应为取证而使用。
 
-### 优先级 3：dash-droidspaces 上游同步（2026-10-29）
+### 4. mihomo / TCP Brutal / MPTCP
+
+- **MPTCP 未启用。** 在 6.6.143 上 `CONFIG_MPTCP=y` +
+  `CONFIG_MPTCP_IPV6=y` + `CONFIG_INET_MPTCP_DIAG=y` 实测启动失败（花屏后
+  看门狗复位，无 pstore）；addrtype-only 正常启动。当前 mihomo 配置必须
+  `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6 子项隔离构建，
+  不要把它当默认项。
+- **Android auto-redirect 仅本机 IPv4 TCP。** mihomo Android 分支明确不用
+  nftables，也不做 IPv6/热点转发；`tproxy-port` 的自动 iptables 只在 Linux
+  执行，Android 需要手动规则。热点已改由 TUN auto-route + 模块的 FORWARD
+  放行覆盖（2026-11-07，见 [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md) §5.6）；
+  REDIRECT/TPROXY 仍不覆盖转发。
+- **TCP Brutal 是外部模块。** `tcp-brutal` v2.0.1 已配置为 submodule 和
+  `make brutal`，但上游 GPL-3.0、`brutalctl` 的 Android 构建/`ip route
+  congctl` 支持未完成；mihomo 的 Hysteria2/ShadowQUIC brutal 是 QUIC 用户态，
+  不使用该模块。
+- **IPv6 REDIRECT 已启用并验证 TCP。** #8（`0dc871a5…`）开启
+  `IP6_NF_NAT`，`ip6tables -t nat` 正常，IPv4/IPv6 TCP REDIRECT 均进入
+  mihomo；nat REDIRECT 的 UDP 丢失原始目的地址，本机 UDP 仍不可用。
+- **TFO 持久化已安装并验证。** 标准 `mihomo_alpha` KSU 模块在 #8 重启后写入
+  `tcp_fastopen=3`，`post-fs-data.sh`/`service.sh` 都会重写。
+- **TPROXY TCP/IPv6 未形成可信结论。** TPROXY IPv4 UDP 已验证；
+  veth/netns 测试环境自身 TCP 路径异常，TPROXY TCP 未 accept；IPv6
+  TPROXY 也没有可信日志。本机 OUTPUT 不能使用 TPROXY target，需 TUN 或
+  REDIRECT 覆盖本机应用。
+- **自动 fastboot 未实现。** 需要 LK/BCB 层面的可靠机制；内核 panic
+  notifier 只能 best-effort 覆盖晚 panic，见 BOOT_PACKAGING.md §7。
+
+### 5. 上游同步（dash-droidspaces，2026-10-29）
 
 - 上游 `origin/main` 到 `6039943a9c15`；与本交接相关的 13-hook 补丁已同步：
   `0001/0002/0004/0005/0007-0010` 逐字节相同，`0006` 仅为本树 SUSFS include
@@ -1357,82 +1475,79 @@ rmmod + insmod 自编 zram 模块会直接废掉 ExtM（`backing_dev=none`、无
   最新 `exp/ksu-diag-recorder`（`6b48e83`，2026-10-29 23:40）仍记录约 1.5s 崩溃，
   与本仓库 BakaSU 结果不同。
 
-### 已知安全注意事项
+### 6. 已完成、不要重复列为缺口
 
-1. 关闭模块签名/vermagic/CRC/protected-export 检查会允许任意匹配架构的模块
-   加载；仅用于自有、已解锁设备。
-2. 内核包含 BakaSU/SUSFS，会改变 root 与隐藏行为；不要用于不受控设备。
-3. `abi_symbollist.raw` 保留 stock 导出名，构建产物仍不是原厂签名内核。
-4. `out/baseline-6.6.118/` 是旧式 mkbootimg 对照内核，**不是 stock 备份且不可
-   启动**；恢复请使用 `out/device-backup/` 的完整原厂 boot/vbmeta。
+- **LTS/安全**：2026-10-30 已升级到 AOSP `android15-6.6-2026-10_r2`（6.6.143）。
+- **stock core tracepoint**：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
+  另含 46 个上游新增（合计 1906）。集成补丁（历史拆分为
+  `0007-stock-parity-hooks.patch`）回移了 51 个缺失 hook，其中 44 个同时回移
+  调用点；剩余 7 个 export-only hook 已在 legacy `0008`/`0009` 补上调用点
+  （MMC/DMA/lazy resched）。2 个 LZ4 事件已恢复并实测触发。这些 hook 默认无
+  注册者，本构建只保证事件/符号/调用点与 stock 形状一致。
+- **GKI dynamic task_struct**：`CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE=y`、
+  `GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024`；新增 `arch_task_struct_size`、
+  `vendor_data_pad`（GPL 导出）和 `android_arch_task_struct_size=` early param。
+  未传参数时大小为 4800B/217 成员，与 stock BTF 一致。
+- **F2FS lock / priority**：`fs/f2fs/lock.c`、`f2fs_lock_elapsed_time`、
+  `f2fs_priority_uplift/restore`、4 个 lock sysfs 已实现；`gc_lock` 全部调用点
+  已接入 trace wrapper；默认 `adjust_lock_priority=0`。真机验证见
+  [TEST_REPORT.md](TEST_REPORT.md) §12。
+- **F2FS VIP 接口**：接口/fallback 已完成并实机验证；原厂选择策略仍是缺口，见
+  §2.4。
+- **F2FS iostat 单开关语义**：已修复并实测；布局仍是缺口，见 §2.5。
+- **EROFS iostat per-CPU**：已实现；多桶布局仍是缺口，见 §2.6。
+- **F2FS fault_report 同步/异步**：已恢复；全路径仍是缺口，见 §2.7。
+- **lz4kd / zram ExtM（2026-10-30 已闭环）**：stock vendor zram 的 zcomp 走
+  crypto API，本内核注册了 `lz4kd-generic`（type=compression），无需替换 zram
+  模块；Scene 开机配置已选中 `[lz4kd]`。本机“内存扩展”是小米 ExtM，宿主是
+  vendor_boot 里的 ExtM 版 `zram.ko`；**不要 rmmod + insmod 自编 zram 模块**，
+  否则 `backing_dev=none`、无 `xswapd0`。详见 [ZRAM_EXTM.md](ZRAM_EXTM.md)。
+- **误记纠正**：`/proc/iostat_enhance` 不是 dash 的 stock ABI；stock
+  `io_monitor.ko` 实际创建 `/proc/io_monitor/...`，iostat 开关在
+  `/proc/io_monitor/iostat/iostat_enabled`。UFS `monitor` 路径与 stock 模块
+  一致，不再列为已确认缺口。旧文档中的这两个说法不要重复。
+- **init_boot 已还原**：A/B 两槽均为 OS4.0.3.0 官方镜像；详见 §1.4 和
+  [STATUS.md](../STATUS.md)。
 
-### 优先级 4：mihomo / TCP Brutal / MPTCP（2026-10-30）
-
-- **MPTCP 未启用。** 在 6.6.143 上 `CONFIG_MPTCP=y` +
-  `CONFIG_MPTCP_IPV6=y` + `CONFIG_INET_MPTCP_DIAG=y` 实测启动失败（花屏后
-  看门狗复位，无 pstore）；addrtype-only 正常启动。当前 mihomo 配置必须
-  `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6 子项隔离构建，
-  不要把它当默认项。
-- **Android auto-redirect 仅本机 IPv4 TCP。** mihomo Android 分支明确不用
-  nftables，也不做 IPv6/热点转发；`tproxy-port` 的自动 iptables 只在 Linux
-  执行，Android 需要手动规则。
-- **TCP Brutal 是外部模块。** `tcp-brutal` v2.0.1 已配置为 submodule 和
-  `make brutal`，但上游 GPL-3.0、`brutalctl` 的 Android 构建/`ip route
-  congctl` 支持未完成；mihomo 的 Hysteria2/ShadowQUIC brutal 是 QUIC 用户态，
-  不使用该模块。
-- **IPv6 REDIRECT 已启用并验证 TCP。** #8（`0dc871a5…`）开启
-  `IP6_NF_NAT`，`ip6tables -t nat` 正常，IPv4/IPv6 TCP REDIRECT 均进入
-  mihomo；nat REDIRECT 的 UDP 丢失原始目的地址，本机 UDP 仍不可用。
-- **TFO 持久化已安装并验证。** 标准 `mihomo_alpha` KSU 模块在 #8 重启后写入
-  `tcp_fastopen=3`，`post-fs-data.sh`/`service.sh` 都会重写。
-- **TPROXY TCP/IPv6 未形成可信结论。** TPROXY IPv4 UDP 已验证；
-  veth/netns 测试环境自身 TCP 路径异常，TPROXY TCP 未 accept；IPv6
-  TPROXY 也没有可信日志。本机 OUTPUT 不能使用 TPROXY target，需 TUN 或
-  REDIRECT 覆盖本机应用。
-- **自动 fastboot 未实现。** 需要 LK/BCB 层面的可靠机制；内核 panic
-  notifier 只能 best-effort 覆盖晚 panic，见 BOOT_PACKAGING.md §7。
+完整核对表见 [STOCK_PARITY_AUDIT.md](STOCK_PARITY_AUDIT.md)。
 
 ---
 
-<a id="src-05"></a>
-## 5. 实现路径、与 stock 的差异和回退
+<a id="src-06"></a>
+## 6. 实现路径、与 stock 的差异和回退
 
-> 来源：[`docs/kernel/DESIGN.md`](DESIGN.md) · 12478 字节 · SHA256 `bdc0be77f25b44b61d72fdef1a4a5ed96cd8e2c40a3746f69e10af445dd50e8d`
+> 来源：[`docs/kernel/DESIGN.md`](DESIGN.md) · 12276 字节 · SHA256 `a455ecb18946b1efe7ede691b3fa3c7f0e712657bdaa81a97e778768f04781bc`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 ### 1. 基线与交付边界
 
 - 设备：`dash` / REDMI Turbo 5 Max / MT6991，stock
   `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`。
-- AOSP 基线：`android15-6.6-2026-01_r1`，peeled commit
-  `f9c84f40b6ba6152b6f51daba0193c9564af4172`（`SUBLEVEL=118`）。
-- 工具链：AOSP `clang-r510928`。
+- AOSP 基线：`android15-6.6-2026-10_r2`，commit
+  `bf768be0eed008588dc4e0db0b2f76c026a35818`（`SUBLEVEL=143`）；
+  当前版本和产物见 [STATUS.md](../STATUS.md)。
+- 工具链：AOSP `clang-r614150`（23.0.1），构建全程 clang/LLD。
 - 配置起点：[stock.config](../../dash/configs/stock.config)，不是 `gki_defconfig`。
 - 页面大小 4K；保留 `CFI_CLANG`、`SHADOW_CALL_STACK`、`MODVERSIONS`、
-  `MODULE_SIG_PROTECT`、`LTO_NONE` 和 `TRIM_UNUSED_KSYMS`。
+  `MODULE_SIG_PROTECT` 和 `TRIM_UNUSED_KSYMS`；启用
+  `CONFIG_LTO_CLANG_THIN=y`，AutoFDO 未启用。
 - 交付物不写 `lk`、`super` 或用户数据；实机测试只使用 `boot_b`，并在写入前备份
   完整 boot/vbmeta 分区。默认仍应优先无写入验证，任何刷机由设备所有者决定。
 
 ### 2. 补丁系列
 
-[patches/series](../../dash/patches/series) 是唯一应用顺序：
+[patches/series](../../dash/patches/series) 是唯一应用顺序。当前 6.6.143 只有
+一个整树集成补丁；详细原因、生成和应用流程见
+[patches/README.md](../../dash/patches/README.md)。
 
-| 补丁 | 内容 |
+| 补丁/目录 | 内容 |
 |---|---|
-| `0000-tools-libbpf-const-strchr.patch` | 6.6.118 host `libbpf` 与 r510928 的 `const` 诊断修复，只影响构建主机 |
-| `0001-vendor-ko-compat.patch` | 跳过厂商 `.ko` 的签名、vermagic、CRC、namespace 和 GKI protected-export 检查 |
-| `0002-bakasu-integration.patch` | BakaSU 内建接入 |
-| `0003-susfs-gki-android15-6.6.patch` | SUSFS inline 支持，已适配 6.6.118 |
-| `0004-susfs-bakasu-hooks.patch` | BakaSU `ksu_handle_sys_read` 三参数适配 |
-| `0005-xiaomi-f2fs-features.patch` | 增强 iostat、fault report、lock/priority、VIP manager、hybrid UFS 接口、block Kconfig |
-| `0006-xiaomi-erofs-iostat.patch` | EROFS 每 CPU iostat 与 sysfs |
-| `0007-stock-parity-hooks.patch` | 51 个 stock-only hook、44 个调用点、2 个 LZ4 事件、GKI dynamic task_struct |
-| `0008-mmc-dma-hook-callsites.patch` | MMC attach/reset/cd、sdhci get_cd、dma-heap alloc latency 调用点 |
-| `0009-lazy-resched-hooks.patch` | `restore_curr_resched` 的 arm64 lazy-resched 调用点 |
-| `vendor-hooks/0001..0010` | node_cache/os_cpu_qi 需要的 13 个 `android_vh_*` hooks、导出和调用点 |
+| `0000-6.6.143-dash-integration.patch` | 整树 squash：vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、stock parity hooks、OS4 vendor hooks |
+| `patches/susfs/` | `susfs.c`、`susfs.h`、`susfs_def.h`，由 `scripts/apply-patches.sh` 安装 |
+| `patches/legacy-6.6.118/` | 旧 6.6.118 拆分系列（0000–0009 + vendor-hooks），仅历史参考，不再应用 |
 
-`susfs.c`、`susfs.h`、`susfs_def.h` 由 `scripts/apply-patches.sh` 从
-`patches/susfs/` 安装；BakaSU 以固定提交的本地符号链接接入，不复制上游历史。
+BakaSU 以固定提交的本地符号链接接入，不复制上游历史。集成补丁在干净
+`bf768be0` 上 apply 后，84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致。
 
 ### 3. 厂商模块与 trace hooks
 
@@ -1462,9 +1577,9 @@ tracepoint：
 
 #### stock core tracepoint / dynamic task_struct
 
-`0007-stock-parity-hooks.patch` 以 AOSP `android15-6.6-2026-10_r2` 为参考，
-回移 stock 6.6.118 有、2026-01 AOSP 没有的 51 个 hook，并回移其中 44 个的
-调用点。`dma_heap_buffer_alloc_lat_*`、`mmc_*`/`sdhci_get_cd`、
+当前集成补丁以 AOSP `android15-6.6-2026-10_r2` 为参考，回移 stock 6.6.118
+有、2026-01 AOSP 没有的 51 个 hook，并回移其中 44 个的调用点（历史拆分见
+`patches/legacy-6.6.118/0007-stock-parity-hooks.patch`）。`dma_heap_buffer_alloc_lat_*`、`mmc_*`/`sdhci_get_cd`、
 `restore_curr_resched` 在上游只有声明/导出，保持相同的“事件可用、无内核调用点”
 状态。`lz4_decompress_start/end` 没有公开源码，按 stock BTF 的
 `inputsize/outputsize/ret/bypass` 字段在 EROFS LZ4 解压路径实现；它记录的是
@@ -1481,14 +1596,15 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 
 - 内建 `CONFIG_KSU=y`、`CONFIG_KSU_MULTI_MANAGER_SUPPORT=y`。
 - `CONFIG_KSU_SUSFS=y`，关闭 tracepoint/manual hook，使用 inline hook。
-- `0001` 的 `CONFIG_VENDOR_KO_COMPAT` 只放宽模块加载校验，不伪造缺失符号；
-  未知符号仍会导致加载失败。
+- 集成补丁中的 `CONFIG_VENDOR_KO_COMPAT` 只放宽模块加载校验，不伪造缺失符号；
+  未知符号仍会导致加载失败（历史拆分见
+  `legacy-6.6.118/0001-vendor-ko-compat.patch`）。
 - 安全影响：模块签名/CRC/vermagic/protected-export 检查被关闭，仅适用于已解锁的
   自有设备。`MODULE_SIG_PROTECT=y` 本身保留，以便随时关闭兼容开关回到严格模式。
 
 ### 5. memfd ashmem shim
 
-交接说明假设需要从 MiCode 6.6.89 移植，但 AOSP 6.6.118 树已经包含：
+交接说明假设需要从 MiCode 6.6.89 移植，但 AOSP 6.6.118/6.6.143 树已经包含：
 
 - `mm/memfd-ashmem-shim.c`
 - `mm/memfd-ashmem-shim.h`
@@ -1528,9 +1644,10 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 - 新增 `include/trace/events/f2fs.h` 中的 `f2fs_fault_report` tracepoint，原型
   与 stock BTF 一致：`(struct super_block *sb, unsigned int err_code,
   const char *function, unsigned int line)`。
-- 在同步错误路径 `f2fs_handle_error()` 触发；没有放在
-  `f2fs_handle_error_async()`/`f2fs_stop_checkpoint()`，因为 `fault_report.ko`
-  的回调会 `stack_trace_save()`/`queue_work()`，不适合原子上下文。
+- 同步错误路径 `f2fs_handle_error()` 和 task-context 的
+  `f2fs_handle_error_async()` 都会触发；原子 end_io 路径由 `in_task()` 过滤，
+  避免 `fault_report.ko` 的 `stack_trace_save()`/`queue_work()` 在原子上下文
+  执行。`f2fs_stop_checkpoint()` 等路径仍未上报，见 OPEN_ISSUES §2.7。
 - `fault_report.ko` 通过 `for_each_kernel_tracepoint()` 找到事件，启动日志不再
   报 `tracepoint f2fs_fault_report not found`，`/proc/fault_report` 已出现。
 
@@ -1608,20 +1725,20 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
   细节和失败对照见 [BOOT_PACKAGING.md](BOOT_PACKAGING.md)。
 - 源码树可随时由 `scripts/apply-patches.sh` 重置并重新应用，长期修改只在
   `patches/`、`configs/` 和报告文件中。
-- `out/baseline-6.6.118/` 保留一份未加 hooks/功能补丁的内核和旧式 mkbootimg
-  boot；该 boot 不可启动，仅作内核对照，不得误当作 stock 原厂镜像。
+- `out/baseline-6.6.118/` 是 6.6.118 时期的对照内核和旧式 mkbootimg boot；
+  该 boot 不可启动，仅作历史对照，不得误当作 stock 原厂镜像。
 
 ---
 
-<a id="src-06"></a>
-## 6. 实机 vs stock 特性核对
+<a id="src-07"></a>
+## 7. 实机 vs stock 特性核对
 
-> 来源：[`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) · 10106 字节 · SHA256 `1db93debb3eb9765ca218c126293f7eba52dc28b3aea182375ffd3e38872300f`
+> 来源：[`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) · 10173 字节 · SHA256 `36c227c44e9410ce277fef8cfa080f38ba7672e2eb25049f92294d4ba2aed21d`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
-> 更新（2026-10-30 晚）：当前设备已到 `6.6.143-4k #8`（AOSP 2026-10_r2 +
-> ThinLTO）。本文表格仍是 6.6.118 #29 快照；6.6.143 下 stock 的 1860 个
-> traceiter 全部保留，另有 46 个上游新增，LZ4 事件已恢复；详见
+> 本文表格是 6.6.118 #29 的历史快照，不是当前状态；当前版本见
+> [STATUS.md](../STATUS.md)。6.6.143 下 stock 的 1860 个 traceiter 全部保留，
+> 另有 46 个上游新增，LZ4 事件已恢复；详见
 > [TEST_REPORT.md](TEST_REPORT.md) §15。
 
 对象：当前设备运行的自编内核 `6.6.118-4k #29`，对比设备 stock
@@ -1642,11 +1759,11 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 
 ### 1.1 安全补丁差异
 
-本机 stock 的安全补丁是 `2026-10-01`（`ro.build.version.security_patch`）；
-当前基线 tag 是 `android15-6.6-2026-01_r1`（6.6.118），缺少 2026-02..10 的
-LTS/安全修复。
-KMI 字符串仍是 `android15-8`，升级 sublevel 不改变 KMI；但需要重放补丁并复验。
-详见 [UNRESOLVED_GAPS.md](UNRESOLVED_GAPS.md)。
+本机 stock 的安全补丁是 `2026-10-01`（`ro.build.version.security_patch`）。
+2026-10-30 已把基线升级到 `android15-6.6-2026-10_r2`（6.6.143）；旧版本文中
+“当前基线 6.6.118、缺少 2026-02..10 LTS”是历史状态，已不再成立。
+KMI 字符串仍是 `android15-8`；当前版本和验证状态见 [STATUS.md](../STATUS.md)，
+版本升级复核清单见 [UPSTREAM_NOTES_REVIEW.md](UPSTREAM_NOTES_REVIEW.md) §6。
 
 ### 2. config 差异
 
@@ -1831,148 +1948,10 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
 
 ---
 
-<a id="src-07"></a>
-## 7. 未完成项按性能影响排序
-
-> 来源：[`docs/kernel/UNRESOLVED_GAPS.md`](UNRESOLVED_GAPS.md) · 8747 字节 · SHA256 `3f9ef674524e1d87abb2d55cb5ddf2d5aa27b0418e5f7b8a6f20003bb421074e`
-> 类别：当前交付 · 状态：当前交付（优先相信）
-
-本文件只列**确实尝试过但仍无法完成**的项；已完成项见
-[STOCK_PARITY_AUDIT.md](STOCK_PARITY_AUDIT.md) 和
-[TEST_REPORT.md](TEST_REPORT.md)。排序依据是“对实际 I/O/存储/调度性能的潜在影响”，
-不是实现难度；影响方向可能是提升也可能是退化，均按潜在幅度排序。
-
-### 安全/LTS 缺口（不计入性能排序）
-
-本机 stock `ro.build.version.security_patch=2026-10-01`；当前基线是
-`android15-6.6-2026-01_r1`（6.6.118），中间缺少 2026-02..10 的 LTS/安全修复。
-（Mi15 另一台 OS4 设备的 dump 是 2026-08-01，比本机更旧；以本机实测为准。）
-这不是性能项，但属于未完成的功能/维护缺口。升级到 2026-07_r1/2026-10_r2
-可以补齐，同时保持 KMI `android15-8`；代价是重放全部补丁、638 模块/KCFI/
-启动复验，见 [UPSTREAM_NOTES_REVIEW.md](UPSTREAM_NOTES_REVIEW.md)。
-
-### 排序总表
-
-| # | 项 | 潜在性能影响 | 当前状态 | 为什么不能完成 |
-|---|---|---|---|---|
-| 1 | **F2FS hybrid UFS 双区域分配** | **高**：写放置/GC/寿命/吞吐 | sysfs/挂载参数存在，`f2fs_hw_support_hybrid()` 固定 false，`hybrid=1` 返回 `-EOPNOTSUPP` | 缺 ext LUN 映射、die 分区发现、GC 分配策略；无公开源码，无法安全伪造地址 |
-| 2 | **UFS 官方 core 变体** | **高（未证实）**：UFS 初始化、电源/时钟、I/O 路径 | stock `ufs_mediatek_mod_ise.ko` 可加载；AOSP core 未替换 | 官方 37 文件源是 device_modules 模块形态，依赖 MTK block/clk/power 头和 vendor 对象；独立变体未完成 |
-| 3 | **SCSI fastdiscard / 多 descriptor UNMAP** | **中高**：discard/TRIM 吞吐、GC、寿命 | 通用 `sd` discard 正常；`max_discard_segments=1`；`CONFIG_SCSI_DISCARD`/`FASTDISCARD` 缺失 | 公开源码无实现；stock 的 `xiaomi_fastdiscard_info` 是 SCSI disk 层批处理，需改命令构造和硬件验证 |
-| 4 | **F2FS VIP 原厂选择策略** | **中**：前台/存储优先级、UI 延迟 | hook + 保守 fallback，`vip_inode_count` 可用；manager 布局是简化版 | 原厂“哪些 inode 进入 VIP”的策略无公开来源；只恢复了 `f2fs_vip_manager` 48B 布局 |
-| 5 | **F2FS 增强 iostat 精确布局** | **低-中**：观测开销/统计精度 | 单开关语义正确，5 类聚合 | stock 是 20 槽窗口 + 10 档粒度 + per-CPU 私有布局；槽位语义未知，不伪造 |
-| 6 | **EROFS iostat 多桶布局** | **低**：观测；对 I/O 路径影响很小 | 已 per-CPU，单 aggregate bucket | stock 是每 CPU 10 window + 10 abnormal + 5 daily + 5 阈值；桶语义未知 |
-| 7 | **F2FS fault_report 全路径** | **极低**：可靠性/诊断，不是吞吐 | 同步 + task-context 异步已上报 | `f2fs_stop_checkpoint()` 等路径是否上报未确认；不能确定 stock 行为 |
-| 8 | **`MODULE_SCMVERSION`/版本串** | **无**：仅元数据/可追溯性 | 未启用 | 打开 `LOCALVERSION_AUTO` 会把 release 变成 `6.6.118-gf9c84f40b6ba-dirty`，丢掉 `-4k` 并改变 vermagic；已实测后回退 |
-| 9 | **深度性能/稳定性 A/B** | 无法量化 | 未做 | 缺 stock 运行时 A/B、suspend/resume、fsck/power-loss、长时压力；不是“功能缺失”，是验证缺口 |
-
-### 逐项说明
-
-#### 1. F2FS hybrid UFS（最高性能影响）
-
-- 已知：stock BTF `f2fs_hybrid_info` 192B（`main/ext f2fs_die_info` 72B、
-  `free_ratio`、`gc_threshold`、`large_file_threshold`、`main/ext_new_seg_ratio`、
-  `gc_alloc_mode[5]`）；`f2fs_hw_hybrid_get_avail`、`f2fs_hybrid_die_info_show`
-  等函数存在。
-- 已尝试：恢复布局、sysfs/挂载参数、能力查询、安全回退；从 stock 二进制和
-  BTF 找分配器未果。
-- 为什么停：没有 ext LUN 地址映射和 die 发现契约，错误映射可能把数据写到错误
-  介质；这是数据安全问题，不是性能取舍。
-- 下一步：从 stock `vmlinux` 反汇编 `device_hybrid_capable`/GC 分配路径，或取得
-  原厂 6.6.118 源码；在双区域设备上先做只读校验。
-
-#### 2. UFS 官方 core 变体（高，未证实）
-
-- 已知：MiCode `dash-w-oss` 的 `drivers/ufs` 已 sparse checkout（25 + 13 文件）；
-  `ufs-mediatek.c` 在 6.6.118 头文件下可以编译，但 modpost 缺
-  `ufs_mtk_init_sysfs`、`ufs_mb_init`、`ufs_mb_queue_error`、`ufsm_disable_intr`、
-  `mt_irq_dump_status` 等 sibling/vendor 符号。
-- 已尝试：独立 `M=` 编译探针；依赖 `DEVICE_MODULES_PATH`、MTK block/clk/power
-  头、`drivers/ufs/vendor`。
-- 为什么停：不能单文件替换；整体替换 AOSP core 会改变启动初始化链，且本机
-  无法在无写入条件下验证 UFS 初始化/电源路径。
-- 下一步：用 MTK device_modules 的 out-of-tree 构建做独立 boot 变体，只读 A/B
-  UFS monitor、电源/时钟和 I/O 延迟。
-
-#### 3. SCSI fastdiscard（中高）
-
-- 已知：stock BTF `xiaomi_fastdiscard_info` 16B
-  （`fastdiscard_enable`、`max_unmap_descriptors`、`multi_unmap_len_max`），
-  内嵌在 `struct scsi_disk` 的 `xiaomi_feature_info`；字符串有
-  `multi_unmap_len_max_show`、`[FASTDISCARD debug]`。
-- 当前：通用 discard 可用；`/sys/block/sda/queue/max_discard_segments=1`。
-- 已尝试：BTF/字符串恢复、AOSP `sd_setup_unmap_cmnd` 路径核对、公开源码检索
-  （只命中 config/ikconfig）。
-- 为什么停：需要多 descriptor UNMAP 命令构造和真实 UFS/分区验证；错误实现可能
-  丢数据。没有 stock 源码和可安全丢弃的测试分区。
-- 下一步：实现/验证多 descriptor UNMAP 的边界、错误处理和 `max_discard_segments`，
-  在 scratch 分区上做 A/B。
-
-#### 4. F2FS VIP 原厂策略（中）
-
-- 已知：`f2fs_vip_manager` 48B（sorted/unsorted/count/capacity/
-  unsorted_buf_size/head/tail/lock/enabled），`vip_inode_sorted` 8B
-  （`ino` + `unsorted_idx`），`vip_inode_unsorted` 4B。
-- 当前：hook + fallback（有用户地址空间的 RT/negative-nice 写打开，上限 8192），
-  不是原厂选择策略；manager 布局也简化。
-- 为什么停：没有公开的选择策略/阈值/调用时机；恢复布局但不恢复策略只是“看起来
-  像”，不能宣称等价。
-- 下一步：从 stock Image 恢复 `f2fs_vip_insert` 调用点和 manager 操作，或取得原厂
-  源码。
-
-#### 5. F2FS 增强 iostat（低-中）
-
-- 当前：`en_iostat_enable` 单开关、window/daily/阈值、5 类聚合。
-- stock：20 槽窗口、10 档粒度、per-CPU 私有布局；输出格式也不保证逐字相同。
-- 为什么停：槽位/粒度语义未知，强行按名字实现会给出错误统计。
-- 下一步：取得原厂 `f2fs_iostat` 结构/调用点，或接受“行为级统计”并明确不做逐字
-  ABI 兼容。
-
-#### 6. EROFS iostat 多桶（低）
-
-- 当前：per-CPU、单 aggregate bucket、`percpu=1`。
-- stock：每 CPU 10 window + 10 abnormal + 5 daily + 5 阈值；布局已知，
-  桶语义未知。
-- 下一步：从 stock show/record 函数恢复语义；在此之前保留聚合统计。
-
-#### 7. F2FS fault_report 全路径（极低）
-
-- 同步 + task-context 异步已上报；`f2fs_stop_checkpoint()` 等路径未额外上报，
-  避免原子上下文调用可能睡眠的回调。
-- 影响：诊断完整性，不是性能。
-- 下一步：确认 stock 在这些路径是否上报，再决定是否加 `in_task()` 保护。
-
-#### 8. `MODULE_SCMVERSION`/版本串（无性能影响）
-
-- 已实测打开 `LOCALVERSION_AUTO`/`MODULE_SCMVERSION` 后 release 变为
-  `6.6.118-gf9c84f40b6ba-dirty`，丢失 `-4k` 并改变自编模块 vermagic，已回退。
-- 只影响 `/sys/module/*/scmversion` 和版本可追溯性。
-- 下一步：如果只需模块 scmversion，可只对自编模块启用，不改变内核 release；
-  需要单独验证。
-
-#### 9. 深度性能/稳定性 A/B（验证缺口）
-
-- 未做：stock vs 自编的 zram/node_cache/QoS/启动时延、suspend/resume、
-  fsck/power-loss、长时压力。
-- 没有这些数据，不能对任何性能收益作声明。
-- 下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram 测试，
-  再做 suspend/resume 和长时压力。
-
-### 已完成、不要重复列为缺口的项
-
-- core tracepoint：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143 另含
-  46 个上游新增（合计 1906），2 个 LZ4 事件已恢复并实测触发。
-- GKI dynamic task_struct。
-- F2FS lock/priority、`gc_lock` 全调用点、VIP 接口/保守策略、fault_report
-  同步+异步。
-- EROFS per-CPU iostat（单桶）。
-- `/proc/iostat_enhance` 误记纠正；UFS `monitor` 路径复核。
-
----
-
 <a id="src-08"></a>
 ## 8. 参考仓库工作笔记核对
 
-> 来源：[`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) · 12240 字节 · SHA256 `321164e8f9bff5a9d44314663307ffdeffcc37d5d858523b0203c4deb52fb5a1`
+> 来源：[`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) · 12236 字节 · SHA256 `9ea863d66a8b658948f2ce97c50cd67fa3bcddb7fd02d86a46bd38adaee9f86a`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 范围：先读导航中每个带工作笔记/AGENTS 的仓库，再补读一批小米 MTK/OS3/OS4
@@ -2126,7 +2105,7 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
    profile；BBRv3/ZSTD 仍待 A/B。
 3. **DroidSpaces**：若确实需要容器，单独变体加 SYSVIPC kABI 6/7/8 + namespace
    配置，不混入 stock parity。
-4. **hybrid/fastdiscard/UFS core**：继续按 [UNRESOLVED_GAPS.md](UNRESOLVED_GAPS.md)
+4. **hybrid/fastdiscard/UFS core**：继续按 [OPEN_ISSUES.md](OPEN_ISSUES.md) §2
    的证据路线推进。
 
 ---
@@ -2586,7 +2565,7 @@ llvm-objdump -dr --no-show-raw-insn --disassemble-symbols=node_cache_compress_fo
 <a id="src-11"></a>
 ## 11. mihomo Alpha / TCP Brutal / MPTCP 实机结论
 
-> 来源：[`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) · 17528 字节 · SHA256 `d8f2ebe4812483c10ea6c1804597f6ead8d08b853caffb4fba688032f7f71c85`
+> 来源：[`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) · 19744 字节 · SHA256 `ca14aa9ac879d839fc5e893519d6b52efb9c4199966c6d259b1899d8d2c26e5e`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 > 注意：MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。
 
@@ -2602,7 +2581,7 @@ Android 用户态实际用到的内核能力，并用给定 Clash 配置在 dash
 | 实测二进制 | 自建 clean Alpha `ca8d7c4`（`v1.19.33-alpha-ca8d7c4`，Go 1.26.10，`with_gvisor`）；官方 `v1.19.33` release 仅用于早期对比 |
 | TUN 依赖 | `github.com/metacubex/sing-tun v0.4.28` |
 | Android 构建 | `GOOS=android GOARCH=arm64`，release 使用 `with_gvisor` |
-| 本机内核 | `6.6.143-4k #8`，boot_b `0dc871a5…`（IPv6 NAT + addrtype，MPTCP 关闭） |
+| 本机内核 | 见 [STATUS.md](../STATUS.md)（IPv6 NAT + addrtype，MPTCP 关闭） |
 
 mihomo 在 Android 有两条运行路径：
 
@@ -2622,7 +2601,8 @@ mihomo 在 Android 有两条运行路径：
   `auto-redirect` 不依赖 nftables。
 - 同一文件的 Android 分支在设置 `nat OUTPUT -> tun REDIRECT` 后直接
   `return nil`：**Android 的 auto-redirect 只处理本机 IPv4 TCP 出站**，不做
-  PREROUTING/FORWARD，也不做 IPv6。热点共享需要 VPNHotspot 一类方案。
+  PREROUTING/FORWARD，也不做 IPv6。热点仍由 TUN auto-route 捕获；模块用
+  FORWARD 放行规则把它接进 TUN（见 5.6），auto-redirect 本身不覆盖热点。
 - `sing-tun/redirect_iptables.go`：完整 iptables 规则会使用
   `-m addrtype`、`-m owner`、`-m socket`、`DNAT/REDIRECT/TPROXY`。
 - `sing-tun/redirect_nftables.go`：只有非 Android 才走 nftables；
@@ -2772,7 +2752,8 @@ mihomo 在 Android 有两条运行路径：
 
 #### 5.5 标准 KSU 模块
 
-- 模块：`mihomo_alpha`，版本 `v1.19.33-alpha-ca8d7c4-r3`，已安装到
+- 模块：`mihomo_alpha`，当前版本见 [STATUS.md](../STATUS.md) 或
+  `dash/modules/mihomo_alpha/module.prop`；已安装到
   `/data/adb/modules/mihomo_alpha`，KSU `action=true`。
 - 文件：`dash/modules/mihomo_alpha/`；安装脚本
   `bash dash/scripts/install-mihomo-module.sh`。
@@ -2781,9 +2762,11 @@ mihomo 在 Android 有两条运行路径：
   `-trimpath`, 版本 ldflags `v1.19.33-alpha-ca8d7c4`。
 - 配置文件：`/data/adb/mihomo/config.yaml`，模块不覆盖它；service 只执行
   `mihomo -d /data/adb/mihomo -f /data/adb/mihomo/config.yaml`。
-- **不自动配置防火墙**：`service.sh` 没有任何 iptables/ip rule 命令；
-  `tun.enable: false` 时不会创建 TUN/规则，`tun.enable: true` 时完全由
-  mihomo 自己的 auto-route/auto-redirect 配置。
+- **最小防火墙规则**：`service.sh` 只在 FORWARD 链顶部幂等插入 4 条
+  TUN 转发放行规则（IPv4/IPv6 × 进出 TUN），用于让热点客户端流量穿过
+  Android tether 防火墙进入 mihomo TUN（原因见 5.6）；TUN、NAT 和策略路由
+  仍完全由 mihomo 与配置决定。`tun.enable: false` 时这些规则不会匹配任何
+  流量。TUN 名称从配置的 `tun.device` 读取，缺省为 `mihomo`。
 - 启动：等待 `sys.boot_completed=1` 和默认路由 `ip route get 1.1.1.1`
   带 `dev` 后再启动，避免开机过早导致 auto-detect-interface 为空。
 - TFO：`post-fs-data.sh` 和 `service.sh` 都执行
@@ -2791,6 +2774,31 @@ mihomo 在 Android 有两条运行路径：
 - action.sh 已实测：10 秒无操作自动退出；音量上停止 mihomo（用
   `sendevent` 注入 KEY_VOLUMEUP 验证）；音量下**重启 mihomo**（停止后
   调用 service.sh，实测 PID 变化且 TUN 恢复，不重启设备）。
+
+#### 5.6 热点共享修复（2026-11-07）
+
+- 现象：mihomo TUN 运行时，热点客户端可以连接、DHCP/DNS 正常，但没有
+  外网流量。
+- 根因：mihomo auto-route 的 IPv4 规则
+  `9001: not from all iif lo lookup 2022`（IPv6 为 `9002: from all lookup
+  2022`）把 `ap0` 进入的转发流量导入 TUN；而 Android 的
+  `tetherctrl_FORWARD` 只放行 `ap0<->ccmniN`，末尾是 `-j DROP`，因此
+  `ap0 -> mihomo` 与 `mihomo -> ap0` 都被丢弃。实测客户端请求时该 DROP
+  计数从 43 增至 54，`curl` 超时。
+- 修复：`service.sh` 在 FORWARD 链顶部幂等插入
+  `-o <tun> -j ACCEPT` / `-i <tun> -j ACCEPT`（IPv4+IPv6），使 TUN 转发
+  放行先于 tether 链的 DROP；mihomo 的 TUN/NAT/策略路由和配置不变。
+  `uninstall.sh` 删除这 4 条规则。
+- 验证（真实 Wi-Fi 客户端 `10.147.70.25`，热点上游 `ccmni2`）：
+  - IPv4：`curl http://1.1.1.1` 返回 301；`ping 1.1.1.1` 0% 丢包。
+  - IPv6：热点下发 `2408:...` 地址；`ping`/TCP 经 TUN 正常。
+  - 域名：热点 DNS 返回真实 IP（不是 fake-ip）；`https://www.perl.org`
+    返回 200，mihomo 日志为 `[Sniffer] ... www.perl.org` +
+    `match ... using PROXY[香港 aws 优化线路]`。
+  - 面板：`/connections` 显示 `sourceIP 10.147.70.25`、`type Tun`、
+    `inboundName DEFAULT-TUN`。
+- 注意：放行规则位于 FORWARD 顶部，tether 计数链不会统计已代理流量；
+  只有 TUN 模式覆盖热点转发，REDIRECT/TPROXY 仍不覆盖。
 
 ### 6. 运行与清理
 
@@ -2830,7 +2838,11 @@ adb shell su -c 'insmod /data/local/tmp/brutal.ko'
   看门狗复位），随后已用 `addrtype-only` 内核恢复。没有继续把 MPTCP 作为
   默认项；`mihomo` 配置必须 `inbound-mptcp: false`。如后续要追，建议单独
   做 MPTCP-only / 去 IPv6 子项的隔离构建。
-- **Android auto-redirect 仅本机 IPv4 TCP**；IPv6 与热点转发不覆盖。
+- **Android auto-redirect 仅本机 IPv4 TCP**；IPv6 不覆盖。热点转发由 TUN
+  auto-route + `service.sh` 的 FORWARD 放行覆盖（见 5.6），auto-redirect
+  本身不处理转发。
+- **手动运行 mihomo 时热点仍会被 tether 防火墙丢弃**：需要同样的 FORWARD
+  放行规则；标准 KSU 模块已自动添加。
 - **REDIRECT 本机 UDP 不可用**：nat REDIRECT 丢失原目的地址，mihomo 会
   收到 127.0.0.1:7892 并拒绝 loopback；UDP 用 TPROXY/TUN。
 - **TPROXY TCP/IPv6 尚未形成可信实测结论**：veth/netns 测试环境自身 TCP
@@ -2909,11 +2921,12 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 
 #### 9.4 KSU 模块更新
 
-- 模块版本：`v1.19.33-alpha-ca8d7c4-r4-pgo`；`bin/mihomo` 已验证与
-  `handoff/mihomo-alpha-pgo` sha256 一致：
+- 模块版本见 [STATUS.md](../STATUS.md) / `module.prop`；本构建的
+  `bin/mihomo` 已验证与 `handoff/mihomo-alpha-pgo` sha256 一致：
   `6486910e6427b7ccd9a4e702feaa8d600f788881ed392368fa8f836a04670ace`。
 - 模块仍通过 `/data/adb/mihomo/config.yaml` 自动启动；TUN 开关完全由配置
-  决定，service 不添加防火墙。当前 TUN 运行正常，`tcp_fastopen=3`。
+  决定。service 只额外添加热点转发所需的 FORWARD 放行规则（5.6）。当前
+  TUN 运行正常，`tcp_fastopen=3`。
 - 当前配置文件 `log-level: silent`；启动时 mihomo 仍会打印少量初始配置
   日志，之后运行期不再增长。pprof 采集时需要临时改为 debug，脚本会恢复。
 
@@ -2922,7 +2935,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 <a id="src-12"></a>
 ## 12. 仓库导航、子模块 pin 与资源索引
 
-> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 15271 字节 · SHA256 `4d4d9050556e2caf10e63607f704620ec5d529548a40aebcb36720eb1583c32d`
+> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 13448 字节 · SHA256 `c1aabba218f841037b21441e971bbf4e537ac831f95398e543b1f4da418440b5`
 > 类别：仓库上下文 · 状态：仓库上下文（可能有过时状态）
 > 注意：这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。
 
@@ -2933,7 +2946,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 [GAP_RESEARCH.md](../project/GAP_RESEARCH.md)，两个厂商模块的实测行为见
 [DEVICE_MODULES.md](../project/DEVICE_MODULES.md)。
 
-目标设备：`dash` / REDMI Turbo 5 Max（MT6991），stock `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编产物为 **6.6.143 #8**，并已在真机 `boot_b`（`0dc871a5…`）启动验证；准确状态以 [docs/kernel/TEST_REPORT.md](TEST_REPORT.md) 和 [dash/out/artifacts/BUILD_INFO](../../dash/out/artifacts/BUILD_INFO) 为准。本页部分章节保留了早期 6.6.144 调研痕迹，遇到冲突不要沿用旧状态。
+目标设备：`dash` / REDMI Turbo 5 Max（MT6991），stock `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。本页只维护资源、pin 和资产位置；当前版本/产物/实机状态见 [docs/STATUS.md](../STATUS.md)，缺口见 [OPEN_ISSUES.md](OPEN_ISSUES.md)。部分章节保留早期调研痕迹，遇到冲突不要沿用旧状态。
 
 > 大源码树（AOSP common、MiCode、CC 主内核）故意没有做成子模块，避免把几 GB 历史带进仓库；它们的浅克隆位置和上游地址在下文单独记录。
 
@@ -3016,15 +3029,12 @@ git clone --depth=1 --filter=blob:none \
 | [dash/patches/legacy-6.6.118](../../dash/patches/legacy-6.6.118) | 旧 6.6.118 拆分系列，仅作历史参考，不再应用 |
 | [dash/out/artifacts](../../dash/out/artifacts) | 当前 6.6.143 构建产物：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS` |
 
-当前产物：`6.6.143-4k #8`（AOSP 2026-10_r2，clang r614150，ThinLTO），
-BakaSU built-in + SUSFS inline Hook；64MB AVB 保留式 `boot.img`
-`0dc871a5…` 已刷入 `boot_b` 并启动；586 个模块加载，KCFI 13/13，
-mihomo TUN/addrtype/IPv6 NAT、TFO 持久化和 tcp-brutal 已实机验证。详见
-[docs/kernel/TEST_REPORT.md](TEST_REPORT.md) §15/§18。
+当前产物版本、哈希和验证结论见 [docs/STATUS.md](../STATUS.md)；证据见
+[docs/kernel/TEST_REPORT.md](TEST_REPORT.md)，本页不重复。
 
 ### 5. 按任务导航
 
-- 想快速避坑/让 LLM 接手：先读 [docs/kernel/DEV_NOTES.md](DEV_NOTES.md)，再按其中的权威顺序读源文档。
+- 想让 agent/LLM 接手：先读根目录 [AGENTS.md](../../AGENTS.md) 和 [docs/STATUS.md](../STATUS.md)；`DEV_NOTES.md` 是生成物，不是当前状态的权威来源。
 - 想构建/更新内核：从 [docs/kernel/README.md](README.md) 开始，版本改 [dash/versions.env](../../dash/versions.env)。
 - 想恢复原厂 boot/kernel：用 [phone-dump](../../dash/out/device-audit/phone-dump) 里的 `boot_b.img` 等；不要碰 `lk`。
 - 想改 BakaSU/KSU：看 [BakaSU/kernel](../../BakaSU/kernel) 和 [0002-bakasu-integration.patch](../../dash/patches/legacy-6.6.118/0002-bakasu-integration.patch)。
@@ -3050,21 +3060,12 @@ git submodule update --remote --merge third_party/susfs4ksu
 - AOSP、MiCode、CC 主内核等大源码树用浅克隆，不放进子模块；只保留路径和 pin。
 - `dash/src`、`dash/toolchains`、`dash/out` 已在 `dash/.gitignore` 中忽略。
 
-### 7. 已知缺口与风险
+### 7. 缺口与安全边界
 
-- 原厂精确源码：stock `6.6.118` commit `b9cc6ec16bc8`（设备）/CC 文档里的 `c44b714366cc` 不是 AOSP tag；当前使用 AOSP `android15-6.6-2026-10_r2`（`bf768be0`，6.6.143）作为基线，MiCode 公开分支是 `6.6.89`。
-- 仍缺 Xiaomi 私有内核特性**原厂源码**：`XIAOMI_ENHANCED_IOSTAT`、`XIAOMI_EROFS_IOSTAT`、`F2FS_VIP_FILE`、`F2FS_FS_HYBRID_UFS`、`BLOCK_HYBRID_UFS`。当前已有行为级实现；F2FS 单开关 iostat、`f2fs_fault_report`、lock/priority tracepoint 和 VIP 选择策略已补齐；hybrid、EROFS per-device 统计仍未复刻。
-- 仍缺 `node_cache.ko` / `os_cpu_qi.ko` 的原厂源码；当前用 stock 二进制 + 13 个 hook，真机加载和 KCFI 静态匹配已通过。2026-11-03 收到一份面向 6.12 API 的 `node_cache.c` 重实现（[`dash/vendor-src/node_cache/node_cache.c`](../../dash/vendor-src/node_cache/node_cache.c)），已与 stock 6.6.118 二进制做差异核对，见 [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)；它不是 stock 原始源码，当前不参与构建。
-- `MEMFD_ASHMEM_SHIM` 在 AOSP 6.6.118 树内已自带实现，当前 6.6.118 构建只启用配置（`memfd_ashmem_shim_ioctl` 已编入）。
-- 当前产物为 `6.6.143-4k #8`（AOSP 2026-10_r2 + ThinLTO + clang r614150，boot_b `0dc871a5…`），已在真机验证 CFI/厂商模块/BakaSU/zram ExtM/mihomo TUN/IPv6 NAT/TFO 持久化/tcp-brutal；详见 [docs/kernel/TEST_REPORT.md](TEST_REPORT.md) §15/§18。
-- 只备份 active `_b` boot 链；全机救砖资产（`lk`、`super`、system/vendor 等）没有收集；不要刷 `lk`。
-- CC 仓库是 LineageOS 方向、逆向后重实现，**不要直接刷 HyperOS**，也不能当官方 stock 等价源码。
-- 2026-10-30 已补 F2FS lock/priority tracepoint、VIP 选择策略（hook + 保守
-  fallback）和 4 个 lock sysfs；真机已验证 uplift/restore、lock elapsed 和 VIP
-  计数增删；stock 1860 个 core traceiter 全部存在（6.6.143 另有 46 个上游新增）、
-  GKI dynamic task_struct 已补齐。仍缺的 stock-only 项：hybrid UFS、EROFS per-device 统计、
-  SCSI fastdiscard、UFS 官方 37 文件源；详见
-  [OPEN_ISSUES.md](OPEN_ISSUES.md)。
+- 当前缺口、风险和性能排序只在 [OPEN_ISSUES.md](OPEN_ISSUES.md) 维护；本页不复制状态。
+- 原厂精确源码不存在：stock `6.6.118` commit `b9cc6ec16bc8` 不是 AOSP tag；MiCode 公开分支是 `6.6.89`，CC 树是 LineageOS 方向的逆向重实现。不要把它们当 stock 等价源码，也不要把 CC 产物直接刷到 HyperOS。
+- 只备份了 active `_b` boot 链；全机救砖资产（`lk`、`super`、system/vendor 等）没有收集；不要写 `lk`/`super`/用户数据。
+- `node_cache` 的 6.12 API 重实现不是 stock 原始源码，当前不参与构建；详见 [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)。
 
 ### 8. 上游参考
 

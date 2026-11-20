@@ -2,11 +2,10 @@
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
 
-当前内核源码同步到 **AOSP `android15-6.6-2026-10_r2`（6.6.143）**，
-clang 使用预编译 **r614150（23.0.1，PGO/BOLT/LTO）**。设备 stock 为
-`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支
-`android15-6.6`，KMI 字符串 `android15-8`，4K 页；stock 仍是 6.6.118，
-当前运行内核为 6.6.143 #8（boot_b `0dc871a5…`，IPv6 NAT/addrtype，MPTCP 关闭）。
+设备 stock 为 `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，
+GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编版本、
+工具链、产物哈希和实机状态见 [docs/STATUS.md](../STATUS.md)；本文件只维护
+构建/更新流程。
 
 ## 目录
 
@@ -49,6 +48,9 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 ## 当前功能
 
+> 本节是构建范围说明；验证状态以 [docs/STATUS.md](../STATUS.md) 为准，
+> 实现细节以 [DESIGN.md](DESIGN.md) 和各功能文档为准。
+
 - BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS inline hook。
 - 厂商 `.ko` 加载兼容（签名、vermagic、CRC、namespace、GKI protected export）。
 - 13 个 dash OS4 `android_vh_*` trace hooks，供 `node_cache.ko` /
@@ -71,8 +73,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   “不支持”，不会重定向写入。
 - Xiaomi EROFS iostat sysfs。
 - stock core tracepoint：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
-  上游额外 46 个（合计 1906）。51 个 stock-only hook（含 0008/0009 补齐的
-  MMC/DMA/lazy-resched 调用点）和 2 个 LZ4 事件已恢复，LZ4 已实测触发；
+  上游额外 46 个（合计 1906）。51 个 stock-only hook（含 legacy 0008/0009
+  补齐的 MMC/DMA/lazy-resched 调用点）和 2 个 LZ4 事件已恢复，LZ4 已实测触发；
   GKI dynamic task_struct（`arch_task_struct_size`、`vendor_data_pad`、
   1024B vendor 上限）。
 - mihomo Android root CLI：TUN `/dev/tun`、MTU 9000/GSO 65536、auto-route、
@@ -97,12 +99,14 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
-  [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成，供 LLM 快速避坑。
+  [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。
+  日常任务按 [AGENTS.md](../../AGENTS.md) 读单个文档即可，不需要先读全文。
 
 ## 厂商 `.ko` 兼容
 
-`0001-vendor-ko-compat.patch` 新增 `CONFIG_VENDOR_KO_COMPAT`，在模块加载路径跳过：
+集成补丁中的 `CONFIG_VENDOR_KO_COMPAT`（历史拆分见
+`patches/legacy-6.6.118/0001-vendor-ko-compat.patch`）在模块加载路径跳过：
 
 - 模块签名验证（保留 GKI 签名配置本身）
 - vermagic 检查
@@ -110,18 +114,23 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - namespace import 检查
 - GKI protected export 限制
 
-符号仍然必须真实存在。`0004-susfs-bakasu-hooks.patch` 适配 BakaSU 三参数
-`ksu_handle_sys_read`。关闭校验会降低安全性，仅用于已解锁的自有设备。
+符号仍然必须真实存在。集成补丁同时适配 BakaSU 三参数
+`ksu_handle_sys_read`（历史拆分见
+`patches/legacy-6.6.118/0004-susfs-bakasu-hooks.patch`）。关闭校验会降低安全性，
+仅用于已解锁的自有设备。
 
 ## 更新规则
 
 - 更新 AOSP：改 `versions.env` 的 `AOSP_TAG`/`AOSP_COMMIT`，运行
-  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后用 `git diff`
-  重新导出对应补丁。
+  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后重新生成整树
+  `0000-6.6.143-dash-integration.patch`，不要手改补丁文件。流程见
+  [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
 - 更新 SUSFS：更新 `SUSFS_COMMIT`，重新取上游 patch 和
   `patches/susfs/{susfs.c,susfs.h,susfs_def.h}`。
 - 源码目录可以随时由脚本重置；长期修改只保存在 `patches/`、`configs/` 和报告。
+- 版本、哈希、模块数和验证结论只更新 [docs/STATUS.md](../STATUS.md)；本文件
+  只记录构建流程和稳定的构建范围。
 
 ## 注意
 

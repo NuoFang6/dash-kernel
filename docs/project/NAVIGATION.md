@@ -7,7 +7,7 @@
 [GAP_RESEARCH.md](GAP_RESEARCH.md)，两个厂商模块的实测行为见
 [DEVICE_MODULES.md](DEVICE_MODULES.md)。
 
-目标设备：`dash` / REDMI Turbo 5 Max（MT6991），stock `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编产物为 **6.6.143 #8**，并已在真机 `boot_b`（`0dc871a5…`）启动验证；准确状态以 [docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md) 和 [dash/out/artifacts/BUILD_INFO](../../dash/out/artifacts/BUILD_INFO) 为准。本页部分章节保留了早期 6.6.144 调研痕迹，遇到冲突不要沿用旧状态。
+目标设备：`dash` / REDMI Turbo 5 Max（MT6991），stock `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`，GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。本页只维护资源、pin 和资产位置；当前版本/产物/实机状态见 [docs/STATUS.md](../STATUS.md)，缺口见 [OPEN_ISSUES.md](../kernel/OPEN_ISSUES.md)。部分章节保留早期调研痕迹，遇到冲突不要沿用旧状态。
 
 > 大源码树（AOSP common、MiCode、CC 主内核）故意没有做成子模块，避免把几 GB 历史带进仓库；它们的浅克隆位置和上游地址在下文单独记录。
 
@@ -90,15 +90,12 @@ git clone --depth=1 --filter=blob:none \
 | [dash/patches/legacy-6.6.118](../../dash/patches/legacy-6.6.118) | 旧 6.6.118 拆分系列，仅作历史参考，不再应用 |
 | [dash/out/artifacts](../../dash/out/artifacts) | 当前 6.6.143 构建产物：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS` |
 
-当前产物：`6.6.143-4k #8`（AOSP 2026-10_r2，clang r614150，ThinLTO），
-BakaSU built-in + SUSFS inline Hook；64MB AVB 保留式 `boot.img`
-`0dc871a5…` 已刷入 `boot_b` 并启动；586 个模块加载，KCFI 13/13，
-mihomo TUN/addrtype/IPv6 NAT、TFO 持久化和 tcp-brutal 已实机验证。详见
-[docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md) §15/§18。
+当前产物版本、哈希和验证结论见 [docs/STATUS.md](../STATUS.md)；证据见
+[docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md)，本页不重复。
 
 ## 5. 按任务导航
 
-- 想快速避坑/让 LLM 接手：先读 [docs/kernel/DEV_NOTES.md](../kernel/DEV_NOTES.md)，再按其中的权威顺序读源文档。
+- 想让 agent/LLM 接手：先读根目录 [AGENTS.md](../../AGENTS.md) 和 [docs/STATUS.md](../STATUS.md)；`DEV_NOTES.md` 是生成物，不是当前状态的权威来源。
 - 想构建/更新内核：从 [docs/kernel/README.md](../kernel/README.md) 开始，版本改 [dash/versions.env](../../dash/versions.env)。
 - 想恢复原厂 boot/kernel：用 [phone-dump](../../dash/out/device-audit/phone-dump) 里的 `boot_b.img` 等；不要碰 `lk`。
 - 想改 BakaSU/KSU：看 [BakaSU/kernel](../../BakaSU/kernel) 和 [0002-bakasu-integration.patch](../../dash/patches/legacy-6.6.118/0002-bakasu-integration.patch)。
@@ -124,21 +121,12 @@ git submodule update --remote --merge third_party/susfs4ksu
 - AOSP、MiCode、CC 主内核等大源码树用浅克隆，不放进子模块；只保留路径和 pin。
 - `dash/src`、`dash/toolchains`、`dash/out` 已在 `dash/.gitignore` 中忽略。
 
-## 7. 已知缺口与风险
+## 7. 缺口与安全边界
 
-- 原厂精确源码：stock `6.6.118` commit `b9cc6ec16bc8`（设备）/CC 文档里的 `c44b714366cc` 不是 AOSP tag；当前使用 AOSP `android15-6.6-2026-10_r2`（`bf768be0`，6.6.143）作为基线，MiCode 公开分支是 `6.6.89`。
-- 仍缺 Xiaomi 私有内核特性**原厂源码**：`XIAOMI_ENHANCED_IOSTAT`、`XIAOMI_EROFS_IOSTAT`、`F2FS_VIP_FILE`、`F2FS_FS_HYBRID_UFS`、`BLOCK_HYBRID_UFS`。当前已有行为级实现；F2FS 单开关 iostat、`f2fs_fault_report`、lock/priority tracepoint 和 VIP 选择策略已补齐；hybrid、EROFS per-device 统计仍未复刻。
-- 仍缺 `node_cache.ko` / `os_cpu_qi.ko` 的原厂源码；当前用 stock 二进制 + 13 个 hook，真机加载和 KCFI 静态匹配已通过。2026-11-03 收到一份面向 6.12 API 的 `node_cache.c` 重实现（[`dash/vendor-src/node_cache/node_cache.c`](../../dash/vendor-src/node_cache/node_cache.c)），已与 stock 6.6.118 二进制做差异核对，见 [NODE_CACHE_SOURCE.md](../kernel/NODE_CACHE_SOURCE.md)；它不是 stock 原始源码，当前不参与构建。
-- `MEMFD_ASHMEM_SHIM` 在 AOSP 6.6.118 树内已自带实现，当前 6.6.118 构建只启用配置（`memfd_ashmem_shim_ioctl` 已编入）。
-- 当前产物为 `6.6.143-4k #8`（AOSP 2026-10_r2 + ThinLTO + clang r614150，boot_b `0dc871a5…`），已在真机验证 CFI/厂商模块/BakaSU/zram ExtM/mihomo TUN/IPv6 NAT/TFO 持久化/tcp-brutal；详见 [docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md) §15/§18。
-- 只备份 active `_b` boot 链；全机救砖资产（`lk`、`super`、system/vendor 等）没有收集；不要刷 `lk`。
-- CC 仓库是 LineageOS 方向、逆向后重实现，**不要直接刷 HyperOS**，也不能当官方 stock 等价源码。
-- 2026-10-30 已补 F2FS lock/priority tracepoint、VIP 选择策略（hook + 保守
-  fallback）和 4 个 lock sysfs；真机已验证 uplift/restore、lock elapsed 和 VIP
-  计数增删；stock 1860 个 core traceiter 全部存在（6.6.143 另有 46 个上游新增）、
-  GKI dynamic task_struct 已补齐。仍缺的 stock-only 项：hybrid UFS、EROFS per-device 统计、
-  SCSI fastdiscard、UFS 官方 37 文件源；详见
-  [OPEN_ISSUES.md](../kernel/OPEN_ISSUES.md)。
+- 当前缺口、风险和性能排序只在 [OPEN_ISSUES.md](../kernel/OPEN_ISSUES.md) 维护；本页不复制状态。
+- 原厂精确源码不存在：stock `6.6.118` commit `b9cc6ec16bc8` 不是 AOSP tag；MiCode 公开分支是 `6.6.89`，CC 树是 LineageOS 方向的逆向重实现。不要把它们当 stock 等价源码，也不要把 CC 产物直接刷到 HyperOS。
+- 只备份了 active `_b` boot 链；全机救砖资产（`lk`、`super`、system/vendor 等）没有收集；不要写 `lk`/`super`/用户数据。
+- `node_cache` 的 6.12 API 重实现不是 stock 原始源码，当前不参与构建；详见 [NODE_CACHE_SOURCE.md](../kernel/NODE_CACHE_SOURCE.md)。
 
 ## 8. 上游参考
 

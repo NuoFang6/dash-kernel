@@ -12,7 +12,7 @@ Android 用户态实际用到的内核能力，并用给定 Clash 配置在 dash
 | 实测二进制 | 自建 clean Alpha `ca8d7c4`（`v1.19.33-alpha-ca8d7c4`，Go 1.26.10，`with_gvisor`）；官方 `v1.19.33` release 仅用于早期对比 |
 | TUN 依赖 | `github.com/metacubex/sing-tun v0.4.28` |
 | Android 构建 | `GOOS=android GOARCH=arm64`，release 使用 `with_gvisor` |
-| 本机内核 | `6.6.143-4k #8`，boot_b `0dc871a5…`（IPv6 NAT + addrtype，MPTCP 关闭） |
+| 本机内核 | 见 [STATUS.md](../STATUS.md)（IPv6 NAT + addrtype，MPTCP 关闭） |
 
 mihomo 在 Android 有两条运行路径：
 
@@ -32,7 +32,8 @@ mihomo 在 Android 有两条运行路径：
   `auto-redirect` 不依赖 nftables。
 - 同一文件的 Android 分支在设置 `nat OUTPUT -> tun REDIRECT` 后直接
   `return nil`：**Android 的 auto-redirect 只处理本机 IPv4 TCP 出站**，不做
-  PREROUTING/FORWARD，也不做 IPv6。热点共享需要 VPNHotspot 一类方案。
+  PREROUTING/FORWARD，也不做 IPv6。热点仍由 TUN auto-route 捕获；模块用
+  FORWARD 放行规则把它接进 TUN（见 5.6），auto-redirect 本身不覆盖热点。
 - `sing-tun/redirect_iptables.go`：完整 iptables 规则会使用
   `-m addrtype`、`-m owner`、`-m socket`、`DNAT/REDIRECT/TPROXY`。
 - `sing-tun/redirect_nftables.go`：只有非 Android 才走 nftables；
@@ -182,7 +183,8 @@ mihomo 在 Android 有两条运行路径：
 
 ### 5.5 标准 KSU 模块
 
-- 模块：`mihomo_alpha`，版本 `v1.19.33-alpha-ca8d7c4-r3`，已安装到
+- 模块：`mihomo_alpha`，当前版本见 [STATUS.md](../STATUS.md) 或
+  `dash/modules/mihomo_alpha/module.prop`；已安装到
   `/data/adb/modules/mihomo_alpha`，KSU `action=true`。
 - 文件：`dash/modules/mihomo_alpha/`；安装脚本
   `bash dash/scripts/install-mihomo-module.sh`。
@@ -191,9 +193,11 @@ mihomo 在 Android 有两条运行路径：
   `-trimpath`, 版本 ldflags `v1.19.33-alpha-ca8d7c4`。
 - 配置文件：`/data/adb/mihomo/config.yaml`，模块不覆盖它；service 只执行
   `mihomo -d /data/adb/mihomo -f /data/adb/mihomo/config.yaml`。
-- **不自动配置防火墙**：`service.sh` 没有任何 iptables/ip rule 命令；
-  `tun.enable: false` 时不会创建 TUN/规则，`tun.enable: true` 时完全由
-  mihomo 自己的 auto-route/auto-redirect 配置。
+- **最小防火墙规则**：`service.sh` 只在 FORWARD 链顶部幂等插入 4 条
+  TUN 转发放行规则（IPv4/IPv6 × 进出 TUN），用于让热点客户端流量穿过
+  Android tether 防火墙进入 mihomo TUN（原因见 5.6）；TUN、NAT 和策略路由
+  仍完全由 mihomo 与配置决定。`tun.enable: false` 时这些规则不会匹配任何
+  流量。TUN 名称从配置的 `tun.device` 读取，缺省为 `mihomo`。
 - 启动：等待 `sys.boot_completed=1` 和默认路由 `ip route get 1.1.1.1`
   带 `dev` 后再启动，避免开机过早导致 auto-detect-interface 为空。
 - TFO：`post-fs-data.sh` 和 `service.sh` 都执行
@@ -201,6 +205,31 @@ mihomo 在 Android 有两条运行路径：
 - action.sh 已实测：10 秒无操作自动退出；音量上停止 mihomo（用
   `sendevent` 注入 KEY_VOLUMEUP 验证）；音量下**重启 mihomo**（停止后
   调用 service.sh，实测 PID 变化且 TUN 恢复，不重启设备）。
+
+### 5.6 热点共享修复（2026-11-07）
+
+- 现象：mihomo TUN 运行时，热点客户端可以连接、DHCP/DNS 正常，但没有
+  外网流量。
+- 根因：mihomo auto-route 的 IPv4 规则
+  `9001: not from all iif lo lookup 2022`（IPv6 为 `9002: from all lookup
+  2022`）把 `ap0` 进入的转发流量导入 TUN；而 Android 的
+  `tetherctrl_FORWARD` 只放行 `ap0<->ccmniN`，末尾是 `-j DROP`，因此
+  `ap0 -> mihomo` 与 `mihomo -> ap0` 都被丢弃。实测客户端请求时该 DROP
+  计数从 43 增至 54，`curl` 超时。
+- 修复：`service.sh` 在 FORWARD 链顶部幂等插入
+  `-o <tun> -j ACCEPT` / `-i <tun> -j ACCEPT`（IPv4+IPv6），使 TUN 转发
+  放行先于 tether 链的 DROP；mihomo 的 TUN/NAT/策略路由和配置不变。
+  `uninstall.sh` 删除这 4 条规则。
+- 验证（真实 Wi-Fi 客户端 `10.147.70.25`，热点上游 `ccmni2`）：
+  - IPv4：`curl http://1.1.1.1` 返回 301；`ping 1.1.1.1` 0% 丢包。
+  - IPv6：热点下发 `2408:...` 地址；`ping`/TCP 经 TUN 正常。
+  - 域名：热点 DNS 返回真实 IP（不是 fake-ip）；`https://www.perl.org`
+    返回 200，mihomo 日志为 `[Sniffer] ... www.perl.org` +
+    `match ... using PROXY[香港 aws 优化线路]`。
+  - 面板：`/connections` 显示 `sourceIP 10.147.70.25`、`type Tun`、
+    `inboundName DEFAULT-TUN`。
+- 注意：放行规则位于 FORWARD 顶部，tether 计数链不会统计已代理流量；
+  只有 TUN 模式覆盖热点转发，REDIRECT/TPROXY 仍不覆盖。
 
 ## 6. 运行与清理
 
@@ -240,7 +269,11 @@ adb shell su -c 'insmod /data/local/tmp/brutal.ko'
   看门狗复位），随后已用 `addrtype-only` 内核恢复。没有继续把 MPTCP 作为
   默认项；`mihomo` 配置必须 `inbound-mptcp: false`。如后续要追，建议单独
   做 MPTCP-only / 去 IPv6 子项的隔离构建。
-- **Android auto-redirect 仅本机 IPv4 TCP**；IPv6 与热点转发不覆盖。
+- **Android auto-redirect 仅本机 IPv4 TCP**；IPv6 不覆盖。热点转发由 TUN
+  auto-route + `service.sh` 的 FORWARD 放行覆盖（见 5.6），auto-redirect
+  本身不处理转发。
+- **手动运行 mihomo 时热点仍会被 tether 防火墙丢弃**：需要同样的 FORWARD
+  放行规则；标准 KSU 模块已自动添加。
 - **REDIRECT 本机 UDP 不可用**：nat REDIRECT 丢失原目的地址，mihomo 会
   收到 127.0.0.1:7892 并拒绝 loopback；UDP 用 TPROXY/TUN。
 - **TPROXY TCP/IPv6 尚未形成可信实测结论**：veth/netns 测试环境自身 TCP
@@ -319,10 +352,11 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 
 ### 9.4 KSU 模块更新
 
-- 模块版本：`v1.19.33-alpha-ca8d7c4-r4-pgo`；`bin/mihomo` 已验证与
-  `handoff/mihomo-alpha-pgo` sha256 一致：
+- 模块版本见 [STATUS.md](../STATUS.md) / `module.prop`；本构建的
+  `bin/mihomo` 已验证与 `handoff/mihomo-alpha-pgo` sha256 一致：
   `6486910e6427b7ccd9a4e702feaa8d600f788881ed392368fa8f836a04670ace`。
 - 模块仍通过 `/data/adb/mihomo/config.yaml` 自动启动；TUN 开关完全由配置
-  决定，service 不添加防火墙。当前 TUN 运行正常，`tcp_fastopen=3`。
+  决定。service 只额外添加热点转发所需的 FORWARD 放行规则（5.6）。当前
+  TUN 运行正常，`tcp_fastopen=3`。
 - 当前配置文件 `log-level: silent`；启动时 mihomo 仍会打印少量初始配置
   日志，之后运行期不再增长。pprof 采集时需要临时改为 debug，脚本会恢复。
