@@ -33,6 +33,7 @@ make source     # 浅克隆/更新 AOSP 到 2026-10_r2（6.6.143）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
 make build      # Image / Image.lz4 / vmlinux / System.map
+make config FAST=1 build  # 速度优先测试构建：关 ThinLTO；产物未经 finalize，不可刷机
 make brutal     # 外部 tcp-brutal v2.0.1 模块（需要先 build）
 make boot       # 从 stock boot_b 继承生成 boot.img
 bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS

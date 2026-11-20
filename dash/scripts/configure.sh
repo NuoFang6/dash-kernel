@@ -34,6 +34,11 @@ mkdir -p "$OUT_DIR"
 require_file "$DASH_ROOT/configs/stock.config"
 cp "$DASH_ROOT/configs/stock.config" "$OUT_DIR/.config"
 
+# FAST=1 trades optimization for compile speed: skip ThinLTO entirely (the
+# link stage dominates build time).  genksyms symbol CRCs are source-level
+# and unaffected, so vendor .ko compat is not impacted by this knob.
+FAST="${FAST:-0}"
+
 CONFIG="$OUT_DIR/.config"
 "$AOSP_DIR/scripts/config" --file "$CONFIG" \
 	-e CONFIG_KSU \
@@ -52,23 +57,39 @@ CONFIG="$OUT_DIR/.config"
 	-e CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE \
 	--set-val CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX 1024 \
 	-e CONFIG_CRYPTO_LZ4KD \
-	-e CONFIG_LTO_CLANG_THIN \
 	-e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
 	-e CONFIG_IP6_NF_NAT \
 	-e CONFIG_IP6_NF_TARGET_MASQUERADE \
-	-d CONFIG_LTO_NONE \
 	-d CONFIG_LOCALVERSION_AUTO \
 	--set-str CONFIG_UNUSED_KSYMS_WHITELIST "$DASH_ROOT/configs/abi_symbollist.raw"
 
+if [[ "$FAST" == "1" ]]; then
+	"$AOSP_DIR/scripts/config" --file "$CONFIG" \
+		-d CONFIG_LTO_CLANG_THIN \
+		-e CONFIG_LTO_NONE
+else
+	"$AOSP_DIR/scripts/config" --file "$CONFIG" \
+		-e CONFIG_LTO_CLANG_THIN \
+		-d CONFIG_LTO_NONE
+fi
+
 "${MAKE[@]}" olddefconfig
 
-for opt in CONFIG_KSU CONFIG_KSU_SUSFS CONFIG_VENDOR_KO_COMPAT \
-	CONFIG_MEMFD_ASHMEM_SHIM CONFIG_XIAOMI_ENHANCED_IOSTAT \
-	CONFIG_XIAOMI_EROFS_IOSTAT CONFIG_F2FS_VIP_FILE \
-	CONFIG_F2FS_FS_HYBRID_UFS CONFIG_BLOCK_HYBRID_UFS \
-	CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE CONFIG_CRYPTO_LZ4KD \
-	CONFIG_LTO_CLANG_THIN CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
-	CONFIG_IP6_NF_NAT CONFIG_IP6_NF_TARGET_MASQUERADE; do
+required=(
+	CONFIG_KSU CONFIG_KSU_SUSFS CONFIG_VENDOR_KO_COMPAT
+	CONFIG_MEMFD_ASHMEM_SHIM CONFIG_XIAOMI_ENHANCED_IOSTAT
+	CONFIG_XIAOMI_EROFS_IOSTAT CONFIG_F2FS_VIP_FILE
+	CONFIG_F2FS_FS_HYBRID_UFS CONFIG_BLOCK_HYBRID_UFS
+	CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE CONFIG_CRYPTO_LZ4KD
+	CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
+	CONFIG_IP6_NF_NAT CONFIG_IP6_NF_TARGET_MASQUERADE
+)
+if [[ "$FAST" == "1" ]]; then
+	required+=(CONFIG_LTO_NONE)
+else
+	required+=(CONFIG_LTO_CLANG_THIN)
+fi
+for opt in "${required[@]}"; do
 	grep -q "^${opt}=y$" "$CONFIG" || die "$opt was not enabled"
 done
 if grep -q '^CONFIG_KSU_TRACEPOINT_HOOK=y$' "$CONFIG"; then

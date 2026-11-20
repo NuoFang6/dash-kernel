@@ -7,6 +7,12 @@ name: kernel-build
 
 on:
   workflow_dispatch:
+    inputs:
+      fast:
+        description: "Fast test build: disable ThinLTO (compile speed over optimization); artifacts are NOT for flashing"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -72,6 +78,8 @@ jobs:
           key: clang-${{ hashFiles('dash/versions.env') }}
 
       - name: Build Image (source → patches → config → build)
+        env:
+          FAST: ${{ inputs.fast == true && '1' || '0' }}
         run: make -C dash build
 
       - name: Smoke-check kernel image
@@ -92,7 +100,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: dash-kernel-${{ github.sha }}
+          name: dash-kernel-${{ inputs.fast == true && 'fast-' || '' }}${{ github.sha }}
           path: upload/
           retention-days: 14
           if-no-files-found: error

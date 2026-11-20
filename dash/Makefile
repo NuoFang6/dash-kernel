@@ -16,7 +16,7 @@ patches: source
 	bash scripts/apply-patches.sh
 
 config: toolchain patches
-	bash scripts/configure.sh
+	FAST="$(FAST)" bash scripts/configure.sh
 
 build: config
 	bash scripts/build.sh

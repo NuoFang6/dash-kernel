@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 04:20:51 +0800  
-> 覆盖 22 个源，269840 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 04:24:44 +0800  
+> 覆盖 22 个源，269946 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -150,7 +150,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3408 | `d41fb5959c16771c` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 10513 | `7ba7b3e262ecae5c` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 10619 | `c2d24a7230d42d87` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
 | 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 34809 | `ac1348ac62a6a4d1` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 21757 | `1dcb324bfe85ba22` | 当前交付（优先相信） |
@@ -252,7 +252,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 10513 字节 · SHA256 `7ba7b3e262ecae5c1f9a04cbf9e182ff92f641c93305597a4f1936e6ffd2f6ca`
+> 来源：[`docs/kernel/README.md`](README.md) · 10619 字节 · SHA256 `c2d24a7230d42d875eb841b26c7dbd42092daa57f425fa96d13ecab44f995fb7`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -288,6 +288,7 @@ make source     # 浅克隆/更新 AOSP 到 2026-10_r2（6.6.143）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
 make build      # Image / Image.lz4 / vmlinux / System.map
+make config FAST=1 build  # 速度优先测试构建：关 ThinLTO；产物未经 finalize，不可刷机
 make brutal     # 外部 tcp-brutal v2.0.1 模块（需要先 build）
 make boot       # 从 stock boot_b 继承生成 boot.img
 bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
