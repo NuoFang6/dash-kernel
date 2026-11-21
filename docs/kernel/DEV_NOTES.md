@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 23:14:02 +0800
-> 覆盖 22 个源，311881 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 00:47:46 +0800
+> 覆盖 22 个源，316478 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 6534 | `2e5b29ae67cf7de4` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17577 | `ce80b655b9cca504` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 7260 | `e88f629cf48692e7` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 59293 | `3f3b69e7d08e5d14` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 63093 | `cfde7c542462bbe1` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,13 +182,13 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 6534 字节 · SHA256 `2e5b29ae67cf7de4f6da6ce9b5a955d02effb103f3565f50d96e6422adf33135`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 7260 字节 · SHA256 `e88f629cf48692e7951ec4132c7d9f8cb6f73c5717982b8d9f303bd1fbd0e6c5`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
 > 只链接到这里，不再复制版本号、哈希、模块数和验证结论。
 >
-> 最后核对：2026-11-21。刷新方法见文末。
+> 最后核对：2026-11-22。刷新方法见文末。
 
 ### 1. 版本与产物
 
@@ -198,8 +198,8 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
 | 当前内核 | `6.6.143-4k #2`（NoLTO 调试构建，2026-11-21 22:41，含 NTSync 2026 上游修复）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 NoLTO 调试构建（LTO_NONE）；生产配置为 LTO Full + MLGO regalloc advisor + ACK 预制 AutoFDO profile（`kernel.afdo`，SHA256 已钉死），日常验证统一 NoLTO；MLGO/AutoFDO 仅完成 NoLTO 全量构建级验证，Full LTO 整链构建未完成，未做 A/B |
-| 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`：Image/Image.lz4/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 NoLTO 调试构建（LTO_NONE）；生产配置为 LTO Full + MLGO regalloc advisor + ACK 预制 AutoFDO profile（`kernel.afdo`，SHA256 已钉死），日常验证统一 NoLTO；Full LTO 整链构建已由 CI 通过（2026-11-22，run 44923883114），未做 A/B |
+| 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-21） |
 | `boot_a` SHA256 | `3d0d4245c6b41480c9c396acfbcda13409890fb943402903f965d827f7a50dba`（`#2`；刷前备份 `1b5af31a…` 与更早 `0dc871a5…` 均在 `dash/out/device-backup/`） |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
@@ -213,14 +213,23 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
 
 完整交付哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
-`dash/out/artifacts/BUILD_INFO`；当前 #8 的 Image/Image.lz4/boot/config/brutal.ko
-均按清单复核，历史 System.map 本地副本已缺失（清单保留目标哈希）。本轮验证
-产物隔离在 `dash/out/features-final/`，未作为当前实机产物发布。
+`dash/out/artifacts/BUILD_INFO`；本地 artifacts 仍是历史 #8 交付批次，
+生产 Full LTO 产物以 Release `dash-6.6.143-prod` 的 SHA256SUMS 为准。历史
+System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产物隔离在
+`dash/out/features-final/`，未作为当前实机产物发布。
 
 ### 2. 最近验证
 
+- **2026-11-22（CI 构建 + 发布，未刷机）**：Full LTO 生产构建通过
+  （run 44923883114，commit `b6aac16`，26 分钟）。修复了 `LD vmlinux.o`
+  之后 `__kcfi_typeid_idmap_cpu_replace_ttbr1` 未定义：clang 为多个取址
+  TU 生成重复弱绝对 typeid，Full LTO 合并时整体丢弃；改为不透明声明 +
+  `arch/arm64/mm/idmap_cfi.c` 单一取址。`Image` 47,684,096 B、
+  `Image.lz4` 22,808,794 B（限 67,098,176 B），BTF/kallsyms/最终链接全部
+  通过；Release `dash-6.6.143-prod` 已发布 Image/Image.lz4/SHA256SUMS/
+  AK3/KSU 模块。见 [TEST_REPORT.md](TEST_REPORT.md) §28。
 - **2026-11-21（构建级，未刷机）**：FEATURES_SURVEY 落地批次完成；固定 r4
-  干净树重放 28 补丁/140 文件 + SUSFS override，零 warning/error；NoLTO
+  干净树重放 28 补丁/142 文件 + SUSFS override，零 warning/error；NoLTO
   全量构建通过。对实机 #8 历史 `vmlinux` 比较 9102 个公共导出符号，CRC
   `0 mismatch / 0 removed`（新增 10）；`task_struct` 仍 4800B，SYSV 字段保持
   KABI 槽 6/7/8 偏移；638 模块 `hard_missing=0 weak_missing=0`，KCFI 13/13。
@@ -277,7 +286,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 17577 字节 · SHA256 `ce80b655b9cca504ea989b93e1e921d25d808dad7c41b4ba5d5f093cf1dc1cf4`
+> 来源：[`docs/kernel/README.md`](README.md) · 17648 字节 · SHA256 `46068b7696ec770916f4e0bd065d0ae3e0345fe5cf9d8efa9eae6d4a8bc2690c`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -327,7 +336,7 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 > 文件级拆分（每文件只属于一个补丁），归属表在
 > `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
 > squash 已从仓库删除（git 历史保留）。已在固定 r4 (`e6c23f621`) 干净树
-> 验证 28 个补丁/140 个文件与 SUSFS override 全量重放，零 warning/error；
+> 验证 28 个补丁/142 个文件与 SUSFS override 全量重放，零 warning/error；
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
@@ -362,7 +371,8 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 > `--lto-sample-profile`,Full LTO 分支不传;但 profile 权重已作为 `!prof`
 > 元数据写入每个 TU 的 bitcode,Full LTO 在编译期即应用,链接期不传该参数
 > 不构成功能缺口(2026-11-21 以最小 Full LTO 对照实验验证)。Full LTO 全量
-> 构建本身仍未跑完,不宣称通过。
+> 构建已于 2026-11-22 由 CI 通过（run 44923883114），Release
+> `dash-6.6.143-prod`；尚未刷机验证。
 
 `CLANG_AUTOFDO_PROFILE=/path/to/other.afdo bash dash/scripts/build.sh` 可覆盖为
 自定义 profile;profile 与源码版本强相关,AOSP tag/补丁大改后应重新采集。
@@ -734,7 +744,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 59293 字节 · SHA256 `3f3b69e7d08e5d14f018267b22b9dfecfcc28c9078262d5525858496320ff0f2`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 63093 字节 · SHA256 `cfde7c542462bbe1da493a6e0bbdd48a1f6afc4313ac12b002977d88c52111ea`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1793,6 +1803,90 @@ AVB: original_image_size=18374656，vbmeta=18374656+2432，OEM 字节保留
   `ready_retry` 25 vs 历史 27，属于既有厂商行为，未发现新增回归。
 - 本节记录的是 `#1` 首次启动；后续 `#2`（NTSync 修复）、DroidSpaces 与
   逐项实机核对结果见 `FEATURES_SURVEY.md` 的「实机核对与运行记录」。
+
+### 28. Full LTO 生产构建与 idmap CFI typeid 链接修复（2026-11-22，构建级 + CI 发布）
+
+**证据分级：CI 构建/链接/打包实测；未刷机，未做性能 A/B。**
+
+#### 失败现象
+
+Full LTO 生产构建（run 44918126681、44920896595）在 `LD vmlinux.o`
+之后、最终 `LD .tmp_vmlinux.btf`/`vmlinux` 阶段失败：
+
+```text
+ld.lld: error: undefined symbol: __kcfi_typeid_idmap_cpu_replace_ttbr1
+>>> referenced by ld-temp.o
+>>>               vmlinux.o:(.idmap.text+0x510)
+ld.lld: error: .btf.vmlinux.bin.o: unknown file type
+```
+
+第二条是第一条导致 BTF 链接失败的级联。`SYM_TYPED_FUNC_START()` 在
+`arch/arm64/mm/proc.S` 里只产生对 typeid 的引用，定义需由 clang 在 C TU
+中生成。
+
+#### 根因
+
+clang 对“取过函数地址”的 TU 各生成一份 **弱绝对符号**：
+
+```text
+module asm ".weak __kcfi_typeid_idmap_cpu_replace_ttbr1"
+module asm ".set __kcfi_typeid_idmap_cpu_replace_ttbr1, 0x3e7ff605"
+```
+
+`cpu_replace_ttbr1()` 是头文件 inline，被 `mmu.c`、`kasan_init.c`、
+`suspend.c`、`cpufeature.c` 四个 TU 实例化并取地址，于是产生四份重复弱定义。
+**Full LTO 合并模块时会把这个重复的弱绝对符号整体丢弃**，最终链接
+无法解析 proc.S 的引用。之前加的 `DEFINE_CFI_TYPE`（只让 mmu.c 再生成
+一份）因此无效，反而增加重复。
+
+最小复现（本机 toolchain，`ld.lld -r` + LTO）：
+
+- 单 TU 取地址 → 输出保留 `W __kcfi_typeid_...`
+- 两 TU 取地址 + 一个 native 引用 → 输出变成 `U __kcfi_typeid_...`，
+  最终链接报同样错误
+
+#### 修复（commit `b6aac16`）
+
+- `arch/arm64/include/asm/mmu_context.h`：把符号声明改为不透明对象类型
+  `extern char idmap_cpu_replace_ttbr1[];`，使 inline 调用方不再触发
+  clang 生成 typeid；`__pa_symbol()` 用法与运行时代码不变。
+- 新增 `arch/arm64/mm/idmap_cfi.c`：唯一一次按真实函数原型取地址并
+  `DEFINE_CFI_TYPE()`，保证全内核只有一份 typeid 定义。
+- `arch/arm64/mm/Makefile`：`obj-$(CONFIG_CFI_CLANG) += idmap_cfi.o`。
+
+Full LTO 探针验证（不跑全量构建）：
+
+```text
+mmu.o / kasan_init.o / suspend.o: 无 typeid
+idmap_cfi.o: W __kcfi_typeid_idmap_cpu_replace_ttbr1
+proc.o:      U __kcfi_typeid_idmap_cpu_replace_ttbr1
+LTO -r 链接后: 000000003e7ff605 W __kcfi_typeid_idmap_cpu_replace_ttbr1
+```
+
+#### CI 生产构建结果（run 44923883114，commit `b6aac16`）
+
+- 构建 26 分钟；`LD vmlinux.o` 约 10 分钟；`BTF`、`.tmp_vmlinux.kallsyms1/2`、
+  `LD vmlinux`、`OBJCOPY arch/arm64/boot/Image` 全部通过。
+- smoke：`kernel: 6.6.143-4k (dash@mikernel) ... # SMP PREEMPT`。
+- `Image` 47,684,096 B；`Image.lz4` 22,808,794 B
+  （flashable limit 67,098,176 B）；`vmlinux` 151 MiB、`System.map` 4.8 MiB。
+- 仅既有警告：`scripts/sorttable.c` 两个 host 侧 unused 警告、浅克隆 tag 警告。
+- Release `dash-6.6.143-prod` 已发布：
+  `Image` `93efcf83…a7dcd`、`Image.lz4` `59b10ded…713ad`、
+  `dash_art_tune-ak3-v1.2.zip` `05ea72fc…2115e`、
+  `dash_art_tune-v1.2.zip` `07f391e6…a439c`。
+- AK3 包内 `Image` 哈希与 Release `Image` 一致；`block=boot`、
+  `is_slot_device=auto`，只 `dump_boot`/`write_boot`，不写 `init_boot`；
+  包内含 `module/`（KSU 调优模块）。
+- 发布 tag 指向实际构建 commit `b6aac16`；此后 `34bf436` 只补了
+  `DASH_ARM64_TUNE_X925` 的 Kconfig 默认值（本次未选 X925，不影响产物）。
+- 未刷入设备；生产内核的实机启动、模块兼容与稳定性仍待验证。
+
+#### 顺带结论
+
+同轮排查确认 clang r614150 的 MLGO inliner 可用
+（`-enable-ml-inliner=release`），但 help 明示其模型
+“trained for -Oz only”，属体积模型；未加入 O2 生产构建。
 
 ---
 

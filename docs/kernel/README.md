@@ -47,7 +47,7 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 > 文件级拆分（每文件只属于一个补丁），归属表在
 > `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
 > squash 已从仓库删除（git 历史保留）。已在固定 r4 (`e6c23f621`) 干净树
-> 验证 28 个补丁/140 个文件与 SUSFS override 全量重放，零 warning/error；
+> 验证 28 个补丁/142 个文件与 SUSFS override 全量重放，零 warning/error；
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
@@ -82,7 +82,8 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 > `--lto-sample-profile`,Full LTO 分支不传;但 profile 权重已作为 `!prof`
 > 元数据写入每个 TU 的 bitcode,Full LTO 在编译期即应用,链接期不传该参数
 > 不构成功能缺口(2026-11-21 以最小 Full LTO 对照实验验证)。Full LTO 全量
-> 构建本身仍未跑完,不宣称通过。
+> 构建已于 2026-11-22 由 CI 通过（run 44923883114），Release
+> `dash-6.6.143-prod`；尚未刷机验证。
 
 `CLANG_AUTOFDO_PROFILE=/path/to/other.afdo bash dash/scripts/build.sh` 可覆盖为
 自定义 profile;profile 与源码版本强相关,AOSP tag/补丁大改后应重新采集。

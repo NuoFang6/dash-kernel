@@ -1056,3 +1056,87 @@ AVB: original_image_size=18374656，vbmeta=18374656+2432，OEM 字节保留
   `ready_retry` 25 vs 历史 27，属于既有厂商行为，未发现新增回归。
 - 本节记录的是 `#1` 首次启动；后续 `#2`（NTSync 修复）、DroidSpaces 与
   逐项实机核对结果见 `FEATURES_SURVEY.md` 的「实机核对与运行记录」。
+
+## 28. Full LTO 生产构建与 idmap CFI typeid 链接修复（2026-11-22，构建级 + CI 发布）
+
+**证据分级：CI 构建/链接/打包实测；未刷机，未做性能 A/B。**
+
+### 失败现象
+
+Full LTO 生产构建（run 44918126681、44920896595）在 `LD vmlinux.o`
+之后、最终 `LD .tmp_vmlinux.btf`/`vmlinux` 阶段失败：
+
+```text
+ld.lld: error: undefined symbol: __kcfi_typeid_idmap_cpu_replace_ttbr1
+>>> referenced by ld-temp.o
+>>>               vmlinux.o:(.idmap.text+0x510)
+ld.lld: error: .btf.vmlinux.bin.o: unknown file type
+```
+
+第二条是第一条导致 BTF 链接失败的级联。`SYM_TYPED_FUNC_START()` 在
+`arch/arm64/mm/proc.S` 里只产生对 typeid 的引用，定义需由 clang 在 C TU
+中生成。
+
+### 根因
+
+clang 对“取过函数地址”的 TU 各生成一份 **弱绝对符号**：
+
+```text
+module asm ".weak __kcfi_typeid_idmap_cpu_replace_ttbr1"
+module asm ".set __kcfi_typeid_idmap_cpu_replace_ttbr1, 0x3e7ff605"
+```
+
+`cpu_replace_ttbr1()` 是头文件 inline，被 `mmu.c`、`kasan_init.c`、
+`suspend.c`、`cpufeature.c` 四个 TU 实例化并取地址，于是产生四份重复弱定义。
+**Full LTO 合并模块时会把这个重复的弱绝对符号整体丢弃**，最终链接
+无法解析 proc.S 的引用。之前加的 `DEFINE_CFI_TYPE`（只让 mmu.c 再生成
+一份）因此无效，反而增加重复。
+
+最小复现（本机 toolchain，`ld.lld -r` + LTO）：
+
+- 单 TU 取地址 → 输出保留 `W __kcfi_typeid_...`
+- 两 TU 取地址 + 一个 native 引用 → 输出变成 `U __kcfi_typeid_...`，
+  最终链接报同样错误
+
+### 修复（commit `b6aac16`）
+
+- `arch/arm64/include/asm/mmu_context.h`：把符号声明改为不透明对象类型
+  `extern char idmap_cpu_replace_ttbr1[];`，使 inline 调用方不再触发
+  clang 生成 typeid；`__pa_symbol()` 用法与运行时代码不变。
+- 新增 `arch/arm64/mm/idmap_cfi.c`：唯一一次按真实函数原型取地址并
+  `DEFINE_CFI_TYPE()`，保证全内核只有一份 typeid 定义。
+- `arch/arm64/mm/Makefile`：`obj-$(CONFIG_CFI_CLANG) += idmap_cfi.o`。
+
+Full LTO 探针验证（不跑全量构建）：
+
+```text
+mmu.o / kasan_init.o / suspend.o: 无 typeid
+idmap_cfi.o: W __kcfi_typeid_idmap_cpu_replace_ttbr1
+proc.o:      U __kcfi_typeid_idmap_cpu_replace_ttbr1
+LTO -r 链接后: 000000003e7ff605 W __kcfi_typeid_idmap_cpu_replace_ttbr1
+```
+
+### CI 生产构建结果（run 44923883114，commit `b6aac16`）
+
+- 构建 26 分钟；`LD vmlinux.o` 约 10 分钟；`BTF`、`.tmp_vmlinux.kallsyms1/2`、
+  `LD vmlinux`、`OBJCOPY arch/arm64/boot/Image` 全部通过。
+- smoke：`kernel: 6.6.143-4k (dash@mikernel) ... # SMP PREEMPT`。
+- `Image` 47,684,096 B；`Image.lz4` 22,808,794 B
+  （flashable limit 67,098,176 B）；`vmlinux` 151 MiB、`System.map` 4.8 MiB。
+- 仅既有警告：`scripts/sorttable.c` 两个 host 侧 unused 警告、浅克隆 tag 警告。
+- Release `dash-6.6.143-prod` 已发布：
+  `Image` `93efcf83…a7dcd`、`Image.lz4` `59b10ded…713ad`、
+  `dash_art_tune-ak3-v1.2.zip` `05ea72fc…2115e`、
+  `dash_art_tune-v1.2.zip` `07f391e6…a439c`。
+- AK3 包内 `Image` 哈希与 Release `Image` 一致；`block=boot`、
+  `is_slot_device=auto`，只 `dump_boot`/`write_boot`，不写 `init_boot`；
+  包内含 `module/`（KSU 调优模块）。
+- 发布 tag 指向实际构建 commit `b6aac16`；此后 `34bf436` 只补了
+  `DASH_ARM64_TUNE_X925` 的 Kconfig 默认值（本次未选 X925，不影响产物）。
+- 未刷入设备；生产内核的实机启动、模块兼容与稳定性仍待验证。
+
+### 顺带结论
+
+同轮排查确认 clang r614150 的 MLGO inliner 可用
+（`-enable-ml-inliner=release`），但 help 明示其模型
+“trained for -Oz only”，属体积模型；未加入 O2 生产构建。
