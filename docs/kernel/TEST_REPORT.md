@@ -1208,3 +1208,19 @@ KSU + SUSFS 全套。与生产配置一致。
 
 - 生产内核只做了首次启动检查，未做长时稳定性、zram 回写压力、
   suspend/resume 与性能/功耗 A/B。
+
+## 30. OTA payload 解包与 init_boot 在用性核对（2026-11-22，只读）
+
+- 源包：`dash-ota_full-OS4.0.4.0.XPLCNXM-user-17.0-81a5c2e9c7.zip`
+  （8,644,649,513 B，A/B full OTA，`post-build=Redmi/dash/dash:17/
+  CP2A.260605.016/17OS4.0.261028.233904816.MTPECN.S`，安全补丁 2026-10-01）。
+- `payload.bin` 用 payload-dumper-go 2.1.0 提取（manifest SHA256 默认校验）：
+  - `boot.img` 64 MiB，SHA256 `f8f0de69…f2b3c`（OS4.0.4.0 stock）
+  - `init_boot.img` 8 MiB，SHA256 `ded406b1…001ebd`
+- 实机（槽位 `_a`）：`init_boot_a` = `ded406b1…001ebd`，**与 OTA 包内
+  `init_boot.img` 完全一致**；`init_boot_b` = `3d2062ae…22b70a`（OS4.0.3.0，
+  未随 OTA 更新）。
+- 实机 `boot_a` = `d0cdd6ad…`（本仓库 Full LTO 生产内核）；`boot_b` =
+  `0dc871a5…`（历史自编 `#8`，不是 stock）。OTA stock `boot.img` 已放到
+  `/storage/emulated/0/Download/boot.img`，哈希回读一致。
+- 未刷写任何分区，仅提取与比对。

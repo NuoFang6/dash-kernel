@@ -17,7 +17,8 @@
 | 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
 | `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
-| `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
+| `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
+| `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |

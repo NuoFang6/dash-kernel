@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 00:55:08 +0800
-> 覆盖 22 个源，320483 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 02:16:03 +0800
+> 覆盖 22 个源，321812 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 7840 | `dc4d632916ed4188` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8168 | `780252dac2a0ac5b` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 66518 | `b9b9e7736929389e` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 67519 | `ba6e453058f85b80` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 7840 字节 · SHA256 `dc4d632916ed41880ad5d034dff8fe21f759ddbbce2df1e99115bba9ecf28447`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 8168 字节 · SHA256 `780252dac2a0ac5b9bfcc5599f09b546261a710d524805d5a079620f8857e7dc`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -202,7 +202,8 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
 | `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
-| `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
+| `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
+| `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
@@ -751,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 66518 字节 · SHA256 `b9b9e7736929389efa819b1ec5af7fe68a175d37857b0608741510a9d312d7cd`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 67519 字节 · SHA256 `ba6e453058f85b803cdbcc490d9f65a8eb7ccf046bb6a7b15b3bab9cfb3f58db`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1962,6 +1963,22 @@ KSU + SUSFS 全套。与生产配置一致。
 
 - 生产内核只做了首次启动检查，未做长时稳定性、zram 回写压力、
   suspend/resume 与性能/功耗 A/B。
+
+### 30. OTA payload 解包与 init_boot 在用性核对（2026-11-22，只读）
+
+- 源包：`dash-ota_full-OS4.0.4.0.XPLCNXM-user-17.0-81a5c2e9c7.zip`
+  （8,644,649,513 B，A/B full OTA，`post-build=Redmi/dash/dash:17/
+  CP2A.260605.016/17OS4.0.261028.233904816.MTPECN.S`，安全补丁 2026-10-01）。
+- `payload.bin` 用 payload-dumper-go 2.1.0 提取（manifest SHA256 默认校验）：
+  - `boot.img` 64 MiB，SHA256 `f8f0de69…f2b3c`（OS4.0.4.0 stock）
+  - `init_boot.img` 8 MiB，SHA256 `ded406b1…001ebd`
+- 实机（槽位 `_a`）：`init_boot_a` = `ded406b1…001ebd`，**与 OTA 包内
+  `init_boot.img` 完全一致**；`init_boot_b` = `3d2062ae…22b70a`（OS4.0.3.0，
+  未随 OTA 更新）。
+- 实机 `boot_a` = `d0cdd6ad…`（本仓库 Full LTO 生产内核）；`boot_b` =
+  `0dc871a5…`（历史自编 `#8`，不是 stock）。OTA stock `boot.img` 已放到
+  `/storage/emulated/0/Download/boot.img`，哈希回读一致。
+- 未刷写任何分区，仅提取与比对。
 
 ---
 
