@@ -1,0 +1,6 @@
+id=dash_art_tune
+name=Dash ART + BBRv3 + ADIOS Tune
+version=v1.2
+versionCode=3
+author=NuoFang6
+description=Default BBRv3 + fq_codel, ADIOS when available, and CPU/ISA/dex2oat tuning for dash (4xA720 + 3xA725 + 1xX925). Heap/GC props are untouched.

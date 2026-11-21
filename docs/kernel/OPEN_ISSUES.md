@@ -5,7 +5,7 @@
 > [STOCK_PARITY_AUDIT.md](STOCK_PARITY_AUDIT.md) 和
 > [TEST_REPORT.md](TEST_REPORT.md)。
 >
-> 最后更新：2026-11-07。
+> 最后更新：2026-11-21。
 
 ## 0. 未完成项总表（按性能影响排序）
 
@@ -206,8 +206,8 @@
   `brk #0x8228`。仍需在压力、suspend/resume、异常进程退出等路径持续观察。
 - **模块签名/CRC**：`CONFIG_VENDOR_KO_COMPAT` 跳过检查，模块能加载不等于签名
   有效；这是有意降低的安全边界。
-- **BakaSU/SUSFS**：内建 KernelSU v4.2.0-rc3、`su`、ReSukiSU manager 包和
-  `ksu_susfs show version=v2.3.0`、9 项 enabled_features 已确认；SUSFS 各隐藏项
+- **BakaSU/SUSFS**：内建 KSU、`su`、ReSukiSU manager 包和
+  `ksu_susfs show version=v2.4.0`、10 项 enabled_features 已确认；SUSFS 各隐藏项
   的实际效果、双 manager 场景和长时间行为未逐项验证。
 - **F2FS/EROFS 数据**：系统正常挂载并运行；F2FS 已做 16MiB 随机数据写入、
   `fsync`、drop_caches 后回读 SHA256 一致；EROFS 已做冷缓存读计数。仍未做
@@ -220,17 +220,103 @@
 - **DroidSpaces（2026-11-21）**：kABI 补丁 + 官方 GKI fragment 已接入
   （`patches/090-droidspaces`、`configs/features.fragment`）；云端 FAST
   构建通过且 ABI 核查全绿（task_struct 偏移不变、9106 个导出符号 CRC
-  零漂移，见 TEST_REPORT §21）。**未实机验证**：首次刷机后需确认 586 个
-  厂商模块仍全部加载、`droidspaces check` 全绿。功能限制（永久）：
-  `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭（破坏 kABI 且无填充槽方案），
-  `--cpus`/`--pids-limit` 不可用；`NETFILTER_XT_TARGET_REJECT`（nft 变体）
-  在 6.6 无此符号，REJECT 由 legacy `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
+  零漂移，见 TEST_REPORT §21）。**2026-11-21 实机**：用户态 v7.2.0 已安装，
+  `droidspaces check` 全绿；584 个厂商模块加载、无加载错误；Alpine 容器
+  PID namespace 与 NAT（veth/udhcpc/ping/DNS）均通过，见
+  `FEATURES_SURVEY.md` 的「实机核对与运行记录」。
+  功能限制（永久）：`CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭（破坏 kABI 且
+  无填充槽方案），`--cpus`/`--pids-limit` 不可用；
+  `NETFILTER_XT_TARGET_REJECT`（nft 变体）在 6.6 无此符号，REJECT 由 legacy
+  `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
 - **性能/功耗与深度 A/B**：未做 stock vs 自编的 zram/node_cache/QoS/启动时延、
   suspend/resume、fsck/power-loss、长时压力。没有这些数据，不能对任何性能收益
   作声明。下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram
   测试，再做 suspend/resume 和长时压力。
 - **SELinux**：系统保持 Enforcing；本次 root 读取 sysfs 成功，没有关闭 SELinux
   或修改上下文。`setenforce 0` 等降级策略仍不应为取证而使用。
+
+### 3.1 NoLTO 实机调试清单（2026-11-21）
+
+构建入口：`cd dash && DEVICE=debug-nolto FAST=1 make config build`，产物在
+`dash/out/debug-nolto/`。刷机前必须完整备份 `boot_b`，按
+[BOOT_PACKAGING.md](BOOT_PACKAGING.md) 用 stock 64MB boot 继承封装；不要写
+`lk`/`super`/用户数据，每次刷入重启后等机主确认开机。按 A→B→C→D/E→F 顺序做，
+A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活槽位为 `_a`，后续
+只写该槽位；换槽或重启后先重新确认 `ro.boot.slot_suffix`。
+
+**A. 启动与基础兼容（必须全过）**
+
+- [ ] 正常开机到桌面；`uname -a` / `cat /proc/version` 显示 `6.6.143-4k`，
+      无 `+` 或 `dirty` 后缀
+- [ ] `getprop ro.boot.slot_suffix` 与写入槽一致；SELinux `Enforcing`；
+      `su -c id` 为 root，BakaSU 管理器正常
+- [ ] `dmesg` 无 `BUG:`/`WARNING:`/`Kernel panic`/`brk #0x8228`，无模块
+      CRC/vermagic 拒绝；记录首屏启动耗时
+- [ ] 638 个 stock 模块清单加载（`hard_missing=0`）；抽查 `node_cache`、
+      `os_cpu_qi`、`zsmalloc`
+- [ ] `/proc/config.gz` 核对：`LTO_NONE=y`、`AUTOFDO_CLANG=y`、
+      `DASH_MLGO_REGALLOC=y`、`DASH_ARM64_TUNE_A720=y`、
+      `KFENCE_DEFERRABLE=y`、`RCU_LAZY=y`、`WQ_POWER_EFFICIENT_DEFAULT=y`
+- [ ] `droidspaces check` 全绿；容器启停；NoMount 挂载正常
+- [ ] 回滚演练：能回刷备份 `boot_b` 并正常开机
+
+**B. 网络（BBRv3 / mihomo / 热点）**
+
+- [ ] `cat /proc/sys/net/ipv4/tcp_available_congestion_control` 含 `bbr3`；
+      切到 bbr3 后 `ss -ti` 显示 `bbr3`，切回 cubic 正常
+- [ ] Westwood+/BIC/HTCP 可通过 sysctl 切换；CAKE/PIE/FQ-PIE qdisc 可挂载
+- [ ] IP Set 新增的 14 种类型逐个 create/destroy（含 `bitmap:ipmac`、`list:set`）
+- [ ] mihomo TUN + 热点转发 IPv4/IPv6 正常；确认未启用 MPTCP
+- [ ] 大流量下载 + 弱网重连 + 热点共享 30 分钟，无 UAF/panic/tcp 警告
+
+**C. 调度 / 电源 / 内存（重点回归）**
+
+- [ ] 挂载 debugfs 后 `cat /sys/kernel/debug/sched/features`：
+      `PREEMPT_SHORT` 为 `+`、`CACHE_HOT_BUDDY` 为 `-`
+- [ ] 日常滑动、应用切换、游戏 30 分钟无卡死；`dmesg` 无
+      `rcu.*stall`/`hung task`/`soft lockup`
+- [ ] suspend/resume 10 次正常唤醒（覆盖 MGLRU suspend、alarmtimer、s2idle）
+- [ ] `rcutree.enable_rcu_lazy=0` 回退可用；`workqueue.power_efficient=0`
+      回退可用，无 I/O 卡顿
+- [ ] KFENCE 参数 `deferrable=Y` 生效，`dmesg` 无 KFENCE 冲突/自测失败
+- [ ] ADIOS 与 mq-deadline 均能被 `scheduler` 识别；记录顺序/随机 IOPS 与延迟
+- [ ] 待机 8 小时功耗、温升基线（与 stock 对比）
+
+**D. 文件系统 / 内存**
+
+- [ ] F2FS：`gc_urgent_sleep_time` 默认 50；创建/删除/fsync/rename 压力后
+      回读 SHA256 一致
+- [ ] F2FS move-range：用系统文件管理移动 >4GB 文件成功，`dmesg` 无 move
+      range 报错
+- [ ] Unicode casefold：零宽字符/组合字符文件名查找、大小写匹配正常
+- [ ] zRAM/swap 开启后内存压力下读写正常；swap readahead 无异常
+- [ ] `drop_caches` 后回读一致；能跑 fsck 的镜像做一次 fsck
+
+**E. 隐藏 / 安全功能**
+
+- [ ] `ksu_susfs show version` 为 `v2.4.0`；`show enabled_features` 为 9 项
+- [ ] sus_path/sus_map/sus_mount 隐藏项实测；AVC log spoofing 开关生效
+- [ ] `adb jdwp` 与 Android Studio 调试正常；app UID 看不到 `adbd` socket、
+      `/proc/net/unix` 无 adbd/jdwp 行；shell(2000)/root 不受影响
+- [ ] BBG 正常开机；OTA/recovery 模式、super/vbmeta/userdata 分区访问不被拦截
+      （`BBG_BLOCK_BOOT/RECOVERY=n`）
+- [ ] BakaSU 多 manager 场景不冲突
+
+**F. 构建级优化（无运行时开关）**
+
+- [ ] AutoFDO/MLGO 只能从构建产物确认（`.cmd` 带
+      `-fprofile-sample-use`/`regalloc-enable-advisor`）；实机做启动时间、
+      常用场景帧率、功耗 A/B，不能仅凭“能开机”宣称收益
+- [ ] ARM64_TUNE 的 A720/A725/X925/无 tune 对比需要分别构建，本清单只验证
+      默认 A720 构建
+- [ ] memcmp SIMD 路径：专项压力（启动、网络、文件操作）并观察 FPSIMD 相关
+      异常；静态上下文审计完成前保持“未验证”
+
+**G. 记录要求**
+
+- 每项记录：命令、结果、`dmesg` 片段、复现步骤；新证据追加
+  [TEST_REPORT.md](TEST_REPORT.md) 新 §，STATUS 只更新一行结论。
+- 出现 bootloop：回刷备份 `boot_b`；不要清 AVB footer、不改 vbmeta flags。
 
 ## 4. mihomo / TCP Brutal / MPTCP
 

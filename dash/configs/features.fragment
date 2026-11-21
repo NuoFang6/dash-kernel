@@ -115,6 +115,8 @@ CONFIG_LSM="landlock,lockdown,yama,loadpin,safesetid,selinux,smack,tomoyo,apparm
 # LLVM AutoFDO 构建支持(无 profile 时仅增加 fs-discriminator 元数据;
 # 采集流程见 docs/kernel/README.md "AutoFDO")
 CONFIG_AUTOFDO_CLANG=y
+# LLVM MLGO AOT register-allocation advisor; no runtime profile required.
+CONFIG_DASH_MLGO_REGALLOC=y
 # dash -mtune 调度模型(实机 MIDR:4x A720 + 3x A725 + 1x X925;
 # 默认选最大同构簇/能效簇 A720 的保守模型,choice 也可选 A725/X925/无)
 CONFIG_DASH_ARM64_TUNE_A720=y

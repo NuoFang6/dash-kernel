@@ -11,15 +11,17 @@
 |---|---|
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.143-4k #8` |
+| 当前内核 | `6.6.143-4k #2`（NoLTO 调试构建，2026-11-21 22:41，含 NTSync 2026 上游修复）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机 #8 为 ThinLTO；待产出生产配置为 LTO Full + AutoFDO 构建支持（无 profile），日常验证统一 NoLTO |
-| 运行槽位 | `boot_b` |
-| `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 NoLTO 调试构建（LTO_NONE）；生产配置为 LTO Full + MLGO regalloc advisor + ACK 预制 AutoFDO profile（`kernel.afdo`，SHA256 已钉死），日常验证统一 NoLTO；MLGO/AutoFDO 仅完成 NoLTO 全量构建级验证，Full LTO 整链构建未完成，未做 A/B |
+| 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`：Image/Image.lz4/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
+| 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-21） |
+| `boot_a` SHA256 | `3d0d4245c6b41480c9c396acfbcda13409890fb943402903f965d827f7a50dba`（`#2`；刷前备份 `1b5af31a…` 与更早 `0dc871a5…` 均在 `dash/out/device-backup/`） |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
-| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（9 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
-| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；实机加载 586 个；KCFI 13/13 |
+| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
+| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-21 `#2` 实机加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
+| DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
 | 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
 | 网络代理 | AsteriskMETA（mihomo core）：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT、BPF2SOCKS 能力齐备；MPTCP 关闭 |

@@ -6,6 +6,9 @@
 # Scratch handoff artifacts: boot images, logs, vendor blobs and extracted sources
 /handoff/
 
+# Local reference clones used for upstream comparison (not part of the build)
+/.refs/
+
 # Local logs and Python caches
 *.log
 __pycache__/

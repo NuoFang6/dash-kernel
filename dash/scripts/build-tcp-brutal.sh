@@ -9,6 +9,7 @@ require_cmd make
 require_cmd modinfo
 [[ -x "$TOOLCHAIN_DIR/bin/clang" ]] || die "run: make toolchain"
 require_file "$OUT_DIR/.config"
+verify_autofdo_profile
 require_file "$TCP_BRUTAL_DIR/Makefile"
 
 current_brutal="$(git -C "$TCP_BRUTAL_DIR" rev-parse HEAD)"
@@ -38,6 +39,7 @@ MAKE=(
 	HOSTCC=clang
 	HOSTCXX=clang++
 	HOSTLD=ld.lld
+	CLANG_AUTOFDO_PROFILE="$AUTOFDO_PROFILE"
 	KCFLAGS=-D__ANDROID_COMMON_KERNEL__
 )
 

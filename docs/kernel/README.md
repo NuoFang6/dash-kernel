@@ -56,52 +56,86 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 变体晋升为交付产物时显式设 `PUBLISH_ARTIFACTS=1`。
 
 > **构建策略（2026-11-21 起）**：日常编译、补丁重放、CRC/KMI 与静态门禁
-> 一律使用 `FAST=1`（NoLTO）；只有机主明确要求“产出最终生产级内核”时才运行
-> 默认的 LTO Full 构建。Full LTO 在 15 GiB 主机上单次链接耗时很长，不作为
+> 一律使用 `FAST=1`（NoLTO）。默认的 LTO Full 构建**不得自行运行**：只有机主
+> 针对本次构建明确说“授权跑 Full LTO”才可执行，“产出生产级内核/最终产物”
+> 不等于授权。Full LTO 在 15 GiB 主机上单次链接耗时很长且大量 swap，不作为
 > 常规验证门禁；NoLTO 不改变源码级 genksyms CRC。
 
-## AutoFDO profile 采集流程
+## AutoFDO profile 优化
 
-`CONFIG_AUTOFDO_CLANG=y` 已内建(arch/Kconfig;无 profile 时仅多出
-fs-discriminator 元数据,行为不变)。要产出以 profile 优化的内核:
+`CONFIG_AUTOFDO_CLANG=y` 已内建(arch/Kconfig;不提供 profile 时仅多出
+fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 仓库自带的
+预制 profile**,无需先采集:
 
-> **dash 实机限制(2026-11-21 实测)**:设备 PMU 仅
-> `arm_dsu_0`/`armv8_pmuv3`/`armv9_cortex_a720`/`armv9_cortex_x4`,**无
-> `arm_spe_*`**——SPE 采集在当前 DT 下不可行(AutoFDO 在 arm64 依赖 SPE,
-> 无 LBR)。当前状态=构建支持已落地(`CONFIG_AUTOFDO_CLANG=y`),profile
-> 优化需先在 DT(vendor dtbo/dts)启用 SPE,属于单独的刷机决策,未做。
+- profile:`android/gki/aarch64/afdo/kernel.afdo`(ACK 6.6.142 采集,约 4.0 MiB)
+- SHA256 钉死在 `dash/versions.env` 的 `ACK_AUTOFDO_PROFILE_SHA256`;
+  `lib.sh::verify_autofdo_profile` 在 configure/build 前校验,不匹配即失败
+- `build.sh` / `build-tcp-brutal.sh` 自动把 `CLANG_AUTOFDO_PROFILE` 传给
+  make;`scripts/Makefile.autofdo` 为每个 TU 注入 `-fprofile-sample-use`
 
-1. **采集**(当前刷机内核或未来 AutoFDO 内核上均可,需 root):
+构建级实证(2026-11-21,NoLTO):`dash/out/features-mlgo-afdo` 全量构建 exit 0,
+6258 个 `.cmd` 中 3188 个带 `-fprofile-sample-use=.../kernel.afdo`、3230 个带
+`regalloc-enable-advisor`;`Image` 38,877,696 B、`Image.lz4` 18,366,486 B。
+**未刷机、未做性能 A/B。**
+
+> **LTO 说明**:ACK `scripts/Makefile.autofdo` 只在 ThinLTO 分支给 LLD 传
+> `--lto-sample-profile`,Full LTO 分支不传;但 profile 权重已作为 `!prof`
+> 元数据写入每个 TU 的 bitcode,Full LTO 在编译期即应用,链接期不传该参数
+> 不构成功能缺口(2026-11-21 以最小 Full LTO 对照实验验证)。Full LTO 全量
+> 构建本身仍未跑完,不宣称通过。
+
+`CLANG_AUTOFDO_PROFILE=/path/to/other.afdo bash dash/scripts/build.sh` 可覆盖为
+自定义 profile;profile 与源码版本强相关,AOSP tag/补丁大改后应重新采集。
+
+### 可选:自行采集 profile(实验路线,未在 dash 验证)
+
+> **dash 实机限制(2026-11-21)**:当前运行内核只暴露
+> `arm_dsu_0`/`armv8_pmuv3`/`armv9_cortex_a720`/`armv9_cortex_x4`,无
+> `arm_spe_*` 或 `cs_etm`;stock 同时关闭 `CONFIG_ARM_SPE_PMU` 与
+> `CONFIG_CORESIGHT`。arm64 AutoFDO 并非只能用 SPE,也支持 ETM/ETE。MT6991
+> 厂商 DTS 已含 8×ETE 与 funnel→ETF→ETR 完整 CoreSight 拓扑,因此优先在
+> **单独实验构建**中启用 `CORESIGHT`、`CORESIGHT_SOURCE_ETM4X`、
+> `CORESIGHT_LINK_AND_SINK_TMC` 后实机验证,无需先改 DT。下列 ETE/SPE 命令均
+> 仅为流程候选,尚未在 dash 验证。
+
+1. **采集**(未来启用对应 PMU 的实验内核,需 root;优先 ETE):
 
    ```bash
-   # arm64 用 SPE(不存在 LBR);确认 SPE PMU 存在:
+   # ETE/ETM:确认 cs_etm 和 ETR sink 后,用内核内建的 AutoFDO strobing 配置:
+   adb shell su -c 'ls /sys/bus/event_source/devices/cs_etm/events/autofdo'
+   adb shell su -c 'perf record -e cs_etm/autofdo/ -a \
+       -o /data/local/tmp/etm.data -- sleep 600'
+   adb pull /data/local/tmp/etm.data .
+
+   # 仅当 ETE 路线不可用且已确认 PMSVer/EL2/PPI 后才调查 SPE:
    adb shell su -c 'ls /sys/devices | grep -i spe'
-   # 采集代表性负载(约 10–30 分钟:日常滑动、mihomo 转发、应用切换):
    adb shell su -c 'perf record -e arm_spe_0/load_filter=1,store_filter=1,ts_enable=1 \
        -a -o /data/local/tmp/spe.data -- sleep 600'
-   adb pull /data/local/tmp/spe.data .
    ```
 
-2. **转换**(主机,需安装支持 ARM SPE perf.data 的 AutoFDO/LLVM profile
-   转换工具；不同发行版打包的工具名与参数可能不同，以下命令是流程示意，
-   本机未安装 `create_llvm_prof`，不可视为已验证 CLI)：
+2. **转换**(主机):ETE trace 先由支持 CoreSight/OpenCSD 的 perf 解码/注入分支样本,
+   再用 LLVM AutoFDO 工具转换;SPE 可由支持 SPE 的 `create_llvm_prof` 转换。工具
+   版本与参数仍需在选定路线后固定,以下都不是已验证 CLI:
 
    ```bash
+   perf inject --itrace --strip -i etm.data -o etm.inject.data
+   # 再以 llvm-profgen/create_llvm_prof 将 trace+vmlinux 转为 afdo.prof
    create_llvm_prof --format=extbinary --spe=/path/spe.data \
        --binary=out/artifacts/vmlinux --out=afdo.prof
    ```
 
-3. **重编**:构建时带 profile:
+3. **重编**:用刚采集的 profile 覆盖默认路径:
 
    ```bash
    CLANG_AUTOFDO_PROFILE="$PWD/afdo.prof" bash dash/scripts/build.sh
    ```
 
-   `scripts/Makefile.autofdo` 会注入 `-fprofile-sample-use`,ThinLTO 链接期
-   也会挂 `--lto-sample-profile`(LTO Full 走编译期 sample-profile)。
+   `scripts/Makefile.autofdo` 会注入 `-fprofile-sample-use`;ThinLTO 链接期
+   也会挂 `--lto-sample-profile`。自采 profile 不参与哈希校验,使用前应确认
+   采集内核与待编译源码版本足够接近。
 
 4. 对照 `out/dash/build.log` 无 profile 缺失告警;产物按 `finalize.sh`
-   正常校验。profile 与源码版本强相关:AOSP tag/补丁大改后需重新采集。
+   正常校验。
 
 ## CI（GitHub Actions）
 
@@ -113,14 +147,19 @@ fs-discriminator 元数据,行为不变)。要产出以 profile 优化的内核:
   DEV_NOTES 的刷新/校验（`make notes`、`collect-notes.py --check`）只在本地
   做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
-  手动 dispatch 全量构建（工具链 cache 以 `CLANG_VERSION` 为 key）。
-  构建前做内存扩展（16G swapfile + 8G zram/zstd + zswap），方案经
-  `storage-ram-test` 实测；磁盘清理 action 不采用——runner 基线约 87GB
-  空闲，足够 ThinLTO 构建。artifact 上传（`if: always()`）包含：内核产物
+  手动 dispatch 全量构建（工具链 cache 以 `CLANG_VERSION` 为 key）。默认
+  `fast=false`：Full LTO + MLGO + ACK AutoFDO + A720 tune；`fast=true` 是
+  NoLTO 测试路径，不发布 Release。构建前做内存扩展（16G swapfile + 8G
+  zram/zstd + zswap），方案经 `storage-ram-test` 实测；磁盘清理 action 不
+  采用——runner 基线约 87GB 空闲。job timeout 360 分钟，Full LTO 在 4 核
+  runner 上可能接近上限。artifact 上传（`if: always()`）包含：内核产物
   （Image/Image.lz4/System.map/vmlinux）、`build.log.gz`、构建实际生效的
   `final-config`、补丁系列+configs+versions.env+关键脚本的
   `build-inputs.tar.gz`、provenance `build-info.txt`；`Image.lz4` 超过
   64MiB boot 可刷入预算（67098176 B）时 workflow fail 但 artifact 保留。
+  非 fast 且 `release=true` 时，额外打包 `dash_art_tune` KSU 模块和
+  AnyKernel3 zip（当前 `Image` + 模块），连同 Image/Image.lz4/SHA256SUMS
+  发布到 `tag` 指定的 GitHub Release。
   boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
   manifest，仍只在本机执行。
 - [`.github/workflows/storage-ram-test.yml`](../../../.github/workflows/storage-ram-test.yml)：

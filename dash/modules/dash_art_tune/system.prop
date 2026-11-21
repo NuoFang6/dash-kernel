@@ -1,0 +1,10 @@
+# CPU/ISA and dex2oat tuning for dash: 8 cores (4xA720 + 3xA725 + 1xX925)
+dalvik.vm.isa.arm64.features=runtime
+dalvik.vm.isa.arm64.variant=cortex-a55
+dalvik.vm.dex2oat-threads=8
+dalvik.vm.dex2oat-cpu-set=0,1,2,3,4,5,6,7
+dalvik.vm.boot-dex2oat-threads=8
+dalvik.vm.background-dex2oat-threads=4
+dalvik.vm.boot-dex2oat-cpu-set=0,1,2,3,4,5,6,7
+dalvik.vm.default-dex2oat-cpu-set=0,1,2,3,4,5,6,7
+dalvik.vm.background-dex2oat-cpu-set=0,1,2,3

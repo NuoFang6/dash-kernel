@@ -1,21 +1,31 @@
-# Full kernel build, manual dispatch only: a ThinLTO GKI build takes 1.5-3h
-# on the 4-core hosted runner; the memory-expansion step below covers the
-# ThinLTO link stage's RAM spikes (measured setup, see storage-ram-test.yml).
-# Boot packaging and finalize.sh stay local on purpose: they need the
-# gitignored stock boot_b.img and vendor module manifest.
+# Production kernel build, manual dispatch only. Default (fast=false) is
+# Full LTO + MLGO + ACK AutoFDO + A720 tune. A Full LTO build on the 4-core
+# hosted runner can take hours; the memory-expansion step below covers the
+# link stage's RAM spikes (measured setup, see storage-ram-test.yml).
+# fast=true keeps the old NoLTO test path and never publishes a release.
 name: kernel-build
 
 on:
   workflow_dispatch:
     inputs:
       fast:
-        description: "Fast test build: disable ThinLTO (compile speed over optimization); artifacts are NOT for flashing"
+        description: "Fast test build: NoLTO (compile speed over optimization); artifacts are NOT for flashing"
         required: false
         default: false
         type: boolean
+      release:
+        description: "Create/update a GitHub Release with the AK3 and KSU module"
+        required: false
+        default: true
+        type: boolean
+      tag:
+        description: "Release tag"
+        required: false
+        default: "dash-6.6.143-prod"
+        type: string
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: kernel-build-${{ github.ref }}
@@ -24,7 +34,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v4
         with:
@@ -35,7 +45,7 @@ jobs:
       # symlinks third_party/nomount as fs/nomount; no other submodule
       # takes part in the kernel build.
       - name: Init kernel build submodules
-        run: git submodule update --init --depth 1 BakaSU third_party/susfs4ksu third_party/nomount
+        run: git submodule update --init --depth 1 BakaSU third_party/susfs4ksu third_party/nomount third_party/sukisu-patch
 
       - name: Install build dependencies
         run: |
@@ -164,6 +174,25 @@ jobs:
             exit 1
           fi
 
+      - name: Package KSU module and AK3
+        if: success()
+        run: |
+          set -euo pipefail
+          mod=dash/modules/dash_art_tune
+          ver="$(sed -n 's/^version=//p' "$mod/module.prop" | head -1)"
+          test -n "$ver"
+          mkdir -p upload/release
+          (cd "$mod" && zip -r -X "$GITHUB_WORKSPACE/upload/release/dash_art_tune-${ver}.zip" . -x '*.DS_Store')
+          ak3="$(mktemp -d)"
+          cp -a third_party/sukisu-patch/AnyKernel3/. "$ak3"/
+          cp dash/ak3/anykernel.sh "$ak3/anykernel.sh"
+          cp dash/out/artifacts/Image "$ak3/Image"
+          cp -a "$mod" "$ak3/module"
+          (cd "$ak3" && zip -r -X "$GITHUB_WORKSPACE/upload/release/dash_art_tune-ak3-${ver}.zip" . -x '*.DS_Store')
+          cp dash/out/artifacts/Image dash/out/artifacts/Image.lz4 upload/release/
+          (cd upload/release && rm -f SHA256SUMS && sha256sum * > SHA256SUMS)
+          ls -lh upload/release
+
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -171,3 +200,13 @@ jobs:
           path: upload/
           retention-days: 14
           if-no-files-found: error
+
+      - name: Publish production release
+        if: success() && inputs.release && inputs.fast != true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag }}
+          name: ${{ inputs.tag }}
+          files: upload/release/*
+          generate_release_notes: true
+          make_latest: true

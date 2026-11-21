@@ -55,6 +55,9 @@
 - 不为取证关闭 SELinux。
 - MPTCP 保持关闭：mihomo 配置必须 `inbound-mptcp: false`。
 - mihomo 模块只加热点转发所需的 FORWARD 放行；TUN/NAT/路由由配置决定。
+- 不自行运行 Full LTO：日常构建与验证一律 `FAST=1`（NoLTO）。`LTO_CLANG_FULL`
+  全量构建在 15 GiB 主机上链接极慢且大量 swap；只有机主针对本次构建明确说
+  “授权跑 Full LTO”才可执行。“产出生产级内核/最终产物”不等于授权。
 
 ## 5. 验证与表述
 

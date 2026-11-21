@@ -7,8 +7,36 @@ require_cmd pahole
 [[ -x "$TOOLCHAIN_DIR/bin/clang" ]] || die "run: make toolchain"
 require_file "$AOSP_DIR/scripts/config"
 require_file "$AOSP_DIR/drivers/kernelsu/Kconfig"
+verify_autofdo_profile
 
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+
+# DASH_MLGO_REGALLOC is enabled by features.fragment.  Probe both places where
+# register allocation runs: clang for NoLTO and LLD for Full LTO.  LLVM emits a
+# hard diagnostic if the requested AOT advisor was not built into the toolchain.
+probe_dir="$(mktemp -d)"
+trap 'rm -rf "$probe_dir"' EXIT
+probe_src="$probe_dir/mlgo.c"
+cat > "$probe_src" <<'EOF'
+long dash_mlgo_probe(long a, long b, long c, long d,
+		     long e, long f, long g, long h)
+{
+	for (int i = 0; i < 100; i++) {
+		a = (a * b + c) ^ (d + e);
+		b = (b * c + d) ^ (e + f);
+		c = (c * d + e) ^ (f + g);
+		d = (d * e + f) ^ (g + h);
+	}
+	return a + b + c + d + e + f + g + h;
+}
+EOF
+"$TOOLCHAIN_DIR/bin/clang" --target=aarch64-linux-gnu -O2 \
+	-mllvm -regalloc-enable-advisor=release \
+	-c "$probe_src" -o "$probe_dir/mlgo-nolto.o"
+"$TOOLCHAIN_DIR/bin/clang" --target=aarch64-linux-gnu -O2 -flto=full \
+	-c "$probe_src" -o "$probe_dir/mlgo-lto.o"
+"$TOOLCHAIN_DIR/bin/ld.lld" -r --mllvm=-regalloc-enable-advisor=release \
+	"$probe_dir/mlgo-lto.o" -o "$probe_dir/mlgo-linked.o"
 
 MAKE=(
 	make -C "$AOSP_DIR" O="$OUT_DIR"
@@ -125,7 +153,7 @@ required=(
 	CONFIG_IP_SET_HASH_NETPORTNET CONFIG_IP_SET_LIST_SET
 	CONFIG_RCU_LAZY CONFIG_WQ_POWER_EFFICIENT_DEFAULT CONFIG_KFENCE_DEFERRABLE
 	CONFIG_NTSYNC CONFIG_MQ_IOSCHED_ADIOS
-	CONFIG_BBG CONFIG_AUTOFDO_CLANG CONFIG_DASH_ARM64_TUNE_A720
+	CONFIG_BBG CONFIG_AUTOFDO_CLANG CONFIG_DASH_MLGO_REGALLOC CONFIG_DASH_ARM64_TUNE_A720
 )
 if [[ "$FAST" == "1" ]]; then
 	required+=(CONFIG_LTO_NONE)

@@ -6,6 +6,7 @@ require_cmd make
 require_cmd lz4
 [[ -x "$TOOLCHAIN_DIR/bin/clang" ]] || die "run: make toolchain"
 require_file "$OUT_DIR/.config"
+verify_autofdo_profile
 
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
 export KBUILD_BUILD_USER="${KBUILD_BUILD_USER:-dash}"
@@ -31,6 +32,7 @@ MAKE=(
 	HOSTCC=clang
 	HOSTCXX=clang++
 	HOSTLD=ld.lld
+	CLANG_AUTOFDO_PROFILE="$AUTOFDO_PROFILE"
 	KCFLAGS=-D__ANDROID_COMMON_KERNEL__
 )
 

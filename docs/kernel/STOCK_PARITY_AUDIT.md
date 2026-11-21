@@ -60,8 +60,8 @@ zram 模块会破坏回写；见 [ZRAM_EXTM.md](ZRAM_EXTM.md)。
 - **GKI dynamic task_struct**：`arch_task_struct_size`、`vendor_data_pad`、
   1024B vendor 上限、early param 均已具备；未传参时 task_struct 4800B/217 成员
   与 stock BTF 一致。
-- **BakaSU + SUSFS**：内建 KSU、SUSFS v2.3.0 9 项特性；stock `kernelsu` LKM
-  不再加载。
+- **BakaSU + SUSFS**：内建 KSU、SUSFS v2.4.0（10 项 enabled_features，含
+  priority-uid filter）；stock `kernelsu` LKM 不再加载。
 - **厂商模块兼容**：638 个 stock 模块静态无硬缺失；`node_cache`、`os_cpu_qi`
   及 QoS 依赖链、`io_monitor`、`fault_report`、`ufs_mediatek_mod_ise` 均加载。
 - **F2FS lock/priority**：`f2fs_lock_elapsed_time`、

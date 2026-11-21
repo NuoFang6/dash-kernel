@@ -16,6 +16,8 @@ OUT_DIR="$DASH_ROOT/out/${DEVICE:-dash}"
 ARTIFACT_DIR="$DASH_ROOT/out/artifacts"
 # shellcheck disable=SC2034
 TOOLCHAIN_DIR="$DASH_ROOT/toolchains/clang-prebuilt/clang-$CLANG_VERSION"
+# shellcheck disable=SC2034
+AUTOFDO_PROFILE="$AOSP_DIR/android/gki/aarch64/afdo/kernel.afdo"
 JOBS="${JOBS:-$(nproc)}"
 
 if [[ "$BAKASU_DIR" != /* ]]; then
@@ -49,4 +51,13 @@ require_cmd() {
 
 require_file() {
 	[[ -e "$1" ]] || die "missing file: $1"
+}
+
+verify_autofdo_profile() {
+	local profile_sha256
+
+	require_file "$AUTOFDO_PROFILE"
+	profile_sha256="$(sha256sum "$AUTOFDO_PROFILE" | cut -d' ' -f1)"
+	[[ "$profile_sha256" == "$ACK_AUTOFDO_PROFILE_SHA256" ]] || die \
+		"ACK AutoFDO profile hash mismatch: $profile_sha256"
 }

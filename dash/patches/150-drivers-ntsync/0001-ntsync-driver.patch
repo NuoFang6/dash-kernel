@@ -35,10 +35,10 @@ index 1c8873fd7..70620eb3e 100644
  obj-$(CONFIG_CS5535_MFGPT)	+= cs5535-mfgpt.o
 diff --git a/drivers/misc/ntsync.c b/drivers/misc/ntsync.c
 new file mode 100644
-index 000000000..d57250321
+index 000000000..8f32434c6
 --- /dev/null
 +++ b/drivers/misc/ntsync.c
-@@ -0,0 +1,1272 @@
+@@ -0,0 +1,1278 @@
 +// SPDX-License-Identifier: GPL-2.0-only
 +/*
 + * ntsync.c - Kernel driver for NT synchronization primitives
@@ -60,6 +60,7 @@ index 000000000..d57250321
 +#include <linux/sched/signal.h>
 +#include <linux/slab.h>
 +#include <linux/spinlock.h>
++#include <linux/time_namespace.h>
 +#include <uapi/linux/ntsync.h>
 +#include <linux/delay.h>
 +#include <linux/workqueue.h>
@@ -898,6 +899,8 @@ index 000000000..d57250321
 +
 +	if (args->flags & NTSYNC_WAIT_REALTIME)
 +		clock = CLOCK_REALTIME;
++	else
++		timeout = timens_ktime_to_host(clock, timeout);
 +
 +	do {
 +		if (signal_pending(current)) {
@@ -932,6 +935,9 @@ index 000000000..d57250321
 +	__u32 i, j;
 +
 +	if (args->pad || (args->flags & ~NTSYNC_WAIT_REALTIME))
++		return -EINVAL;
++
++	if (!args->owner)
 +		return -EINVAL;
 +
 +	if (size >= sizeof(fds))
