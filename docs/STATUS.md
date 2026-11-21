@@ -3,7 +3,7 @@
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
 > 只链接到这里，不再复制版本号、哈希、模块数和验证结论。
 >
-> 最后核对：2026-11-07。刷新方法见文末。
+> 最后核对：2026-11-21。刷新方法见文末。
 
 ## 1. 版本与产物
 
@@ -30,6 +30,9 @@
 
 ## 2. 最近验证
 
+- **2026-11-21（构建级）**：DroidSpaces 容器支持内建（kABI 补丁 + 官方 GKI
+  fragment）；云端 FAST 构建通过，task_struct 偏移与 9106 个导出符号 CRC
+  实证零漂移，vendor `.ko` ABI 不变；未实机。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §21。
 - **2026-11-07**：`mihomo_alpha` r5-pgo 增加热点转发所需的 FORWARD 放行；
   真实 Wi-Fi 客户端 IPv4/IPv6、DNS、TUN 转发实测通过。见
   [MIHOMO_ANDROID.md](kernel/MIHOMO_ANDROID.md) §5.6。

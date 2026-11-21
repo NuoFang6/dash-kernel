@@ -665,3 +665,35 @@ QoS sysfs 与 stock 行为一致：
 - 局限：本次只做离线校验，未重新编译；CI `patch-series` job 的
   `make source patches` 重放是后续每次构建的常设门禁。旧的 6.6.118 系列
   与 6.6.143 squash 从仓库删除，git 历史保留。
+
+## 21. DroidSpaces 内建：云端 FAST 构建 + ABI 逐项核查（2026-11-21，构建级）
+
+**证据分级：构建级（未实机）。** 上游配方来自 Droidspaces-OSS 官方
+`Kernel-Configuration.md`（GKI below-6.12 路线）与同设备参考内核
+`third_party/dash-droidspaces`（marble 配方已 7 轮 CI + 实机验证）。
+
+- 提交 `dd656e2`：官方 SYSVIPC kABI 补丁的 6.6.143 适配（本树 slot 1-2 已被
+  AOSP 占用，故 sysvsem→slot 6、sysvshm→slot 7+8）+ 官方 GKI fragment 全套
+  配置；`f3dfc6f` 修 workflow 补 nomount 子模块；`f16afd5` 修 runner zram
+  预配置（zram-generator 已激活 zram0 时 comp_algorithm/disksize EBUSY，
+  需先 reset）。提交 `522403c` 是补丁拆分 + NoMount 固化。
+- 云端构建：[kernel-build run 44873892086](https://github.com/NuoFang6/dash-kernel/actions/runs/44873892086)
+  （`fast=true`，LTO_NONE），17 分钟成功；版本串 `6.6.143-4k` 正常；
+  build.log 仅 2 条上游 `sorttable.c` 历史 warning，sched.h/kABI 相关 0。
+- 配置核查（artifact config）：SYSVIPC/POSIX_MQUEUE/IPC_NS/PID_NS/DEVTMPFS/
+  USER_NS/TMPFS_XATTR/TMPFS_POSIX_ACL/MACVLAN/IP_SET/NETFILTER_XT_SET 全部
+  `=y`；`DEVTMPFS_MOUNT`/`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持 off。
+- **task_struct 布局核查（pahole，新 vmlinux vs 本地 #8 旧 vmlinux）**：
+  `sysvsem` @ 3616、`sysvshm` @ 3624，与旧构建 `android_kabi_reserved6/7+8`
+  的偏移完全一致；layout diff 除该 union 替换外 0 行差异，hole 布局相同
+  （forced holes: 32）。
+- **符号 CRC 核查（写 12 字节 `kernel_symbol`{value,name,ns} 解析器，
+  以本地 #8 `Module.symvers` 校准：9106/9106 名称解析且 CRC 全匹配）**：
+  新旧 vmlinux 的 `__ksymtab`/`__ksymtab_gpl`×`__kcrctab`/`__kcrctab_gpl`
+  按符号名对齐——9106 个公共符号 **CRC 0 mismatch、0 移除**；多重集比对
+  独立复核 0 丢失。仅新增 6 个导出：`from_kuid/from_kgid`（含 `_munged`）、
+  `make_kuid/make_kgid`——`CONFIG_USER_NS=y` 的 uid/gid 映射辅助函数，
+  纯增量、不动既有条目。
+- 结论：vendor `.ko` 依赖的 task_struct 偏移与导出符号 CRC 在构建级均已
+  实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
+  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §3）。

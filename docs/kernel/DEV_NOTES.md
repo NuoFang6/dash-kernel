@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 13:57:41 +0800  
-> 覆盖 22 个源，275265 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 14:41:47 +0800  
+> 覆盖 22 个源，277781 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -154,11 +154,11 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3408 | `d41fb5959c16771c` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3700 | `c88199488d66621c` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 11815 | `83a3a93c73c7eac8` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 37189 | `a9f9d2c67440f199` | 当前交付（优先相信） |
-| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22649 | `2736d6dacad9c804` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 39589 | `72f7a25da2b6c9c6` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22473 | `70f203bafc2fa4e7` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10173 | `36c227c44e9410ce` | 当前交付（优先相信） |
 | 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12236 | `9ea863d66a8b6589` | 当前交付（优先相信） |
@@ -184,13 +184,13 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 3408 字节 · SHA256 `d41fb5959c16771c48acbc9994c8236a033efa8bee87253e88bb7a2cdabd7aa6`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 3700 字节 · SHA256 `c88199488d66621c565b1e2b7059ecfbb5ce03d5a0d4a390275859b6b70e1481`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
 > 只链接到这里，不再复制版本号、哈希、模块数和验证结论。
 >
-> 最后核对：2026-11-07。刷新方法见文末。
+> 最后核对：2026-11-21。刷新方法见文末。
 
 ### 1. 版本与产物
 
@@ -217,6 +217,9 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 ### 2. 最近验证
 
+- **2026-11-21（构建级）**：DroidSpaces 容器支持内建（kABI 补丁 + 官方 GKI
+  fragment）；云端 FAST 构建通过，task_struct 偏移与 9106 个导出符号 CRC
+  实证零漂移，vendor `.ko` ABI 不变；未实机。见 [TEST_REPORT.md](TEST_REPORT.md) §21。
 - **2026-11-07**：`mihomo_alpha` r5-pgo 增加热点转发所需的 FORWARD 放行；
   真实 Wi-Fi 客户端 IPv4/IPv6、DNS、TUN 转发实测通过。见
   [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md) §5.6。
@@ -614,7 +617,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 37189 字节 · SHA256 `a9f9d2c67440f19943dc427c0d2fa14c604283ac816debaf0bbdd4e80ab18434`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 39589 字节 · SHA256 `72f7a25da2b6c9c6a1950a5e59cbbfb8551ca2c256ab4b4ea936724621f7201c`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1283,12 +1286,44 @@ QoS sysfs 与 stock 行为一致：
   `make source patches` 重放是后续每次构建的常设门禁。旧的 6.6.118 系列
   与 6.6.143 squash 从仓库删除，git 历史保留。
 
+### 21. DroidSpaces 内建：云端 FAST 构建 + ABI 逐项核查（2026-11-21，构建级）
+
+**证据分级：构建级（未实机）。** 上游配方来自 Droidspaces-OSS 官方
+`Kernel-Configuration.md`（GKI below-6.12 路线）与同设备参考内核
+`third_party/dash-droidspaces`（marble 配方已 7 轮 CI + 实机验证）。
+
+- 提交 `dd656e2`：官方 SYSVIPC kABI 补丁的 6.6.143 适配（本树 slot 1-2 已被
+  AOSP 占用，故 sysvsem→slot 6、sysvshm→slot 7+8）+ 官方 GKI fragment 全套
+  配置；`f3dfc6f` 修 workflow 补 nomount 子模块；`f16afd5` 修 runner zram
+  预配置（zram-generator 已激活 zram0 时 comp_algorithm/disksize EBUSY，
+  需先 reset）。提交 `522403c` 是补丁拆分 + NoMount 固化。
+- 云端构建：[kernel-build run 44873892086](https://github.com/NuoFang6/dash-kernel/actions/runs/44873892086)
+  （`fast=true`，LTO_NONE），17 分钟成功；版本串 `6.6.143-4k` 正常；
+  build.log 仅 2 条上游 `sorttable.c` 历史 warning，sched.h/kABI 相关 0。
+- 配置核查（artifact config）：SYSVIPC/POSIX_MQUEUE/IPC_NS/PID_NS/DEVTMPFS/
+  USER_NS/TMPFS_XATTR/TMPFS_POSIX_ACL/MACVLAN/IP_SET/NETFILTER_XT_SET 全部
+  `=y`；`DEVTMPFS_MOUNT`/`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持 off。
+- **task_struct 布局核查（pahole，新 vmlinux vs 本地 #8 旧 vmlinux）**：
+  `sysvsem` @ 3616、`sysvshm` @ 3624，与旧构建 `android_kabi_reserved6/7+8`
+  的偏移完全一致；layout diff 除该 union 替换外 0 行差异，hole 布局相同
+  （forced holes: 32）。
+- **符号 CRC 核查（写 12 字节 `kernel_symbol`{value,name,ns} 解析器，
+  以本地 #8 `Module.symvers` 校准：9106/9106 名称解析且 CRC 全匹配）**：
+  新旧 vmlinux 的 `__ksymtab`/`__ksymtab_gpl`×`__kcrctab`/`__kcrctab_gpl`
+  按符号名对齐——9106 个公共符号 **CRC 0 mismatch、0 移除**；多重集比对
+  独立复核 0 丢失。仅新增 6 个导出：`from_kuid/from_kgid`（含 `_munged`）、
+  `make_kuid/make_kgid`——`CONFIG_USER_NS=y` 的 uid/gid 映射辅助函数，
+  纯增量、不动既有条目。
+- 结论：vendor `.ko` 依赖的 task_struct 偏移与导出符号 CRC 在构建级均已
+  实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
+  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §3）。
+
 ---
 
 <a id="src-05"></a>
 ## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 22649 字节 · SHA256 `2736d6dacad9c80455b87766a72b0508273b04c171fdd270955c82fa606f8948`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 22473 字节 · SHA256 `70f203bafc2fa4e7e81ed7d8250a75f2fde23b318e2dd6426a3c3725a081882d`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是缺口/风险/未完成项的**唯一台账**。当前版本与实机状态见
@@ -1509,12 +1544,10 @@ QoS sysfs 与 stock 行为一致：
 - **`MEMFD_ASHMEM_SHIM`**：AOSP 6.6.118 自带实现，已启用；没有移植 MiCode
   6.6.89 的重复版本。缺少 Android 上层 `libmemfd`/ashmem 用户态回归测试。
 - **DroidSpaces（2026-11-21）**：kABI 补丁 + 官方 GKI fragment 已接入
-  （`patches/090-droidspaces`、`configs/features.fragment`），本地 `make
-  patches`/`make config` 通过；**未实机验证**。kABI 安全性是静态推理
-  （`_ANDROID_KABI_REPLACE` 在 `__GENKSYMS__` 下取原 RESERVE 文本，CRC 应与
-  stock 一致）+ 官方补丁在同代 6.6 GKI 上的实测背书（参考内核
-  `third_party/dash-droidspaces`），首次刷机后需验证：586 个厂商模块仍全部
-  加载、`droidspaces check` 全绿、genksyms CRC 抽查无漂移。功能限制（永久）：
+  （`patches/090-droidspaces`、`configs/features.fragment`）；云端 FAST
+  构建通过且 ABI 核查全绿（task_struct 偏移不变、9106 个导出符号 CRC
+  零漂移，见 TEST_REPORT §21）。**未实机验证**：首次刷机后需确认 586 个
+  厂商模块仍全部加载、`droidspaces check` 全绿。功能限制（永久）：
   `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭（破坏 kABI 且无填充槽方案），
   `--cpus`/`--pids-limit` 不可用；`NETFILTER_XT_TARGET_REJECT`（nft 变体）
   在 6.6 无此符号，REJECT 由 legacy `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。

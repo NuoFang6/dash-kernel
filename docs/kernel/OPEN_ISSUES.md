@@ -218,12 +218,10 @@
 - **`MEMFD_ASHMEM_SHIM`**：AOSP 6.6.118 自带实现，已启用；没有移植 MiCode
   6.6.89 的重复版本。缺少 Android 上层 `libmemfd`/ashmem 用户态回归测试。
 - **DroidSpaces（2026-11-21）**：kABI 补丁 + 官方 GKI fragment 已接入
-  （`patches/090-droidspaces`、`configs/features.fragment`），本地 `make
-  patches`/`make config` 通过；**未实机验证**。kABI 安全性是静态推理
-  （`_ANDROID_KABI_REPLACE` 在 `__GENKSYMS__` 下取原 RESERVE 文本，CRC 应与
-  stock 一致）+ 官方补丁在同代 6.6 GKI 上的实测背书（参考内核
-  `third_party/dash-droidspaces`），首次刷机后需验证：586 个厂商模块仍全部
-  加载、`droidspaces check` 全绿、genksyms CRC 抽查无漂移。功能限制（永久）：
+  （`patches/090-droidspaces`、`configs/features.fragment`）；云端 FAST
+  构建通过且 ABI 核查全绿（task_struct 偏移不变、9106 个导出符号 CRC
+  零漂移，见 TEST_REPORT §21）。**未实机验证**：首次刷机后需确认 586 个
+  厂商模块仍全部加载、`droidspaces check` 全绿。功能限制（永久）：
   `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭（破坏 kABI 且无填充槽方案），
   `--cpus`/`--pids-limit` 不可用；`NETFILTER_XT_TARGET_REJECT`（nft 变体）
   在 6.6 无此符号，REJECT 由 legacy `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
