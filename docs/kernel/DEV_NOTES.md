@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 15:58:45 +0800  
-> 覆盖 22 个源，285925 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 16:53:34 +0800  
+> 覆盖 22 个源，286154 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -151,8 +151,8 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4506 | `c7324021d4efda81` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12372 | `55825cad60fe04dd` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4555 | `8076886118d2caad` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12552 | `8054de6405b8853f` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
 | 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 45337 | `b161398efbfd3914` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22768 | `999340f825b5a71f` | 当前交付（优先相信） |
@@ -181,7 +181,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 4506 字节 · SHA256 `c7324021d4efda816fa468e6ea50e3d822f1bee3e4659f9a1c65f121d26fc6b7`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 4555 字节 · SHA256 `8076886118d2caadd7066e2c14e81121fc59c66c12c964398165033aa9e6031a`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -201,7 +201,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 运行槽位 | `boot_b` |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
-| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.3.0（9 项特性） |
+| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（9 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；实机加载 586 个；KCFI 13/13 |
 | KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
@@ -265,7 +265,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 12372 字节 · SHA256 `55825cad60fe04dd7cf5a19cc960fda042bf6dbc56a8517d94b57dfb61720212`
+> 来源：[`docs/kernel/README.md`](README.md) · 12552 字节 · SHA256 `8054de6405b8853f8c0f602f27529d426f32b5306be4accc9d549c049037416f`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -418,6 +418,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   内核能力、tcp-brutal 与 MPTCP 结论；KSU 模块已移除，客户端为 AsteriskMETA
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
+- [FEATURES_SURVEY.md](FEATURES_SURVEY.md)：WildKernels/GKID 特性调查，
+  实现可信度分级（官方/厂商/作者自研/来源不明）、与 dash 对照与决策台账
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
   [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。
