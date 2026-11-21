@@ -75,3 +75,50 @@ apply_wlan_privacy() {
 	chmod 0777 "$logdir/tcpdump.pcap0" 2>/dev/null
 	log "wlan_logs: [$(ls -A "$logdir" 2>/dev/null | tr '\n' ' ')]"
 }
+
+# Vendor init hardcodes `write /sys/block/zram0/comp_algorithm lz4` for dash
+# (init.mt6991.rc:191).  lz4kd is not listed by zram's available-algorithm
+# probe but the vendor zram accepts it once the device is reset, so restore
+# the vendor's previous lz4kd selection at boot.  Skip when Scene manages
+# zram itself (its config says zram=true), so its algorithm choice wins.
+apply_zram_lz4kd() {
+	dev=/sys/block/zram0
+	conf=/data/swap_config.conf
+
+	[ -e "$dev/comp_algorithm" ] || return 0
+	grep -q "zram0" /proc/swaps 2>/dev/null || return 0
+
+	if [ -f "$conf" ] && grep -q '^zram=true' "$conf" 2>/dev/null; then
+		log "zram: Scene-managed, skip lz4kd"
+		return 0
+	fi
+
+	case "$(cat "$dev/comp_algorithm" 2>/dev/null)" in
+	*"[lz4kd]"*)
+		return 0
+		;;
+	esac
+
+	bd="$(cat "$dev/backing_dev" 2>/dev/null)"
+	wl="$(cat "$dev/writeback_limit_enable" 2>/dev/null)"
+	disk="$(cat "$dev/disksize" 2>/dev/null)"
+	prio="$(awk '/zram0/{print $5}' /proc/swaps 2>/dev/null)"
+
+	swapoff /dev/block/zram0 2>>"$LOG"
+	echo 1 >"$dev/reset" 2>>"$LOG"
+	echo 4 >"$dev/max_comp_streams" 2>>"$LOG"
+	if ! echo lz4kd >"$dev/comp_algorithm" 2>>"$LOG"; then
+		log "zram: lz4kd rejected, falling back to lz4"
+		echo lz4 >"$dev/comp_algorithm" 2>>"$LOG"
+	fi
+	[ -n "$bd" ] && [ "$bd" != "none" ] && \
+		echo "$bd" >"$dev/backing_dev" 2>>"$LOG"
+	[ "$wl" = "1" ] && echo 1 >"$dev/writeback_limit_enable" 2>>"$LOG"
+	echo "${disk:-17179869184}" >"$dev/disksize" 2>>"$LOG"
+	mkswap /dev/block/zram0 >/dev/null 2>>"$LOG"
+	# A negative priority cannot be passed through this swapon; the default
+	# (-2) matches the vendor init state.
+	swapon /dev/block/zram0 2>>"$LOG"
+	log "zram: comp=$(cat "$dev/comp_algorithm" 2>/dev/null) swap_prio=$(awk '/zram0/{print $5}' /proc/swaps 2>/dev/null)"
+}
+

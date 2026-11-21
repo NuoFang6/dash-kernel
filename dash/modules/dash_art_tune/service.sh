@@ -18,6 +18,9 @@ MODDIR=${0%/*}
 	apply_wlan_privacy
 	setprop ctl.stop vendor_tcpdump 2>>"$LOG"
 	log "vendor_tcpdump: $(getprop init.svc.vendor_tcpdump)"
+	# Vendor init selects lz4 for zram0; go back to lz4kd when Scene is not
+	# managing zram itself.
+	apply_zram_lz4kd
 	for i in 1 2 3 4; do
 		apply_bbr
 		apply_adios

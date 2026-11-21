@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 04:23:38 +0800
-> 覆盖 22 个源，329237 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 04:29:17 +0800
+> 覆盖 22 个源，330113 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8743 | `2a5a00e836e1231a` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 74369 | `54329f53112d9e12` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 75223 | `cc3b18e25d4f0168` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 8743 字节 · SHA256 `2a5a00e836e1231a182a0161d7d6eb21ce5e71d3e649d2994be5e554da00ed46`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 8765 字节 · SHA256 `300591888eb9079ee1024906bfd296bb5a115e933fd13ee92036d538647d5340`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -206,7 +206,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
-| KSU 模块 | 自建 `dash_art_tune` v1.3（BBRv3+fq_codel、ADIOS、ART/dex2oat 调优、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
+| KSU 模块 | 自建 `dash_art_tune` v1.4（BBRv3+fq_codel、ADIOS、ART/dex2oat 调优、zram `lz4kd` 恢复、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
 | 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 74369 字节 · SHA256 `54329f53112d9e1280a9a2c065401a009330e9046a47b657d2381595d210ee24`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 75223 字节 · SHA256 `cc3b18e25d4f0168b77169e724fb19bd4365243ecdb2643aa18775efb6c9ca7f`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2104,14 +2104,25 @@ KSU + SUSFS 全套。与生产配置一致。
   `swappiness=125`、`watermark_scale_factor=50`、`extra_free_kbytes=131072`
   按 `swap.xml` 生效。
 
-#### 残留
+#### lz4kd 补充（同日）
 
-- 本次运行 zram 压缩算法为 `lz4`（列表里没有 `lz4kd`），原因是 zram 已置
-  disksize 后不允许改算法；重启后由厂商 ExtM 重新初始化应恢复
-  `lz4kd`，需重启后复核。
-- 若 Scene 应用再次自动更新附加模块，其 `uninstall.sh` 仍会删除
-  `/data/swap_config.conf`；需要在 Scene 里重新“应用”一次以重新生成，
-  或避免模块自动更新。这是 Scene 模块自身的行为，不由本内核控制。
+- 厂商 init 明确写死 `init.mt6991.rc:191 write /sys/block/zram0/comp_algorithm lz4`，
+  所以重启后默认就是 `lz4`，并非 ExtM 自动恢复 `lz4kd`。
+- 先前的 `lz4kd` 来自 Scene 模块旧配置的 `comp_algorithm`；`lz4kd` 不在
+  zram 的可用算法探测列表里，但 vendor zram 在 disksize 为 0（reset 后）
+  仍接受写入。实测 `hot_add` 的临时 zram 上 `echo lz4kd > comp_algorithm`
+  成功，而 `lz4kd-scomp` 失败。
+- 因此 `dash_art_tune` v1.4 增加 `apply_zram_lz4kd`：开机 `boot_completed`
+  后，若 Scene 未接管 zram（配置缺失或 `zram=false`），则
+  `swapoff → reset → comp_algorithm=lz4kd → 恢复 backing_dev/writeback_limit
+  → disksize → mkswap → swapon`。若 Scene 配置为 `zram=true` 则跳过，尊重
+  Scene 自己的算法选择。
+- 实测模拟厂商默认 `lz4` 后执行模块 action：comp 变为 `[lz4kd]`、swap
+  恢复为 16 GiB（priority -2）、`backing_dev=/dev/block/dm-71` 保留。
+- 注意 Scene 应用会在其设置变化时重写 `/data/swap_config.conf`
+  （04:27 一次写入把 `zram` 改回 `false`、`comp_algorithm=zstd`），因此
+  以模块开机钩子作为最终保证；Scene 模块自动更新删配置的问题仍需
+  在 Scene 内重新“应用”一次或避免自动更新。
 
 ---
 

@@ -1349,11 +1349,22 @@ KSU + SUSFS 全套。与生产配置一致。
   `swappiness=125`、`watermark_scale_factor=50`、`extra_free_kbytes=131072`
   按 `swap.xml` 生效。
 
-### 残留
+### lz4kd 补充（同日）
 
-- 本次运行 zram 压缩算法为 `lz4`（列表里没有 `lz4kd`），原因是 zram 已置
-  disksize 后不允许改算法；重启后由厂商 ExtM 重新初始化应恢复
-  `lz4kd`，需重启后复核。
-- 若 Scene 应用再次自动更新附加模块，其 `uninstall.sh` 仍会删除
-  `/data/swap_config.conf`；需要在 Scene 里重新“应用”一次以重新生成，
-  或避免模块自动更新。这是 Scene 模块自身的行为，不由本内核控制。
+- 厂商 init 明确写死 `init.mt6991.rc:191 write /sys/block/zram0/comp_algorithm lz4`，
+  所以重启后默认就是 `lz4`，并非 ExtM 自动恢复 `lz4kd`。
+- 先前的 `lz4kd` 来自 Scene 模块旧配置的 `comp_algorithm`；`lz4kd` 不在
+  zram 的可用算法探测列表里，但 vendor zram 在 disksize 为 0（reset 后）
+  仍接受写入。实测 `hot_add` 的临时 zram 上 `echo lz4kd > comp_algorithm`
+  成功，而 `lz4kd-scomp` 失败。
+- 因此 `dash_art_tune` v1.4 增加 `apply_zram_lz4kd`：开机 `boot_completed`
+  后，若 Scene 未接管 zram（配置缺失或 `zram=false`），则
+  `swapoff → reset → comp_algorithm=lz4kd → 恢复 backing_dev/writeback_limit
+  → disksize → mkswap → swapon`。若 Scene 配置为 `zram=true` 则跳过，尊重
+  Scene 自己的算法选择。
+- 实测模拟厂商默认 `lz4` 后执行模块 action：comp 变为 `[lz4kd]`、swap
+  恢复为 16 GiB（priority -2）、`backing_dev=/dev/block/dm-71` 保留。
+- 注意 Scene 应用会在其设置变化时重写 `/data/swap_config.conf`
+  （04:27 一次写入把 `zram` 改回 `false`、`comp_algorithm=zstd`），因此
+  以模块开机钩子作为最终保证；Scene 模块自动更新删配置的问题仍需
+  在 Scene 内重新“应用”一次或避免自动更新。

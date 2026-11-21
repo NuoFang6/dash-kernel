@@ -18,6 +18,10 @@ KernelSU/Magisk module for dash (REDMI Turbo 5 Max, MT6991, 16GB).
   - `dalvik.vm.dex2oat-threads=8`, `dex2oat-cpu-set=0-7`
   - boot: 8 threads on cpu0-7; background: 4 threads on cpu0-3
 - Heap/GC properties are intentionally untouched.
+- zram: vendor init writes `lz4` to `zram0/comp_algorithm`; when Scene is
+  not managing zram (`/data/swap_config.conf` absent or `zram=false`),
+  restore the previous `lz4kd` selection after boot (reset the device,
+  preserve `backing_dev`/writeback limit and disksize, re-create swap).
 - Vendor WLAN diagnostics/logging off:
   - persistent props `persist.vendor.performance.disable.wlan_logs=true`,
     `persist.vendor.cnss_diag.enable=false`,
@@ -30,7 +34,7 @@ KernelSU/Magisk module for dash (REDMI Turbo 5 Max, MT6991, 16GB).
 
 ## Install
 
-Flash `dash_art_tune-v1.3.zip` as a KernelSU/Magisk module, then reboot.
+Flash `dash_art_tune-v1.4.zip` as a KernelSU/Magisk module, then reboot.
 
 Manual apply without reboot: `su -c '/data/adb/modules/dash_art_tune/action.sh'`
 
