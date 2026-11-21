@@ -11,15 +11,15 @@
 |---|---|
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.143-4k #2`（NoLTO 调试构建，2026-11-21 22:41，含 NTSync 2026 上游修复）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
+| 当前内核 | `6.6.143-4k #1`（Full LTO 生产构建，2026-11-21 16:44 UTC，CI run 44923883114）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 NoLTO 调试构建（LTO_NONE）；生产配置为 LTO Full + MLGO regalloc advisor + ACK 预制 AutoFDO profile（`kernel.afdo`，SHA256 已钉死），日常验证统一 NoLTO；Full LTO 整链构建已由 CI 通过（2026-11-22，run 44923883114），未做 A/B |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
 | 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
-| 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-21） |
-| `boot_a` SHA256 | `3d0d4245c6b41480c9c396acfbcda13409890fb943402903f965d827f7a50dba`（`#2`；刷前备份 `1b5af31a…` 与更早 `0dc871a5…` 均在 `dash/out/device-backup/`） |
+| 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
+| `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
-| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-21 `#2` 实机加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
+| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
@@ -35,7 +35,14 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
 
 ## 2. 最近验证
 
-- **2026-11-22（CI 构建 + 发布，未刷机）**：Full LTO 生产构建通过
+- **2026-11-22（生产内核首刷，真机）**：Full LTO 生产内核 `#1` 写入 `boot_a`
+  （镜像 `d0cdd6ad…`，设备端回读一致），一次启动成功。真实版本行 6.6.143-4k
+  与 CI 构建时间吻合；`LTO_CLANG_FULL`/`CFI_CLANG`/`AUTOFDO_CLANG`/MLGO/A720
+  tune 全部在运行配置中。无 panic/BUG/KCFI trap/模块校验失败；唯一内核 WARNING
+  仍是厂商 `mtk_cmdq_debug` 重复注册。584 模块、BBRv3+fq_codel、ADIOS、
+  zram+lz4kd+ExtM 回写设备、SUSFS 10 项、KSU root、DroidSpaces required 全绿、
+  UFS health 0x01 未变。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §29。
+- **2026-11-22（CI 构建 + 发布）**：Full LTO 生产构建通过
   （run 44923883114，commit `b6aac16`，26 分钟）。修复了 `LD vmlinux.o`
   之后 `__kcfi_typeid_idmap_cpu_replace_ttbr1` 未定义：clang 为多个取址
   TU 生成重复弱绝对 typeid，Full LTO 合并时整体丢弃；改为不透明声明 +

@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 00:47:46 +0800
-> 覆盖 22 个源，316478 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 00:55:08 +0800
+> 覆盖 22 个源，320483 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 7260 | `e88f629cf48692e7` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 7840 | `dc4d632916ed4188` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 63093 | `cfde7c542462bbe1` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 66518 | `b9b9e7736929389e` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 7260 字节 · SHA256 `e88f629cf48692e7951ec4132c7d9f8cb6f73c5717982b8d9f303bd1fbd0e6c5`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 7840 字节 · SHA256 `dc4d632916ed41880ad5d034dff8fe21f759ddbbce2df1e99115bba9ecf28447`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -196,15 +196,15 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 |---|---|
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.143-4k #2`（NoLTO 调试构建，2026-11-21 22:41，含 NTSync 2026 上游修复）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
+| 当前内核 | `6.6.143-4k #1`（Full LTO 生产构建，2026-11-21 16:44 UTC，CI run 44923883114）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 NoLTO 调试构建（LTO_NONE）；生产配置为 LTO Full + MLGO regalloc advisor + ACK 预制 AutoFDO profile（`kernel.afdo`，SHA256 已钉死），日常验证统一 NoLTO；Full LTO 整链构建已由 CI 通过（2026-11-22，run 44923883114），未做 A/B |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
 | 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
-| 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-21） |
-| `boot_a` SHA256 | `3d0d4245c6b41480c9c396acfbcda13409890fb943402903f965d827f7a50dba`（`#2`；刷前备份 `1b5af31a…` 与更早 `0dc871a5…` 均在 `dash/out/device-backup/`） |
+| 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
+| `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
-| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-21 `#2` 实机加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
+| 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
@@ -220,7 +220,14 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
 
 ### 2. 最近验证
 
-- **2026-11-22（CI 构建 + 发布，未刷机）**：Full LTO 生产构建通过
+- **2026-11-22（生产内核首刷，真机）**：Full LTO 生产内核 `#1` 写入 `boot_a`
+  （镜像 `d0cdd6ad…`，设备端回读一致），一次启动成功。真实版本行 6.6.143-4k
+  与 CI 构建时间吻合；`LTO_CLANG_FULL`/`CFI_CLANG`/`AUTOFDO_CLANG`/MLGO/A720
+  tune 全部在运行配置中。无 panic/BUG/KCFI trap/模块校验失败；唯一内核 WARNING
+  仍是厂商 `mtk_cmdq_debug` 重复注册。584 模块、BBRv3+fq_codel、ADIOS、
+  zram+lz4kd+ExtM 回写设备、SUSFS 10 项、KSU root、DroidSpaces required 全绿、
+  UFS health 0x01 未变。见 [TEST_REPORT.md](TEST_REPORT.md) §29。
+- **2026-11-22（CI 构建 + 发布）**：Full LTO 生产构建通过
   （run 44923883114，commit `b6aac16`，26 分钟）。修复了 `LD vmlinux.o`
   之后 `__kcfi_typeid_idmap_cpu_replace_ttbr1` 未定义：clang 为多个取址
   TU 生成重复弱绝对 typeid，Full LTO 合并时整体丢弃；改为不透明声明 +
@@ -744,7 +751,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 63093 字节 · SHA256 `cfde7c542462bbe1da493a6e0bbdd48a1f6afc4313ac12b002977d88c52111ea`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 66518 字节 · SHA256 `b9b9e7736929389efa819b1ec5af7fe68a175d37857b0608741510a9d312d7cd`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1887,6 +1894,74 @@ LTO -r 链接后: 000000003e7ff605 W __kcfi_typeid_idmap_cpu_replace_ttbr1
 同轮排查确认 clang r614150 的 MLGO inliner 可用
 （`-enable-ml-inliner=release`），但 help 明示其模型
 “trained for -Oz only”，属体积模型；未加入 O2 生产构建。
+
+### 29. Full LTO 生产内核首刷实机启动（2026-11-22，真机）
+
+**证据分级：真机实测（首次启动 + 只读检查 + DroidSpaces check）；未做长时压测。**
+
+#### 刷写与身份
+
+- 仅写 `boot_a`：`fastboot flash boot_a`，镜像 SHA256
+  `d0cdd6ad…9b6be2`；刷后设备端 `sha256sum /dev/block/by-name/boot_a`
+  完全一致。刷前已备份当前 NoLTO `#2`（`3d0d4245…`）到
+  `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`。
+- `uname` 仍被 SUSFS 伪装；真实版本行来自 `dmesg`：
+
+  ```text
+  Linux version 6.6.143-4k (dash@mikernel) ... #1 SMP PREEMPT Sat Nov 21 16:44:37 UTC 2026
+  ```
+
+  构建时间与 CI 最终 `LD vmlinux`/`OBJCOPY Image` 时间吻合。
+- `sys.boot_completed=1`，槽位 `_a`，verified boot `green`，8 核全部 online。
+
+#### 配置核对（`/proc/config.gz`）
+
+`CONFIG_LTO_CLANG_FULL=y`、`CONFIG_CFI_CLANG=y`、`CONFIG_AUTOFDO_CLANG=y`、
+`CONFIG_DASH_MLGO_REGALLOC=y`、`CONFIG_DASH_ARM64_TUNE="cortex-a720"`、
+`CONFIG_TCP_CONG_BBR3=y`、`CONFIG_MQ_IOSCHED_ADIOS=y`、`CONFIG_RCU_LAZY=y`、
+KSU + SUSFS 全套。与生产配置一致。
+
+#### 启动日志
+
+- 无 `Kernel panic`、`BUG:`、真实 Oops、`brk #0x8228`（KCFI）、
+  `Unknown symbol`、`invalid module format`、`disagrees about version`。
+- 唯一 `WARNING: CPU` 仍是 `fs/proc/generic.c:398` 的
+  `'/proc/mtk_cmdq_debug' already registered`（厂商模块重复注册，历史
+  #1/#2 与 stock 时代同有）。12 条 `Call trace` 均为厂商日志
+  （cmdq 寄存器 dump、conninfra BT/WiFi pwr_on 回调、该 WARNING 栈）。
+- 无 OOM/LMK、无 I/O error、无 hung task/RCU stall。F2FS 仅 1 条
+  `Unexpected flush for atomic writes`（小米 F2FS 常见提示，非错误）。
+- 未发生 Linux `PM: suspend entry`（0 次）；日志中的 `SPM mcusys_off`
+  是 MTK 深空闲唤醒记录，不是 suspend 失败。
+
+#### 模块与功能
+
+- `/proc/modules` 584 个；`zram`/`zsmalloc`/`cfg80211`/
+  `wlan_drv_gen4m_6991_6639_new9gen2`/`btmtk`/`conninfra`/`node_cache`/
+  `os_cpu_qi`/`mkp` 均加载；`kernelsu`/`nomount` 已内建；模块校验失败 0。
+- BBRv3 为默认拥塞控制，`fq_codel` 为默认 qdisc；`adios` 在 `sdc`
+  为当前调度器。
+- zram0 16 GiB swap 已启用，压缩算法 `lz4kd`，ExtM backing `dm-71`；
+  `mm_stat` 492 MB 原始 / 140 MB 压缩 / 160 MB 实占。本轮未触发回写
+  （`bd_stat` 全 0），未为验证再制造 UFS 写入。
+- SUSFS `v2.4.0`，`enabled_features` 10 项；KSU root `u:r:ksu:s0`。
+- `dash_art_tune` v1.2 生效：BBRv3/fq_codel 持续保持，ADIOS 已选；
+  ART `features=runtime`、`variant=cortex-a55`、`dex2oat-threads=8`、
+  `boot-dex2oat-threads=8`、CPU set 0–7、后台 4 线程/0–3。
+- DroidSpaces CLI `check`：required 全绿；可选 FUSE/TUN/OverlayFS/
+  netns/bridge/veth/macvlan/IPv6 NAT/mem+swap limit/sandbox 全绿；
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 按设计关闭（`--cpus`/`--pids-limit`
+  不可用）。
+- UFS health：`eol_info=0x01`、`life_time_estimation_a/b=0x01`
+  （0–10%），与刷前一致。
+- USB：connected/configured/charging、Type-C sink、adb 正常；日志中
+  `mtk-xsphy/mtk-extcon-usb failed to ...` 为启动期厂商 DT 探测信息，
+  未见 USB 崩溃或 ANR。
+
+#### 待办
+
+- 生产内核只做了首次启动检查，未做长时稳定性、zram 回写压力、
+  suspend/resume 与性能/功耗 A/B。
 
 ---
 

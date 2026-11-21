@@ -1140,3 +1140,71 @@ LTO -r 链接后: 000000003e7ff605 W __kcfi_typeid_idmap_cpu_replace_ttbr1
 同轮排查确认 clang r614150 的 MLGO inliner 可用
 （`-enable-ml-inliner=release`），但 help 明示其模型
 “trained for -Oz only”，属体积模型；未加入 O2 生产构建。
+
+## 29. Full LTO 生产内核首刷实机启动（2026-11-22，真机）
+
+**证据分级：真机实测（首次启动 + 只读检查 + DroidSpaces check）；未做长时压测。**
+
+### 刷写与身份
+
+- 仅写 `boot_a`：`fastboot flash boot_a`，镜像 SHA256
+  `d0cdd6ad…9b6be2`；刷后设备端 `sha256sum /dev/block/by-name/boot_a`
+  完全一致。刷前已备份当前 NoLTO `#2`（`3d0d4245…`）到
+  `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`。
+- `uname` 仍被 SUSFS 伪装；真实版本行来自 `dmesg`：
+
+  ```text
+  Linux version 6.6.143-4k (dash@mikernel) ... #1 SMP PREEMPT Sat Nov 21 16:44:37 UTC 2026
+  ```
+
+  构建时间与 CI 最终 `LD vmlinux`/`OBJCOPY Image` 时间吻合。
+- `sys.boot_completed=1`，槽位 `_a`，verified boot `green`，8 核全部 online。
+
+### 配置核对（`/proc/config.gz`）
+
+`CONFIG_LTO_CLANG_FULL=y`、`CONFIG_CFI_CLANG=y`、`CONFIG_AUTOFDO_CLANG=y`、
+`CONFIG_DASH_MLGO_REGALLOC=y`、`CONFIG_DASH_ARM64_TUNE="cortex-a720"`、
+`CONFIG_TCP_CONG_BBR3=y`、`CONFIG_MQ_IOSCHED_ADIOS=y`、`CONFIG_RCU_LAZY=y`、
+KSU + SUSFS 全套。与生产配置一致。
+
+### 启动日志
+
+- 无 `Kernel panic`、`BUG:`、真实 Oops、`brk #0x8228`（KCFI）、
+  `Unknown symbol`、`invalid module format`、`disagrees about version`。
+- 唯一 `WARNING: CPU` 仍是 `fs/proc/generic.c:398` 的
+  `'/proc/mtk_cmdq_debug' already registered`（厂商模块重复注册，历史
+  #1/#2 与 stock 时代同有）。12 条 `Call trace` 均为厂商日志
+  （cmdq 寄存器 dump、conninfra BT/WiFi pwr_on 回调、该 WARNING 栈）。
+- 无 OOM/LMK、无 I/O error、无 hung task/RCU stall。F2FS 仅 1 条
+  `Unexpected flush for atomic writes`（小米 F2FS 常见提示，非错误）。
+- 未发生 Linux `PM: suspend entry`（0 次）；日志中的 `SPM mcusys_off`
+  是 MTK 深空闲唤醒记录，不是 suspend 失败。
+
+### 模块与功能
+
+- `/proc/modules` 584 个；`zram`/`zsmalloc`/`cfg80211`/
+  `wlan_drv_gen4m_6991_6639_new9gen2`/`btmtk`/`conninfra`/`node_cache`/
+  `os_cpu_qi`/`mkp` 均加载；`kernelsu`/`nomount` 已内建；模块校验失败 0。
+- BBRv3 为默认拥塞控制，`fq_codel` 为默认 qdisc；`adios` 在 `sdc`
+  为当前调度器。
+- zram0 16 GiB swap 已启用，压缩算法 `lz4kd`，ExtM backing `dm-71`；
+  `mm_stat` 492 MB 原始 / 140 MB 压缩 / 160 MB 实占。本轮未触发回写
+  （`bd_stat` 全 0），未为验证再制造 UFS 写入。
+- SUSFS `v2.4.0`，`enabled_features` 10 项；KSU root `u:r:ksu:s0`。
+- `dash_art_tune` v1.2 生效：BBRv3/fq_codel 持续保持，ADIOS 已选；
+  ART `features=runtime`、`variant=cortex-a55`、`dex2oat-threads=8`、
+  `boot-dex2oat-threads=8`、CPU set 0–7、后台 4 线程/0–3。
+- DroidSpaces CLI `check`：required 全绿；可选 FUSE/TUN/OverlayFS/
+  netns/bridge/veth/macvlan/IPv6 NAT/mem+swap limit/sandbox 全绿；
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 按设计关闭（`--cpus`/`--pids-limit`
+  不可用）。
+- UFS health：`eol_info=0x01`、`life_time_estimation_a/b=0x01`
+  （0–10%），与刷前一致。
+- USB：connected/configured/charging、Type-C sink、adb 正常；日志中
+  `mtk-xsphy/mtk-extcon-usb failed to ...` 为启动期厂商 DT 探测信息，
+  未见 USB 崩溃或 ANR。
+
+### 待办
+
+- 生产内核只做了首次启动检查，未做长时稳定性、zram 回写压力、
+  suspend/resume 与性能/功耗 A/B。

@@ -515,6 +515,12 @@ android"/"gki kernel",star 排序)结论:**除已调查的 WildKernels/GKID/EVON
 `3d0d4245…7a50dba`,`#2` 含 NTSync 2026 修复;只写 `boot_a`,未触碰
 `lk`/`vbmeta`/`super`/`boot_b`。首刷 `#1` 的镜像哈希为 `1b5af31a…7d05ef`。
 
+> 2026-11-22 更新:生产 Full LTO `#1`(镜像 `d0cdd6ad…9b6be2`)已写入 `boot_a`
+> 并一次启动成功;同套功能复检通过(BBRv3/fq_codel、ADIOS、zram+lz4kd+ExtM、
+> SUSFS 10 项、KSU root、DroidSpaces required 全绿、UFS health `0x01` 未变)。
+> 详见 [TEST_REPORT.md](TEST_REPORT.md) §29。以下 NoLTO `#2` 记录继续作为
+> 逐项功能核对依据。
+
 ### 启动与日志
 
 - 真实启动行来自 `/dev/kmsg`:`Linux version 6.6.143-4k ... #2`;`uname` 显示
