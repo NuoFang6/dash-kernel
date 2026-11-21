@@ -95,7 +95,7 @@ jobs:
 
       - name: Replay patch series (gate)
         run: |
-          git submodule update --init --depth 1 BakaSU third_party/susfs4ksu
+          git submodule update --init --depth 1 BakaSU third_party/susfs4ksu third_party/nomount
           make -C dash source patches
 
       - name: Open PR

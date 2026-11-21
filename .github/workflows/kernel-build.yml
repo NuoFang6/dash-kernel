@@ -30,11 +30,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      # apply-patches.sh symlinks BakaSU/kernel as drivers/kernelsu and
-      # installs the SUSFS files from the pinned susfs4ksu submodule; no other
-      # submodule takes part in the kernel build.
-      - name: Init BakaSU and susfs4ksu submodules
-        run: git submodule update --init --depth 1 BakaSU third_party/susfs4ksu
+      # apply-patches.sh symlinks BakaSU/kernel as drivers/kernelsu,
+      # installs the SUSFS files from the pinned susfs4ksu submodule and
+      # symlinks third_party/nomount as fs/nomount; no other submodule
+      # takes part in the kernel build.
+      - name: Init kernel build submodules
+        run: git submodule update --init --depth 1 BakaSU third_party/susfs4ksu third_party/nomount
 
       - name: Install build dependencies
         run: |

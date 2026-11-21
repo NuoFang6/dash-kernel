@@ -26,8 +26,9 @@ jobs:
   # Replay the patch series against the pinned AOSP tag.  This is the core
   # invariant of the repo: every build source tree is regenerated from
   # shallow-clone + series, so a series that no longer applies is a broken
-  # build.  apply-patches needs BakaSU (KSU driver symlink) and susfs4ksu
-  # (SUSFS files are installed from the pinned submodule).
+  # build.  apply-patches needs BakaSU (KSU driver symlink), susfs4ksu
+  # (SUSFS files are installed from the pinned submodule) and nomount
+  # (fs/nomount symlink; the pin is verified at apply time).
   patch-series:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -35,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Init BakaSU and susfs4ksu submodules
-        run: git submodule update --init --depth 1 BakaSU third_party/susfs4ksu
+      - name: Init BakaSU, susfs4ksu and nomount submodules
+        run: git submodule update --init --depth 1 BakaSU third_party/susfs4ksu third_party/nomount
       - name: Sync pinned AOSP and apply patch series
         run: make -C dash source patches
