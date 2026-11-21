@@ -2,10 +2,10 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 16:53:34 +0800  
-> 覆盖 22 个源，286154 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 20:05:08 +0800
+> 覆盖 22 个源，294735 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
-> 校验是否过期：`python3 scripts/collect-notes.py --check`。  
+> 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
 
 ## 0. LLM 速读（先看这里）
@@ -151,10 +151,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4555 | `8076886118d2caad` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12552 | `8054de6405b8853f` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 5531 | `e18ad49c2d48fa5f` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 15136 | `66e630b5e543f46e` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 45337 | `b161398efbfd3914` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 50358 | `4a8e464163bfe55f` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22768 | `999340f825b5a71f` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10173 | `36c227c44e9410ce` | 当前交付（优先相信） |
@@ -181,7 +181,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 4555 字节 · SHA256 `8076886118d2caadd7066e2c14e81121fc59c66c12c964398165033aa9e6031a`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 5531 字节 · SHA256 `e18ad49c2d48fa5feeb74f6d5bd9215039f7527173f7a5358c2d99da3e25a14b`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -197,7 +197,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
 | 当前内核 | `6.6.143-4k #8` |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；ThinLTO 已开启，AutoFDO 未启用 |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机 #8 为 ThinLTO；待产出生产配置为 LTO Full + AutoFDO 构建支持（无 profile），日常验证统一 NoLTO |
 | 运行槽位 | `boot_b` |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
@@ -209,11 +209,20 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 网络代理 | AsteriskMETA（mihomo core）：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT、BPF2SOCKS 能力齐备；MPTCP 关闭 |
 | TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
 
-完整产物哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
-`dash/out/artifacts/BUILD_INFO`；这两处与真机实测冲突时以它们为准。
+完整交付哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
+`dash/out/artifacts/BUILD_INFO`；当前 #8 的 Image/Image.lz4/boot/config/brutal.ko
+均按清单复核，历史 System.map 本地副本已缺失（清单保留目标哈希）。本轮验证
+产物隔离在 `dash/out/features-final/`，未作为当前实机产物发布。
 
 ### 2. 最近验证
 
+- **2026-11-21（构建级，未刷机）**：FEATURES_SURVEY 落地批次完成；固定 r4
+  干净树重放 28 补丁/140 文件 + SUSFS override，零 warning/error；NoLTO
+  全量构建通过。对实机 #8 历史 `vmlinux` 比较 9102 个公共导出符号，CRC
+  `0 mismatch / 0 removed`（新增 10）；`task_struct` 仍 4800B，SYSV 字段保持
+  KABI 槽 6/7/8 偏移；638 模块 `hard_missing=0 weak_missing=0`，KCFI 13/13。
+  Full LTO 仅在明确要求生产级产物时运行，本轮最终重链接按新策略主动停止；
+  未刷入任何手机分区。见 [TEST_REPORT.md](TEST_REPORT.md) §24。
 - **2026-11-21（实机 + 构建）**：6.6.143 #8 实机运行 23h51m 无
   panic/OOM/stall/fs 错误，crash buffer 为空；AOSP 基线 bump r2→r4、
   BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；SUSFS f98f082 优先级
@@ -252,7 +261,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 数据 | 来源 |
 |---|---|
 | 内核版本、AOSP commit、配置哈希 | `dash/out/artifacts/BUILD_INFO` |
-| Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS` |
+| Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS`（历史 System.map 副本缺失，目标哈希仍在清单） |
 | 模块版本 | AsteriskMETA 上游 release（自带 mihomo core；本仓库不再维护模块） |
 | 实机证据 | `docs/kernel/TEST_REPORT.md` |
 | 缺口状态 | `docs/kernel/OPEN_ISSUES.md` |
@@ -265,7 +274,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 12552 字节 · SHA256 `8054de6405b8853f8c0f602f27529d426f32b5306be4accc9d549c049037416f`
+> 来源：[`docs/kernel/README.md`](README.md) · 15136 字节 · SHA256 `66e630b5e543f46ed19bda78664959ef1e03350b9f932d130f6ea0f680eb0eed`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -280,7 +289,7 @@ GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编
 ```text
 configs/stock.config          设备 stock 配置，构建起点
 configs/abi_symbollist.raw    stock 导出白名单，保持 TRIM_UNUSED_KSYMS
-configs/features.fragment     本次新增配置摘要
+configs/features.fragment     功能开关唯一权威输入(configure.sh 合并进 .config)
 patches/                      按特性分目录的补丁；series 是唯一应用顺序
 scripts/                      同步、打补丁、配置、构建、boot 打包和静态检查
 src/aosp/common/              clean AOSP 浅克隆，可随时重置
@@ -297,11 +306,11 @@ out/                          构建目录和 artifacts
 cd dash
 make deps       # Arch/CachyOS 依赖检查
 make toolchain  # 获取固定 clang r614150
-make source     # 浅克隆/更新 AOSP 到 2026-10_r2（6.6.143）
+make source     # 浅克隆/更新 AOSP 到 2026-10_r4（6.6.143）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
-make build      # Image / Image.lz4 / vmlinux / System.map
-make config FAST=1 build  # 速度优先测试构建：关 ThinLTO；产物未经 finalize，不可刷机
+make build      # 最终生产构建：LTO Full（仅明确要产出生产级内核时运行）
+make config FAST=1 build  # 默认开发/验证：NoLTO；产物未经 finalize，不可刷机
 make brutal     # 外部 tcp-brutal v2.0.1 模块（需要先 build）
 make boot       # 从 stock boot_b 继承生成 boot.img
 bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
@@ -310,15 +319,66 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 > **6.6.143 补丁序列（2026-11-21 起按特性拆分）**：`patches/` 下是按功能
 > 特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat / vendor-hooks-os4
-> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc），`series` 是唯一
-> 应用顺序；文件级拆分（每文件只属于一个补丁），归属表在
+> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc / sched-eevdf / bbrv3 /
+> arm64-perf / power-mm / ntsync / adios / bbg），`series` 是唯一应用顺序；
+> 文件级拆分（每文件只属于一个补丁），归属表在
 > `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
-> squash 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 11 个
-> 补丁 apply 后与构建工作树逐字节一致，无 warning。
+> squash 已从仓库删除（git 历史保留）。已在固定 r4 (`e6c23f621`) 干净树
+> 验证 28 个补丁/140 个文件与 SUSFS override 全量重放，零 warning/error；
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
-产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
+产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。非默认
+`DEVICE=<name>` 验证构建只写 `out/<name>/`，不会污染共享 artifacts；确需将
+变体晋升为交付产物时显式设 `PUBLISH_ARTIFACTS=1`。
+
+> **构建策略（2026-11-21 起）**：日常编译、补丁重放、CRC/KMI 与静态门禁
+> 一律使用 `FAST=1`（NoLTO）；只有机主明确要求“产出最终生产级内核”时才运行
+> 默认的 LTO Full 构建。Full LTO 在 15 GiB 主机上单次链接耗时很长，不作为
+> 常规验证门禁；NoLTO 不改变源码级 genksyms CRC。
+
+### AutoFDO profile 采集流程
+
+`CONFIG_AUTOFDO_CLANG=y` 已内建(arch/Kconfig;无 profile 时仅多出
+fs-discriminator 元数据,行为不变)。要产出以 profile 优化的内核:
+
+> **dash 实机限制(2026-11-21 实测)**:设备 PMU 仅
+> `arm_dsu_0`/`armv8_pmuv3`/`armv9_cortex_a720`/`armv9_cortex_x4`,**无
+> `arm_spe_*`**——SPE 采集在当前 DT 下不可行(AutoFDO 在 arm64 依赖 SPE,
+> 无 LBR)。当前状态=构建支持已落地(`CONFIG_AUTOFDO_CLANG=y`),profile
+> 优化需先在 DT(vendor dtbo/dts)启用 SPE,属于单独的刷机决策,未做。
+
+1. **采集**(当前刷机内核或未来 AutoFDO 内核上均可,需 root):
+
+   ```bash
+   # arm64 用 SPE(不存在 LBR);确认 SPE PMU 存在:
+   adb shell su -c 'ls /sys/devices | grep -i spe'
+   # 采集代表性负载(约 10–30 分钟:日常滑动、mihomo 转发、应用切换):
+   adb shell su -c 'perf record -e arm_spe_0/load_filter=1,store_filter=1,ts_enable=1 \
+       -a -o /data/local/tmp/spe.data -- sleep 600'
+   adb pull /data/local/tmp/spe.data .
+   ```
+
+2. **转换**(主机,需安装支持 ARM SPE perf.data 的 AutoFDO/LLVM profile
+   转换工具；不同发行版打包的工具名与参数可能不同，以下命令是流程示意，
+   本机未安装 `create_llvm_prof`，不可视为已验证 CLI)：
+
+   ```bash
+   create_llvm_prof --format=extbinary --spe=/path/spe.data \
+       --binary=out/artifacts/vmlinux --out=afdo.prof
+   ```
+
+3. **重编**:构建时带 profile:
+
+   ```bash
+   CLANG_AUTOFDO_PROFILE="$PWD/afdo.prof" bash dash/scripts/build.sh
+   ```
+
+   `scripts/Makefile.autofdo` 会注入 `-fprofile-sample-use`,ThinLTO 链接期
+   也会挂 `--lto-sample-profile`(LTO Full 走编译期 sample-profile)。
+
+4. 对照 `out/dash/build.log` 无 profile 缺失告警;产物按 `finalize.sh`
+   正常校验。profile 与源码版本强相关:AOSP tag/补丁大改后需重新采集。
 
 ### CI（GitHub Actions）
 
@@ -632,7 +692,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 45337 字节 · SHA256 `b161398efbfd3914bebd4a06ad0417a485a55d7fa4f810f5cc39d73364f4f05d`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 50358 字节 · SHA256 `4a8e464163bfe55f09130c87ad8e24306d43a71e922a37ef092a12b9a7f40243`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1428,6 +1488,86 @@ QoS sysfs 与 stock 行为一致：
   cache）；artifact 收集增强（final-config、build-inputs.tar.gz、
   build-info.txt，`if: always()` 保留失败产物）；Image.lz4 超 64MiB
   boot 预算（67098176 B）时 fail 但不丢弃产物。
+
+### 24. FEATURES_SURVEY 落地批次：NoLTO 构建、CRC/KMI 与 Full LTO 边界（2026-11-21）
+
+**证据分级：补丁重放 + 构建级 + 静态 ABI；未刷机、运行时未验证。**
+本节只记录本轮新增证据；功能来源与逐项决策见 `FEATURES_SURVEY.md`。
+
+#### 补丁与配置闭环
+
+- `features.fragment` 改为功能开关唯一权威输入；`configure.sh` 合并 fragment、
+  执行 `olddefconfig` 后逐项 required 断言。修复解析器把未加引号整数 `1024`
+  误传为字符串的问题，并新增
+  `CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024` 强断言；字符串 `CONFIG_LSM`
+  和 `# CONFIG_X is not set` 语义均实测生效。
+- 固定 AOSP r4 `e6c23f621ca6e839abdeca58957bbc529536cff1` 干净树完整重放：
+  28 个普通补丁、140 个唯一归属文件，以及 1 个 SUSFS 安装后 override；
+  `apply-patches.sh` 输出零 warning/error。`split-patches.py check` 确认 series、
+  文件归属和 source-tree squash 逐字节一致。
+- BakaSU 与 `third_party/susfs4ksu` 子模块工作树均为空；没有修改 BakaSU。
+  SUSFS override 只作用于 apply 后安装到 AOSP 树的副本。
+
+#### NoLTO 全量构建
+
+- 最终门禁按机主 2026-11-21 新策略使用 `FAST=1`（NoLTO）；仅明确要求
+  “产出最终生产级内核”时才运行 Full LTO。NoLTO 不改变源码级 genksyms CRC。
+- 全新 `out/features-final` 从上述干净重放树配置并编译；配置至少包含：
+  BBRv3、NTSync、ADIOS（非默认）、BBG、AutoFDO 构建支持、A720 tune、
+  `GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024`；MPTCP、BBG boot/recovery 拦截保持关闭。
+- 构建日志除 ACK `scripts/sorttable.c` 两条既有 host warning 外无编译/链接错误；
+  `vmlinux`、BTF、`Image` 与 `Image.lz4` 均生成。产物没有打包为 boot，也没有
+  写入任何手机分区。`DEVICE=features-final` 最初暴露出 `build.sh` 会把验证
+  变体复制到共享 `out/artifacts/`；现已改为只有默认 `DEVICE=dash`（或显式
+  `PUBLISH_ARTIFACTS=1`）才发布。共享目录已从当前 boot/备份恢复 manifest 可
+  校验的 Image/Image.lz4/config，删除不匹配的 vmlinux/System.map；其中 #8
+  System.map 的本地副本已无，仅 `SHA256SUMS` 保留目标哈希，不以别的构建冒充。
+
+#### CRC、结构与厂商模块门禁
+
+以已实机运行的 #8 历史 `handoff/boot-6.6.143-4/vmlinux` 为旧基准，读取
+新旧 ELF 的 `__crc_*` 地址及 `__kcrctab{,_gpl}` 中实际 32 位值，按符号名比较：
+
+```text
+old=9102 new=9112 common=9102 mismatch=0 removed=0 added=10
+```
+
+新增 10 个导出为 USER_NS uid/gid 映射辅助函数 6 个与 BBRv3 所需 TCP 导出
+4 个（`tcp_prot`、`tcpv6_prot`、congestion-control register/unregister）；旧导出
+无 CRC 变化、无移除。
+
+- 初次检查曾发现 3 个真实漂移并已修复：整数 fragment 解析错误令
+  `vendor_data_pad` 从 1024 回落 512；新增 PREEMPT_SHORT 令导出的
+  `sched_feat_keys/names` 数组边界进入 genksyms。前者修 parser + 强断言，
+  后者用 `__GENKSYMS__` 隐藏新增 feature 条目但保留运行时条目；复验归零。
+- `pahole -C task_struct`：新旧均 4800B；`sysvsem` @3616、`sysvshm` @3624，
+  对应原 `android_kabi_reserved6` 与 `reserved7/8`，关键偏移不变。
+- 638 个 stock `.ko` 离线符号集合检查：
+  `modules=638 kernel_exports=9112 hard_missing=0 weak_missing=0`。这是符号解析
+  门禁，不替代运行时加载或 CRC 检查。
+- `verify-os4-kcfi.py`：13/13 vendor-hook 原型与 stock KCFI hash 一致。
+
+#### Full LTO 调查与停止点
+
+- 首次全新 Full LTO 构建先因主机 OpenSSL 4.1 移除 ENGINE 符号而失败；
+  `certs/extract-cert.c` 现按 `OPENSSL_NO_ENGINE` 禁用仅 PKCS#11 ENGINE 分支，
+  普通 PEM 路径可构建。
+- 随后最终链接暴露 arm64 typed assembly 的
+  `__kcfi_typeid_idmap_cpu_replace_ttbr1` 未生成。根因是函数 typedef/extern 仅在
+  inline caller 函数体内，Full LTO 丢弃 address-taken 类型元数据；提升到文件
+  作用域后，三个调用对象均实测生成该弱 type-id 定义。
+- 修复后重链接进入 `LD vmlinux.o` 且无新错误，但 15 GiB 主机大量 swap、链接
+  约 12 分钟仍未完成。机主要求停止，并定下“日常验证一律 NoLTO，只有明确要求
+  最终生产级内核才 Full LTO”的规则；任务已停止并确认无残留进程。因此本节
+  **不声明 Full LTO 构建通过**，只声明配置和两个已发现阻塞已落地修复。
+
+#### 运行时缺口
+
+设备在验证期间由机主断开，本轮本来也明确禁止刷机。BBRv3 `ss -i`、
+ADIOS 与 mq-deadline A/B、hide_adb/JDWP、BBG、NTSync、F2FS/Unicode、
+suspend/resume 及 638 模块实机加载均保持“未实机”；AutoFDO 仅有构建支持，
+此前静态调查确认当前 DT 未暴露 `arm_spe_*` PMU，且主机未安装
+`create_llvm_prof`，README 中转换命令只作为未验证 CLI 的流程示意。
 
 ---
 

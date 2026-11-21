@@ -199,7 +199,7 @@ index 051987634..bcb81e1dd 100644
  	free_bprm(bprm);
  
 diff --git a/fs/namei.c b/fs/namei.c
-index b31b583f1..95dd56a79 100644
+index b31b583f1..78d8def17 100644
 --- a/fs/namei.c
 +++ b/fs/namei.c
 @@ -41,10 +41,21 @@
@@ -214,7 +214,7 @@ index b31b583f1..95dd56a79 100644
  #include "mount.h"
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-+extern bool susfs_is_inode_sus_path(struct mnt_idmap* idmap, struct inode *inode);
++extern bool susfs_is_inode_sus_path(struct inode *inode);
 +extern const struct qstr susfs_fake_qstr_name;
 +#endif
 +#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
@@ -229,7 +229,7 @@ index b31b583f1..95dd56a79 100644
  		}
  	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-+	if (dentry && !IS_ERR(dentry) && dentry->d_inode && susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode)) {
++	if (dentry && !IS_ERR(dentry) && dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
 +		if (d_in_lookup(dentry))
 +			d_lookup_done(dentry);
 +		dput(dentry);
@@ -264,7 +264,7 @@ index b31b583f1..95dd56a79 100644
  		dentry = old;
  	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
-+	if (unlikely(dentry) && !IS_ERR(dentry) && dentry->d_inode && !found_sus_path && susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode)) {
++	if (unlikely(dentry) && !IS_ERR(dentry) && dentry->d_inode && !found_sus_path && susfs_is_inode_sus_path(dentry->d_inode)) {
 +		if (d_in_lookup(dentry))
 +			d_lookup_done(dentry);
 +		if (!(flags & LOOKUP_RCU))
@@ -293,7 +293,7 @@ index b31b583f1..95dd56a79 100644
  		dentry = __d_lookup_rcu(parent, &nd->last, &nd->next_seq);
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode &&
-+			susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode))
++			susfs_is_inode_sus_path(dentry->d_inode))
 +		{
 +			if (d_in_lookup(dentry))
 +				d_lookup_done(dentry);
@@ -310,7 +310,7 @@ index b31b583f1..95dd56a79 100644
  		dentry = __d_lookup(parent, &nd->last);
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +		if (is_nd_state_lookup_last_and_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode &&
-+			susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode))
++			susfs_is_inode_sus_path(dentry->d_inode))
 +		{
 +			if (d_in_lookup(dentry))
 +				d_lookup_done(dentry);
@@ -360,7 +360,7 @@ index b31b583f1..95dd56a79 100644
  	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (is_nd_flags_lookup_last && !found_sus_path && dentry && !IS_ERR(dentry) && dentry->d_inode &&
-+		susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode))
++		susfs_is_inode_sus_path(dentry->d_inode))
 +	{
 +		if (d_in_lookup(dentry))
 +			d_lookup_done(dentry);
@@ -393,7 +393,7 @@ index b31b583f1..95dd56a79 100644
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +		struct dentry *dentry = nd->path.dentry;
 +
-+		if (dentry->d_inode && susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode)) {
++		if (dentry->d_inode && susfs_is_inode_sus_path(dentry->d_inode)) {
 +			// - No need to dput() here
 +			// - return -ENOENT here since it is walking the sub path of sus path
 +			return -ENOENT;
@@ -428,7 +428,7 @@ index b31b583f1..95dd56a79 100644
  	dentry = d_lookup(dir, &nd->last);
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	if (is_nd_state_open_last && dentry && !IS_ERR(dentry) && dentry->d_inode &&
-+		susfs_is_inode_sus_path(&nop_mnt_idmap, dentry->d_inode))
++		susfs_is_inode_sus_path(dentry->d_inode))
 +	{
 +		if (d_in_lookup(dentry))
 +			d_lookup_done(dentry);
@@ -1719,7 +1719,7 @@ index 066490235..39a3575b1 100644
  }
  
 diff --git a/fs/readdir.c b/fs/readdir.c
-index c8c46e294..a18bb8379 100644
+index c8c46e294..af86b3635 100644
 --- a/fs/readdir.c
 +++ b/fs/readdir.c
 @@ -24,6 +24,10 @@
@@ -1728,7 +1728,7 @@ index c8c46e294..a18bb8379 100644
  
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +#include <linux/susfs_def.h>
-+extern bool susfs_is_inode_sus_path(struct mnt_idmap* idmap, struct inode *inode);
++extern bool susfs_is_inode_sus_path(struct inode *inode);
 +#endif
  /*
   * Some filesystems were never converted to '->iterate_shared()'
@@ -1754,16 +1754,20 @@ index c8c46e294..a18bb8379 100644
  
  	if (buf->result)
  		return false;
-@@ -194,6 +205,18 @@ static bool fillonedir(struct dir_context *ctx, const char *name, int namlen,
+@@ -194,6 +205,22 @@ static bool fillonedir(struct dir_context *ctx, const char *name, int namlen,
  		buf->result = -EOVERFLOW;
  		return false;
  	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	inode = ilookup(buf->sb, ino);
 +	if (!inode) {
++		if (unlikely(d_type == DT_SOCK && namlen == 4 &&
++			     !memcmp(name, "adbd", 4) &&
++			     susfs_is_current_app_uid()))
++			return SUSFS_FILLDIR_SKIP;
 +		goto orig_flow;
 +	}
-+	if (susfs_is_inode_sus_path(buf->idmap, inode)) {
++	if (susfs_is_inode_sus_path(inode)) {
 +		iput(inode);
 +		return true;
 +	}
@@ -1773,7 +1777,7 @@ index c8c46e294..a18bb8379 100644
  	buf->result++;
  	dirent = buf->dirent;
  	if (!user_write_access_begin(dirent,
-@@ -226,6 +249,11 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
+@@ -226,6 +253,11 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
  	if (!f.file)
  		return -EBADF;
  
@@ -1785,7 +1789,7 @@ index c8c46e294..a18bb8379 100644
  	error = iterate_dir(f.file, &buf.ctx);
  	if (buf.result)
  		error = buf.result;
-@@ -250,6 +278,10 @@ struct linux_dirent {
+@@ -250,6 +282,10 @@ struct linux_dirent {
  struct getdents_callback {
  	struct dir_context ctx;
  	struct linux_dirent __user * current_dir;
@@ -1796,7 +1800,7 @@ index c8c46e294..a18bb8379 100644
  	int prev_reclen;
  	int count;
  	int error;
-@@ -265,6 +297,9 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
+@@ -265,6 +301,9 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
  	int reclen = ALIGN(offsetof(struct linux_dirent, d_name) + namlen + 2,
  		sizeof(long));
  	int prev_reclen;
@@ -1806,7 +1810,7 @@ index c8c46e294..a18bb8379 100644
  
  	buf->error = verify_dirent_name(name, namlen);
  	if (unlikely(buf->error))
-@@ -280,6 +315,19 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
+@@ -280,6 +319,23 @@ static bool filldir(struct dir_context *ctx, const char *name, int namlen,
  	prev_reclen = buf->prev_reclen;
  	if (prev_reclen && signal_pending(current))
  		return false;
@@ -1814,9 +1818,13 @@ index c8c46e294..a18bb8379 100644
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	inode = ilookup(buf->sb, ino);
 +	if (!inode) {
++		if (unlikely(d_type == DT_SOCK && namlen == 4 &&
++			     !memcmp(name, "adbd", 4) &&
++			     susfs_is_current_app_uid()))
++			return SUSFS_FILLDIR_SKIP;
 +		goto orig_flow;
 +	}
-+	if (susfs_is_inode_sus_path(buf->idmap, inode)) {
++	if (susfs_is_inode_sus_path(inode)) {
 +		iput(inode);
 +		return true;
 +	}
@@ -1826,7 +1834,7 @@ index c8c46e294..a18bb8379 100644
  	dirent = buf->current_dir;
  	prev = (void __user *) dirent - prev_reclen;
  	if (!user_write_access_begin(prev, reclen + prev_reclen))
-@@ -319,6 +367,11 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
+@@ -319,6 +375,11 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
  	if (!f.file)
  		return -EBADF;
  
@@ -1838,7 +1846,7 @@ index c8c46e294..a18bb8379 100644
  	error = iterate_dir(f.file, &buf.ctx);
  	if (error >= 0)
  		error = buf.error;
-@@ -338,6 +391,10 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
+@@ -338,6 +399,10 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
  struct getdents_callback64 {
  	struct dir_context ctx;
  	struct linux_dirent64 __user * current_dir;
@@ -1849,7 +1857,7 @@ index c8c46e294..a18bb8379 100644
  	int prev_reclen;
  	int count;
  	int error;
-@@ -352,6 +409,9 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
+@@ -352,6 +417,9 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
  	int reclen = ALIGN(offsetof(struct linux_dirent64, d_name) + namlen + 1,
  		sizeof(u64));
  	int prev_reclen;
@@ -1859,7 +1867,7 @@ index c8c46e294..a18bb8379 100644
  
  	buf->error = verify_dirent_name(name, namlen);
  	if (unlikely(buf->error))
-@@ -362,6 +422,19 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
+@@ -362,6 +430,23 @@ static bool filldir64(struct dir_context *ctx, const char *name, int namlen,
  	prev_reclen = buf->prev_reclen;
  	if (prev_reclen && signal_pending(current))
  		return false;
@@ -1867,9 +1875,13 @@ index c8c46e294..a18bb8379 100644
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	inode = ilookup(buf->sb, ino);
 +	if (!inode) {
++		if (unlikely(d_type == DT_SOCK && namlen == 4 &&
++			     !memcmp(name, "adbd", 4) &&
++			     susfs_is_current_app_uid()))
++			return SUSFS_FILLDIR_SKIP;
 +		goto orig_flow;
 +	}
-+	if (susfs_is_inode_sus_path(buf->idmap, inode)) {
++	if (susfs_is_inode_sus_path(inode)) {
 +		iput(inode);
 +		return true;
 +	}
@@ -1879,7 +1891,7 @@ index c8c46e294..a18bb8379 100644
  	dirent = buf->current_dir;
  	prev = (void __user *)dirent - prev_reclen;
  	if (!user_write_access_begin(prev, reclen + prev_reclen))
-@@ -402,6 +475,11 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
+@@ -402,6 +487,11 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
  	if (!f.file)
  		return -EBADF;
  
@@ -1891,7 +1903,7 @@ index c8c46e294..a18bb8379 100644
  	error = iterate_dir(f.file, &buf.ctx);
  	if (error >= 0)
  		error = buf.error;
-@@ -430,6 +508,10 @@ struct compat_old_linux_dirent {
+@@ -430,6 +520,10 @@ struct compat_old_linux_dirent {
  struct compat_readdir_callback {
  	struct dir_context ctx;
  	struct compat_old_linux_dirent __user *dirent;
@@ -1902,7 +1914,7 @@ index c8c46e294..a18bb8379 100644
  	int result;
  };
  
-@@ -441,6 +523,9 @@ static bool compat_fillonedir(struct dir_context *ctx, const char *name,
+@@ -441,6 +535,9 @@ static bool compat_fillonedir(struct dir_context *ctx, const char *name,
  		container_of(ctx, struct compat_readdir_callback, ctx);
  	struct compat_old_linux_dirent __user *dirent;
  	compat_ulong_t d_ino;
@@ -1912,16 +1924,20 @@ index c8c46e294..a18bb8379 100644
  
  	if (buf->result)
  		return false;
-@@ -452,6 +537,18 @@ static bool compat_fillonedir(struct dir_context *ctx, const char *name,
+@@ -452,6 +549,22 @@ static bool compat_fillonedir(struct dir_context *ctx, const char *name,
  		buf->result = -EOVERFLOW;
  		return false;
  	}
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	inode = ilookup(buf->sb, ino);
 +	if (!inode) {
++		if (unlikely(d_type == DT_SOCK && namlen == 4 &&
++			     !memcmp(name, "adbd", 4) &&
++			     susfs_is_current_app_uid()))
++			return SUSFS_FILLDIR_SKIP;
 +		goto orig_flow;
 +	}
-+	if (susfs_is_inode_sus_path(buf->idmap, inode)) {
++	if (susfs_is_inode_sus_path(inode)) {
 +		iput(inode);
 +		return true;
 +	}
@@ -1931,7 +1947,7 @@ index c8c46e294..a18bb8379 100644
  	buf->result++;
  	dirent = buf->dirent;
  	if (!user_write_access_begin(dirent,
-@@ -484,6 +581,11 @@ COMPAT_SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
+@@ -484,6 +597,11 @@ COMPAT_SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
  	if (!f.file)
  		return -EBADF;
  
@@ -1943,7 +1959,7 @@ index c8c46e294..a18bb8379 100644
  	error = iterate_dir(f.file, &buf.ctx);
  	if (buf.result)
  		error = buf.result;
-@@ -502,6 +604,10 @@ struct compat_linux_dirent {
+@@ -502,6 +620,10 @@ struct compat_linux_dirent {
  struct compat_getdents_callback {
  	struct dir_context ctx;
  	struct compat_linux_dirent __user *current_dir;
@@ -1954,7 +1970,7 @@ index c8c46e294..a18bb8379 100644
  	int prev_reclen;
  	int count;
  	int error;
-@@ -517,6 +623,9 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
+@@ -517,6 +639,9 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
  	int reclen = ALIGN(offsetof(struct compat_linux_dirent, d_name) +
  		namlen + 2, sizeof(compat_long_t));
  	int prev_reclen;
@@ -1964,16 +1980,20 @@ index c8c46e294..a18bb8379 100644
  
  	buf->error = verify_dirent_name(name, namlen);
  	if (unlikely(buf->error))
-@@ -532,6 +641,18 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
+@@ -532,6 +657,22 @@ static bool compat_filldir(struct dir_context *ctx, const char *name, int namlen
  	prev_reclen = buf->prev_reclen;
  	if (prev_reclen && signal_pending(current))
  		return false;
 +#ifdef CONFIG_KSU_SUSFS_SUS_PATH
 +	inode = ilookup(buf->sb, ino);
 +	if (!inode) {
++		if (unlikely(d_type == DT_SOCK && namlen == 4 &&
++			     !memcmp(name, "adbd", 4) &&
++			     susfs_is_current_app_uid()))
++			return SUSFS_FILLDIR_SKIP;
 +		goto orig_flow;
 +	}
-+	if (susfs_is_inode_sus_path(buf->idmap, inode)) {
++	if (susfs_is_inode_sus_path(inode)) {
 +		iput(inode);
 +		return true;
 +	}
@@ -1983,7 +2003,7 @@ index c8c46e294..a18bb8379 100644
  	dirent = buf->current_dir;
  	prev = (void __user *) dirent - prev_reclen;
  	if (!user_write_access_begin(prev, reclen + prev_reclen))
-@@ -570,6 +691,11 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
+@@ -570,6 +711,11 @@ COMPAT_SYSCALL_DEFINE3(getdents, unsigned int, fd,
  	if (!f.file)
  		return -EBADF;
  

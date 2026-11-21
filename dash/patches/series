@@ -12,3 +12,14 @@
 070-erofs-xiaomi
 080-dash-misc
 090-droidspaces
+# 2026-11-21 FEATURES_SURVEY 落地批次(每目录内的补丁按文件名排序应用)
+100-sched-eevdf
+110-net-bbrv3
+115-hide-appsockets
+120-arm64-perf
+130-f2fs-perf
+131-unicode-bypass
+140-power-mm
+150-drivers-ntsync
+160-block-adios
+170-security-bbg

@@ -1,6 +1,6 @@
 # dash kernel patches
 
-## 当前：6.6.143（AOSP `android15-6.6-2026-10_r2`）
+## 当前：6.6.143（AOSP `android15-6.6-2026-10_r4`）
 
 补丁按**功能特性**分目录存放，`series` 是唯一应用顺序（每行一个特性目录，
 目录内补丁按文件名排序逐个应用）：
@@ -14,10 +14,21 @@
 050-lz4kd-zram/         lz4kd crypto 模块、LZ4 trace 事件、zram 后端
 060-f2fs-xiaomi/        Xiaomi F2FS 增强（iostat/VIP/hybrid/lock priority）
 070-erofs-xiaomi/       Xiaomi EROFS iostat sysfs
-080-dash-misc/          dash 维护性独立修复（pid_max clamp）
+080-dash-misc/          dash 维护性修复（pid_max clamp、OpenSSL 4 host-tool）
 090-droidspaces/        DroidSpaces 容器支持：SYSVIPC 字段移入 ANDROID_KABI
                         填充槽（官方 below-6.12 kABI 补丁的 6.6.143 适配；
                         本树槽 1-2 已被 AOSP 使用，sysvsem→6、sysvshm→7+8）
+100-sched-eevdf/        EEVDF/PREEMPT_SHORT、EAS/uclamp/misfit、RT/timer slack
+110-net-bbrv3/          KABI-safe BBRv3 + TCP retransmit 生命周期修复
+115-hide-appsockets/     app UID 隐藏 adbd/JDWP unix socket
+120-arm64-perf/          arm64 copy/memcmp/clear/int_sqrt/per-cpu/-mtune
+130-f2fs-perf/          F2FS GC、拥塞等待与 fsync 调优
+131-unicode-bypass/      Unicode casefold 空分解边界修复
+140-power-mm/            alarmtimer/s2idle/MGLRU/swap/cpufreq/OPP 修复
+150-drivers-ntsync/      NTSync 驱动 backport
+160-block-adios/         ADIOS blk-mq 调度器（内建，非默认）
+170-security-bbg/       Baseband Guard LSM
+susfs-overrides/        SUSFS 子模块文件安装后的 dash 本地覆盖（不进 series）
 ```
 
 拆分是**文件级**的：每个文件只属于一个补丁（归属唯一记录在
@@ -42,7 +53,7 @@ SUSFS 的 hook 调用点）整体归入 `010-bakasu-susfs`。
 
 应用（`scripts/apply-patches.sh`，编译时逐目录逐补丁汇总）：
 
-1. `git reset --hard $AOSP_COMMIT` + `git clean -fdx`（bf768be0，6.6.143）；
+1. `git reset --hard $AOSP_COMMIT` + `git clean -fdx`（`e6c23f621`，6.6.143）；
 2. 校验 BakaSU / susfs4ksu / nomount 子模块在 `versions.env` pin 的 commit；
 3. 建立 `drivers/kernelsu -> BakaSU/kernel` 符号链接；
 4. 按 `series` 逐目录逐补丁 `git apply --index`；
@@ -61,10 +72,9 @@ series 与映射表一致、每个补丁触碰的文件与映射表一致、与 
 脚本侧接线（NoMount 的 `fs/Kconfig`、susfs/kernelsu/nomount 符号链接）在
 排除清单里。
 
-验证（2026-11-21，离线）：在干净 `bf768be0` worktree 上用新
-`apply-patches.sh` 完整应用 11 个补丁，变更文件集（85 个）+ 3 个 SUSFS
-文件 + `fs/Kconfig` 与当时构建工作树 sha256 全部一致；`git apply` 无
-warning；`make gen-patches` 从 src 树重新生成的拆分与现存补丁一致。
+验证（2026-11-21，离线）：在固定 `e6c23f621`（r4）干净树上完整应用
+28 个补丁（140 个唯一归属文件）+ SUSFS 安装后 override，零 warning/error；
+`split-patches.py check` 确认补丁映射与 source-tree squash 逐字节一致。
 
 ## 维护约定
 

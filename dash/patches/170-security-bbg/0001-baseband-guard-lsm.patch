@@ -1,0 +1,773 @@
+diff --git a/security/Kconfig b/security/Kconfig
+index 39af8b869..2a5b83ffb 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -280,6 +280,7 @@ config LSM
+ 	  If unsure, leave this as the default.
+ 
+ source "security/Kconfig.hardening"
++source "security/baseband-guard/Kconfig"
+ 
+ endmenu
+ 
+diff --git a/security/Makefile b/security/Makefile
+index 18121f8f8..38b320be0 100644
+--- a/security/Makefile
++++ b/security/Makefile
+@@ -24,6 +24,7 @@ obj-$(CONFIG_SECURITY_LOCKDOWN_LSM)	+= lockdown/
+ obj-$(CONFIG_CGROUPS)			+= device_cgroup.o
+ obj-$(CONFIG_BPF_LSM)			+= bpf/
+ obj-$(CONFIG_SECURITY_LANDLOCK)		+= landlock/
++obj-$(CONFIG_BBG)			+= baseband-guard/
+ 
+ # Object integrity file lists
+ obj-$(CONFIG_INTEGRITY)			+= integrity/
+diff --git a/security/baseband-guard/Kconfig b/security/baseband-guard/Kconfig
+new file mode 100644
+index 000000000..43cdbf3cd
+--- /dev/null
++++ b/security/baseband-guard/Kconfig
+@@ -0,0 +1,42 @@
++menu "Baseband Security Guard Configuration"
++
++config BBG
++       bool "Enable Baseband Guard (Anti-Format)"
++       default n
++       depends on SECURITY && SECURITY_SELINUX && ARM64
++       help
++          An Android baseband anti-formatting protector
++          module by Github@showdo, preventing malicious
++          scripts or programs writing into important
++          function partitions.
++          If unsure, leave this y.
++
++config BBG_BLOCK_BOOT
++       bool "Enable Baseband Protection for Boot Partition"
++       depends on BBG
++       default n
++       help
++          Enable protection for boot partition to
++          prevent malicious scripts or programs
++          destroying, however this may cause failure
++          when flashing kernels in Android system
++          (meaning that you'll only be able to flash
++          kernels/boot partition image in recovery/
++          fastboot mode).
++          If unsure, leave this n.
++
++config BBG_BLOCK_RECOVERY
++       bool "Enable Baseband Protection for Recovery Partition"
++       depends on BBG
++       default n
++       help
++          Enable protection for recovery partition to
++          prevent malicious scripts or programs
++          destroying, however this may cause failure
++          when flashing custom recs in Android system
++          (meaning that you'll only be able to flash
++          recovery partition image in fastbootd/
++          bootloader mode).
++          If unsure, leave this n.
++
++endmenu
+diff --git a/security/baseband-guard/Makefile b/security/baseband-guard/Makefile
+new file mode 100644
+index 000000000..da02a20d2
+--- /dev/null
++++ b/security/baseband-guard/Makefile
+@@ -0,0 +1,10 @@
++# SPDX-License-Identifier: GPL-2.0
++# Upstream a54e0dc6cf0aff4dd87fec49644a02d2eb612905, EVONIX 6.6 integration.
++obj-$(CONFIG_BBG) += bbg.o
++bbg-y := baseband_guard.o tracing/tracing.o blkdev_helper.o
++ccflags-y += -I$(srctree)/security/selinux -I$(srctree)/security/selinux/include
++ccflags-y += -I$(srctree)/block -I$(objtree)/security/selinux
++ccflags-y += -I$(srctree)/security/baseband-guard
++ccflags-y += -DBBG_USE_DEFINE_LSM -DBB_HAS_IOCTL_COMPAT
++ccflags-y += -DBBG_VERSION=\"a54e0dc6-evonix1\"
++ccflags-y += -DBBG_REPO=\"https://github.com/vc-teahouse/Baseband-guard\"
+diff --git a/security/baseband-guard/baseband_guard.c b/security/baseband-guard/baseband_guard.c
+new file mode 100644
+index 000000000..88e07ccbc
+--- /dev/null
++++ b/security/baseband-guard/baseband_guard.c
+@@ -0,0 +1,243 @@
++#include <linux/module.h>
++#include <linux/init.h>
++#include <linux/security.h>
++#include <linux/fs.h>
++#include <linux/binfmts.h>
++#include <linux/namei.h>
++#include <linux/blk_types.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/errno.h>
++#include <linux/version.h>
++#include <linux/cred.h>
++#include <linux/dcache.h>
++#include <linux/hashtable.h>
++
++#include "kernel_compat.h"
++#include "baseband_guard.h"
++#include "tracing/tracing.h"
++#include "blkdev_helper.h"
++
++static bool is_zram_device(dev_t dev)
++{
++	bool is_zram = bbg_is_named_device(dev, "zram");
++	if (is_zram) {
++		bb_pr("zram dev %u:%u identified, whitelisting\n",
++				MAJOR(dev), MINOR(dev));
++	}
++	return is_zram;
++}
++
++/* No dev_t cache: block-device IDs can be reused after device teardown. */
++static bool bbg_device_allowed(dev_t cur)
++{
++	if (!cur) return false;
++	if (is_zram_device(cur)) {
++		return true;
++	}
++	if (is_allowed_partition_dev_resolve(cur)) {
++		return true;
++	}
++	return false;
++}
++
++static const char *bbg_file_path(struct file *file, char *buf, int buflen)
++{
++	char *p;
++	if (!file || !buf || buflen <= 0) return NULL;
++	buf[0] = '\0';
++	p = d_path(&file->f_path, buf, buflen);
++	return IS_ERR(p) ? NULL : p;
++}
++
++static int bbg_get_cmdline(char *buf, int buflen)
++{
++	int n, i;
++	if (!buf || buflen <= 0) return 0;
++	n = get_cmdline(current, buf, buflen);
++	if (n <= 0) return 0;
++	for (i = 0; i < n - 1; i++) if (buf[i] == '\0') buf[i] = ' ';
++	if (n < buflen) buf[n] = '\0';
++	else buf[buflen - 1] = '\0';
++	return n;
++}
++
++static void bbg_log_deny_detail(const char *why, struct file *file, struct inode *inode, unsigned int cmd_opt)
++{
++	const int PATH_BUFLEN = 256;
++	const int CMD_BUFLEN  = 256;
++
++	char *pathbuf = kmalloc(PATH_BUFLEN, GFP_ATOMIC);
++	char *cmdbuf  = kmalloc(CMD_BUFLEN,  GFP_ATOMIC);
++
++	const char *path = pathbuf ? bbg_file_path(file, pathbuf, PATH_BUFLEN) : NULL;
++	dev_t dev = inode ? inode->i_rdev : 0;
++
++	if (cmdbuf)
++		bbg_get_cmdline(cmdbuf, CMD_BUFLEN);
++
++	if (cmd_opt) {
++		pr_info(
++			"baseband_guard: deny %s cmd=0x%x dev=%u:%u path=%s pid=%d comm=%s argv=\"%s\"\n",
++			why, cmd_opt, MAJOR(dev), MINOR(dev),
++			path ? path : "?", current->pid, current->comm,
++			cmdbuf ? cmdbuf : "?");
++	} else {
++		pr_info(
++			"baseband_guard: deny %s dev=%u:%u path=%s pid=%d comm=%s argv=\"%s\"\n",
++			why, MAJOR(dev), MINOR(dev),
++			path ? path : "?", current->pid, current->comm,
++			cmdbuf ? cmdbuf : "?");
++	}
++
++	kfree(cmdbuf);
++	kfree(pathbuf);
++}
++
++static int deny(const char *why, struct file *file, struct inode *inode, unsigned int cmd_opt)
++{
++	if (printk_ratelimit())
++		bbg_log_deny_detail(why, file, inode, cmd_opt);
++	bb_pr_rl("deny %s pid=%d comm=%s\n", why, current->pid, current->comm);
++	if (!BB_ENFORCING) return 0;
++	return -EPERM;
++}
++
++static int bb_file_permission(struct file *file, int mask)
++{
++	struct inode *inode;
++
++	if (!(mask & MAY_WRITE)) return 0;
++	if (!file) return 0;
++
++	inode = file_inode(file);
++	if (likely(!S_ISBLK(inode->i_mode))) return 0;
++
++	if (likely(current_process_trusted()))
++		return 0;
++	if (bbg_device_allowed(inode->i_rdev))
++		return 0;
++
++	return deny("write to protected partition", file, inode, 0);
++}
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,9,0)
++static int bb_inode_setattr(struct mnt_idmap *idmap, struct dentry *dentry, struct iattr *iattr)
++#else
++static int bb_inode_setattr(struct dentry *dentry, struct iattr *iattr)
++#endif
++{
++	struct inode *inode;
++
++	inode = d_inode(dentry);
++
++	if (likely(!S_ISBLK(inode->i_mode))) return 0;
++
++	if (likely(current_process_trusted()))
++		return 0;
++	if (bbg_device_allowed(inode->i_rdev))
++		return 0;
++
++	return deny("setattr on protected partition", 0, inode, 0);
++}
++
++static inline bool is_destructive_ioctl(unsigned int cmd)
++{
++	switch (cmd) {
++	case BLKDISCARD:
++	case BLKSECDISCARD:
++	case BLKZEROOUT:
++#ifdef BLKPG
++	case BLKPG:
++#endif
++#ifdef BLKTRIM
++	case BLKTRIM:
++#endif
++#ifdef BLKRRPART
++	case BLKRRPART:
++#endif
++#ifdef BLKSETRO
++	case BLKSETRO:
++#endif
++#ifdef BLKSETBADSECTORS
++	case BLKSETBADSECTORS:
++#endif
++		return true;
++	default:
++		return false;
++	}
++}
++
++static int bb_file_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
++{
++	struct inode *inode;
++
++	if (!file) return 0;
++	inode = file_inode(file);
++	if (likely(!S_ISBLK(inode->i_mode))) return 0;
++
++	if (!is_destructive_ioctl(cmd))
++		return 0;
++
++	if (likely(current_process_trusted()))
++		return 0;
++
++	if (bbg_device_allowed(inode->i_rdev))
++		return 0;
++
++	return deny("destructive ioctl on protected partition", file, inode, cmd);
++}
++
++#ifdef BB_HAS_IOCTL_COMPAT
++static int bb_file_ioctl_compat(struct file *file, unsigned int cmd, unsigned long arg)
++{
++	return bb_file_ioctl(file, cmd, arg);
++}
++#endif
++
++extern int bb_bprm_set_creds(struct linux_binprm *bprm);
++extern void bb_cred_transfer(struct cred *new, const struct cred *old);
++extern int bb_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp);
++
++static struct security_hook_list bb_hooks[] = {
++	LSM_HOOK_INIT(file_permission,      bb_file_permission),
++	LSM_HOOK_INIT(file_ioctl,           bb_file_ioctl),
++	LSM_HOOK_INIT(inode_setattr, 		bb_inode_setattr),
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,8,0)
++	LSM_HOOK_INIT(bprm_creds_for_exec,  bb_bprm_set_creds),
++#else
++	LSM_HOOK_INIT(bprm_set_creds, 		bb_bprm_set_creds),
++#endif
++	LSM_HOOK_INIT(cred_transfer, 		bb_cred_transfer),
++	LSM_HOOK_INIT(cred_prepare, 	    bb_cred_prepare),
++
++#ifdef BB_HAS_IOCTL_COMPAT
++	LSM_HOOK_INIT(file_ioctl_compat,    bb_file_ioctl_compat),
++#endif
++};
++
++static int __init bbg_init(void)
++{
++	security_add_hooks_compat(bb_hooks, ARRAY_SIZE(bb_hooks)); // init lsm hooks and print version notice
++	pr_info("baseband_guard power by https://t.me/qdykernel\n");
++	pr_info("baseband_guard repo: %s", __stringify(BBG_REPO));
++	pr_info("baseband_guard version: %s", __stringify(BBG_VERSION));
++	return 0;
++}
++
++extern struct lsm_blob_sizes bbg_blob_sizes;
++
++#ifndef BBG_USE_DEFINE_LSM
++security_initcall(bbg_init);
++#else
++DEFINE_LSM(baseband_guard) = {
++	.name = "baseband_guard",
++	.init = bbg_init,
++	.blobs = &bbg_blob_sizes
++};
++#endif
++
++MODULE_DESCRIPTION("protect All Block & Power by TG@qdykernel");
++MODULE_AUTHOR("秋刀鱼 & https://t.me/qdykernel");
++MODULE_LICENSE("GPL v2");
+diff --git a/security/baseband-guard/baseband_guard.h b/security/baseband-guard/baseband_guard.h
+new file mode 100644
+index 000000000..3b6acae17
+--- /dev/null
++++ b/security/baseband-guard/baseband_guard.h
+@@ -0,0 +1,27 @@
++#define BB_ENFORCING 1
++
++#ifdef CONFIG_BBG_DEBUG
++#define BB_DEBUG 1
++#else
++#define BB_DEBUG 0
++#endif
++
++#define bb_pr(fmt, ...)    pr_debug("baseband_guard: " fmt, ##__VA_ARGS__)
++#define bb_pr_rl(fmt, ...) pr_info_ratelimited("baseband_guard: " fmt, ##__VA_ARGS__)
++
++#define BB_BYNAME_DIR "/dev/block/by-name"
++
++static const char * const allowlist_names[] = {
++#ifndef CONFIG_BBG_BLOCK_BOOT
++	"boot", "init_boot",
++	"vendor_boot", "vendor_kernel_boot",
++#endif
++	"dtbo",
++	"userdata", "cache", "metadata", "misc",
++	"super",
++	"vbmeta", "vbmeta_system", "vbmeta_vendor",
++#ifndef CONFIG_BBG_BLOCK_RECOVERY
++	"recovery"
++#endif
++};
++static const size_t allowlist_cnt = ARRAY_SIZE(allowlist_names);
+diff --git a/security/baseband-guard/blkdev_helper.c b/security/baseband-guard/blkdev_helper.c
+new file mode 100644
+index 000000000..cef6c0bb1
+--- /dev/null
++++ b/security/baseband-guard/blkdev_helper.c
+@@ -0,0 +1,151 @@
++#include <linux/version.h>
++#include <linux/blkdev.h>
++#include <linux/err.h>
++#include <linux/string.h>
++
++#include "baseband_guard.h"
++#include "blkdev_helper.h"
++
++static bool partition_name_matches(const char *partition_name,
++				   size_t partition_len,
++				   const char *base_name,
++				   const char *suffix)
++{
++	size_t base_len;
++	size_t suffix_len;
++
++	if (!partition_name || !base_name || !suffix)
++		return false;
++
++	base_len = strlen(base_name);
++	suffix_len = strlen(suffix);
++
++	if (partition_len != base_len + suffix_len)
++		return false;
++
++	return !memcmp(partition_name, base_name, base_len) &&
++	       !memcmp(partition_name + base_len, suffix, suffix_len);
++}
++
++static bool partition_name_in_allowlist(const char *name, size_t max_len)
++{
++	size_t name_len;
++	size_t i;
++
++	if (!name || !max_len)
++		return false;
++
++	name_len = strnlen(name, max_len);
++	if (!name_len || name_len == max_len)
++		return false;
++
++	for (i = 0; i < allowlist_cnt; i++) {
++		const char *allowed = allowlist_names[i];
++		size_t allowed_len;
++
++		if (!allowed)
++			continue;
++
++		allowed_len = strlen(allowed);
++
++		if (name_len == allowed_len &&
++		    !memcmp(name, allowed, name_len))
++			return true;
++
++		/* Allow both slots: legitimate kernel updates target the inactive one. */
++
++		if (partition_name_matches(name, name_len,
++					   allowed, "_a"))
++			return true;
++
++		if (partition_name_matches(name, name_len,
++					   allowed, "_b"))
++			return true;
++	}
++
++	return false;
++}
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0) || defined(BBG_COMPAT_HAS_BLOCK_DEVICE_API)
++
++/*
++ * Linux 5.11+：
++ *
++ * dev_t
++ *   -> struct block_device
++ *   -> bd_meta_info
++ *   -> volname
++ */
++bool is_allowed_partition_dev_resolve(dev_t dev)
++{
++	struct block_device *bdev;
++	const struct partition_meta_info *info;
++	bool allowed = false;
++
++	if (!dev)
++		return false;
++
++	bdev = blkdev_get_no_open(dev);
++	if (IS_ERR_OR_NULL(bdev))
++		return false;
++
++	info = READ_ONCE(bdev->bd_meta_info);
++	if (info) {
++		allowed = partition_name_in_allowlist(
++			(const char *)info->volname,
++			sizeof(info->volname));
++	}
++
++	blkdev_put_no_open(bdev);
++	return allowed;
++}
++
++#else
++#include <linux/genhd.h>
++
++/*
++ * Linux 3.18～5.10：
++ *
++ * dev_t
++ *   -> struct gendisk + partno
++ *   -> struct hd_struct
++ *   -> info
++ *   -> volname
++ */
++bool is_allowed_partition_dev_resolve(dev_t dev)
++{
++	struct gendisk *disk;
++	struct hd_struct *part;
++	const struct partition_meta_info *info;
++	bool allowed = false;
++	int partno = 0;
++
++	if (!dev)
++		return false;
++
++	disk = get_gendisk(dev, &partno);
++	if (!disk)
++		return false;
++
++	if (partno <= 0)
++		goto out_put_disk;
++
++	part = disk_get_part(disk, partno);
++	if (!part)
++		goto out_put_disk;
++
++	info = READ_ONCE(part->info);
++	if (info) {
++		allowed = partition_name_in_allowlist(
++			(const char *)info->volname,
++			sizeof(info->volname));
++	}
++
++	disk_put_part(part);
++
++out_put_disk:
++	put_disk(disk);
++	return allowed;
++}
++
++#endif
+diff --git a/security/baseband-guard/blkdev_helper.h b/security/baseband-guard/blkdev_helper.h
+new file mode 100644
+index 000000000..52720e8a2
+--- /dev/null
++++ b/security/baseband-guard/blkdev_helper.h
+@@ -0,0 +1 @@
++bool is_allowed_partition_dev_resolve(dev_t dev);
+diff --git a/security/baseband-guard/kernel_compat.h b/security/baseband-guard/kernel_compat.h
+new file mode 100644
+index 000000000..c8dc2d45c
+--- /dev/null
++++ b/security/baseband-guard/kernel_compat.h
+@@ -0,0 +1,116 @@
++#include <linux/blkdev.h>
++#include <linux/security.h>
++#include <linux/lsm_hooks.h>
++#include <linux/version.h>
++#include "objsec.h"
++#include "security.h"
++#include "blk.h"
++
++static inline bool selinux_initialized_compat(void)
++{
++	return selinux_initialized();
++}
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
++static __maybe_unused inline int lookup_bdev_compat(char *path, dev_t *out) {
++    struct block_device *bdev;
++
++    if (!path || !out) {
++        return 1;
++    }
++
++    bdev = lookup_bdev(path);
++	if (IS_ERR(bdev))
++		return 1;
++	*out = bdev->bd_dev;
++	bdput(bdev);
++	return 0;
++}
++#else
++static __maybe_unused inline int lookup_bdev_compat(char *path, dev_t *out) {
++    dev_t dev;
++	int ret;
++
++    if (!path || !out) {
++        return 1;
++    }
++
++    ret = lookup_bdev(path, &dev);
++	if (ret) return ret;
++
++	*out = dev;
++	return 0;
++}
++#endif
++
++// https://github.com/torvalds/linux/commit/22ae8ce8b89241c94ac00c237752c0ffa37ba5ae
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5,11,0)
++
++static __maybe_unused bool bbg_is_named_device(dev_t dev, const char *name_prefix)
++{
++    struct block_device *bdev;
++    bool match = false;
++
++    bdev = blkdev_get_by_dev(dev, FMODE_READ, THIS_MODULE);
++    if (IS_ERR(bdev))
++        return false;
++
++    if (bdev->bd_disk && name_prefix) {
++        const char *disk_name = bdev->bd_disk->disk_name;
++        size_t prefix_len = strlen(name_prefix);
++
++        if (strncmp(disk_name, name_prefix, prefix_len) == 0) {
++            match = true;
++        }
++    }
++
++    blkdev_put(bdev, FMODE_READ);
++    return match;
++}
++#else
++
++static __maybe_unused bool bbg_is_named_device(dev_t dev, const char *name_prefix)
++{
++    struct block_device *bdev;
++    bool match = false;
++
++// https://github.com/torvalds/linux/commit/5f33b5226c9d92359e58e91ad0bf0c1791da36a1
++#if LINUX_VERSION_CODE < KERNEL_VERSION(6,15,0)
++    bdev = blkdev_get_no_open(dev);
++#else
++    bdev = blkdev_get_no_open(dev, true);
++#endif
++
++    if (IS_ERR(bdev))
++        return false;
++
++    if (bdev->bd_disk && name_prefix) {
++        const char *disk_name = bdev->bd_disk->disk_name;
++        size_t prefix_len = strlen(name_prefix);
++        match = (strncmp(disk_name, name_prefix, prefix_len) == 0);
++    }
++
++    blkdev_put_no_open(bdev);
++
++    return match;
++}
++
++#endif
++
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
++const struct lsm_id bbg_lsmid = {
++	.name = "baseband_guard",
++	.id = 995,
++};
++#endif
++
++static __maybe_unused inline void __init security_add_hooks_compat(struct security_hook_list *hooks, int count) {
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(6,8,0)
++	security_add_hooks(hooks, count, &bbg_lsmid);
++#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4,11,0)
++	security_add_hooks(hooks, count, "baseband_guard");
++#else
++	security_add_hooks(hooks, count);
++#endif
++
++}
+diff --git a/security/baseband-guard/tracing/tracing.c b/security/baseband-guard/tracing/tracing.c
+new file mode 100644
+index 000000000..e939b1d97
+--- /dev/null
++++ b/security/baseband-guard/tracing/tracing.c
+@@ -0,0 +1,81 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Based on vc-teahouse/Baseband-guard a54e0dc6cf0aff4dd87fec49644a02d2eb612905.
++ * EVONIX: standard LSM credential blobs and policy-generation-aware SID lookup.
++ */
++#include "kernel_compat.h"
++#include "tracing.h"
++#include <linux/mutex.h>
++
++struct lsm_blob_sizes bbg_blob_sizes __ro_after_init = {
++	.lbs_cred = sizeof(struct bbg_cred_security_struct),
++};
++
++static DEFINE_MUTEX(bbg_sid_lock);
++static u32 bbg_policy_seq;
++static bool bbg_sids_valid;
++static u32 bbg_root_sids[3];
++static const char * const bbg_root_contexts[] = {
++	"u:r:su:s0", "u:r:magisk:s0", "u:r:ksu:s0",
++};
++
++int bb_cred_prepare(struct cred *new, const struct cred *old, gfp_t gfp)
++{
++	*bbg_cred(new) = *bbg_cred(old);
++	return 0;
++}
++
++void bb_cred_transfer(struct cred *new, const struct cred *old)
++{
++	*bbg_cred(new) = *bbg_cred(old);
++}
++
++int bb_bprm_set_creds(struct linux_binprm *bprm)
++{
++	const struct task_security_struct *old = selinux_cred(current_cred());
++	const struct task_security_struct *new = selinux_cred(bprm->cred);
++	struct bbg_cred_security_struct *next = bbg_cred(bprm->cred);
++	u32 seq, end_seq, resolved[ARRAY_SIZE(bbg_root_sids)];
++	unsigned int i;
++	bool untrusted = false;
++
++	next->is_untrusted_process = bbg_cred(current_cred())->is_untrusted_process;
++	if (next->is_untrusted_process || !selinux_initialized())
++		return 0;
++
++	/*
++	 * Lookup happens only on exec, never on ordinary read/write paths.
++	 * Refresh missing contexts when KernelSU/Magisk updates the policy;
++	 * do not permanently cache an early-boot context lookup failure.
++	 */
++	mutex_lock(&bbg_sid_lock);
++	seq = avc_policy_seqno();
++	if (!bbg_sids_valid || bbg_policy_seq != seq) {
++		do {
++			seq = avc_policy_seqno();
++			for (i = 0; i < ARRAY_SIZE(bbg_root_sids); i++) {
++				resolved[i] = 0;
++				if (security_secctx_to_secid(bbg_root_contexts[i],
++						strlen(bbg_root_contexts[i]), &resolved[i]))
++					resolved[i] = 0;
++			}
++			end_seq = avc_policy_seqno();
++		} while (seq != end_seq);
++		memcpy(bbg_root_sids, resolved, sizeof(resolved));
++		bbg_policy_seq = seq;
++		bbg_sids_valid = true;
++	}
++	for (i = 0; i < ARRAY_SIZE(bbg_root_sids); i++) {
++		u32 sid = bbg_root_sids[i];
++
++		if (sid && (old->sid == sid || old->osid == sid ||
++			    new->sid == sid || new->osid == sid)) {
++			untrusted = true;
++			break;
++		}
++	}
++	mutex_unlock(&bbg_sid_lock);
++	if (untrusted)
++		next->is_untrusted_process = 1;
++	return 0;
++}
+diff --git a/security/baseband-guard/tracing/tracing.h b/security/baseband-guard/tracing/tracing.h
+new file mode 100644
+index 000000000..83afa12e9
+--- /dev/null
++++ b/security/baseband-guard/tracing/tracing.h
+@@ -0,0 +1,24 @@
++#ifndef _BBG_TRACING_H_
++#define _BBG_TRACING_H_
++struct bbg_cred_security_struct {
++	unsigned is_untrusted_process:1;	/* execve from su */
++};
++
++#ifdef BBG_USE_DEFINE_LSM
++extern struct lsm_blob_sizes bbg_blob_sizes;
++
++static __maybe_unused inline struct bbg_cred_security_struct* bbg_cred(const struct cred *cred) {
++	return cred->security + bbg_blob_sizes.lbs_cred;
++}
++
++#else
++struct bbg_cred_security_struct* bbg_cred(const struct cred *cred);
++#endif
++
++static __maybe_unused inline int current_process_trusted(void) {
++	struct bbg_cred_security_struct *bbg_tsec;
++	bbg_tsec = bbg_cred(current_cred());
++	return !bbg_tsec->is_untrusted_process;
++}
++
++#endif

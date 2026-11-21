@@ -25,12 +25,13 @@
 | 👤 | 社区知名作者——Sultan(kerneltoast)/ Panchajanya1999 等 |
 | ❓ | 来源不明——无签名,社区流传 |
 
-**决策语义**:`做(未开始)` = 机主已拍板、尚未动工;`不做(原因)` = 定案;
-`待定` = 需进一步调查/实测;`✅` = dash 已有。
+**决策语义**:`✅ 已落地(未实机)` = 代码/配置与构建级门禁已完成、运行时
+待未来刷入后验证;`⏳ 等待 ACK tag` = 已按规则排程但上游基线尚未到货,
+不手动 backport;`不做(原因)` = 定案;`待定` = 需进一步调查/实测;`✅` = dash 已有。
 
 **结构**:§决策总表 是唯一权威台账(每行一项);细节机制集中在文末
-**调查纪要 R1–R8**,行内以 `→ R#` 指向。`做(未开始)` 的动手顺序见
-**落地批次**。
+**调查纪要 R1–R8**,行内以 `→ R#` 指向。各「做」项的实施落点见文末
+**落地状态(2026-11-21)**。
 
 ## 决策总表
 
@@ -39,69 +40,69 @@
 | 特性 | 性质 | 说明 | dash 现状 | 决策 |
 |---|---|---|---|---|
 | BBR v1 / CUBIC / WireGuard / IPsec ESP / FQ / FQ-CoDel / SCH_INGRESS | 🔧 | 上游自带 | ✅ | — |
-| BBRv3 | 🏷️+✍️ | ACK 6.6 现存 TCP_CONG_BBR 是 v1;采用 WK android15-6.6 KABI 版 → R1 | ⚠️ | **做(未开始)**——按 R1 三层验证(静态已核→构建 CRC 零漂移→实机) |
-| Westwood+/BIC/HTCP | 🔧 | 上游 Kconfig,CC 状态全存 icsk_ca_priv,不触 ABI,默认仍 cubic | ⚠️ 仅 CUBIC+BBR | **做(未开始)**——仅打开支持;Westwood 主打弱网 |
-| CAKE / PIE / FQ-PIE qdisc | 🔧 | 上游 Kconfig(stock 未开;`NET_SCH_FQ_PIE` 可同批) | ⚠️ | **做(未开始)**——不设默认,按需 `tc qdisc add` |
-| IP Set 全家桶 | 🔧 | 16 种 set 类型,现仅 HASH_IP/HASH_NET → 补齐其余 14 种 | ⚠️ | **做(未开始)**——配 DroidSpaces 防火墙 |
+| BBRv3 | 🏷️+✍️ | ACK 6.6 现存 TCP_CONG_BBR 是 v1;采用 WK android15-6.6 KABI 版 → R1 | ⚠️ | **✅ 已落地(未实机)**——`110-net-bbrv3`(WK android15-6.6 KABI 版);静态已核→构建 CRC 零漂移见 TEST_REPORT §24;实机 ss -i/mihomo 回归待刷后 |
+| Westwood+/BIC/HTCP | 🔧 | 上游 Kconfig,CC 状态全存 icsk_ca_priv,不触 ABI,默认仍 cubic | ⚠️ 仅 CUBIC+BBR | **✅ 已落地(未实机)**——批次1 config,默认仍 cubic |
+| CAKE / PIE / FQ-PIE qdisc | 🔧 | 上游 Kconfig(stock 未开;`NET_SCH_FQ_PIE` 可同批) | ⚠️ | **✅ 已落地(未实机)**——批次1 config,均内建,不设默认 |
+| IP Set 全家桶 | 🔧 | 16 种 set 类型,现仅 HASH_IP/HASH_NET → 补齐其余 14 种 | ⚠️ | **✅ 已落地(未实机)**——批次1 config,补齐其余 14 种(含 bitmap:ipmac/list:set) |
 | TTL / HL target | 🔧 | iptables 改 TTL/Hop-Limit(热点共享检测对抗用) | ⚠️ | **不做**——无此需求,要时再开 |
 | CIFS(SMB) | 🔧 | 上游 Kconfig | ❌ | **不做**——手机无场景,体积/攻击面 |
 | IPv6_NAT_FIX | ✍️ | 实为 config_data 伪装(藏 config.gz 里的 IP6_NF_NAT)→ R5 | ❌ | **不做**——正常启用无需藏;单条伪装无意义 |
 | force_tcp_nodelay | 👤 | 实为 setsockopt 劫持 → R5 | ❌ | **不做**——吞掉合法 TCP 选项;Go/mihomo 已默认 nodelay |
-| TCP 重传生命周期/urgent data 修复 | 🏷️ | 主线修复;urgent data 已进 stable 6.6.157,重传生命周期仍不在 → R7 | ❌ | **做(未开始)** |
-| UDP tunnel segmentation UAF 修复 | 🏷️ | 主线内存安全修复;UDP tunnel/GSO 组已进 6.6.151–161(大概率覆盖) → R7 | ❌ | **做(未开始)** |
-| IPv6 checksum bounds/ext 扩展头/SR 校验修复 | 🏷️ | 主线解析加固;checksum bounds 已进 6.6.158 → R7;IP6_NF_NAT=y 在用 | ❌ | **做(未开始)** |
+| TCP 重传生命周期/urgent data 修复 | 🏷️ | 主线修复;urgent data 已进 stable 6.6.157,重传生命周期仍不在 → R7 | ❌ | **✅ 已落地(未实机)**——重传生命周期 = `tcp: fix use-after-free of retransmit_skb_hint`(fe99bbeee5c5,EVONIX d450c2a2dadf 同源,入 110-net-bbrv3);urgent data 部分仍批次0 |
+| UDP tunnel segmentation UAF 修复 | 🏷️ | 主线内存安全修复;UDP tunnel/GSO 组已进 6.6.151–161(大概率覆盖) → R7 | ❌ | **⏳ 等待 ACK tag**——截至 2026-11-21 最新为 2026-10_r4(6.6.143);按既定规则随 ACK 2026-11+ 基线到货,不手动 backport |
+| IPv6 checksum bounds/ext 扩展头/SR 校验修复 | 🏷️ | 主线解析加固;checksum bounds 已进 6.6.158 → R7;IP6_NF_NAT=y 在用 | ❌ | **⏳ 等待 ACK tag**——同批次0,随 ACK 2026-11+ 到货;当前没有可 bump 的 tag |
 
 ### 性能 / 调度
 
 | 特性 | 性质 | 说明 | dash 现状 | 决策 |
 |---|---|---|---|---|
 | HMBIRD SCX(sched_ext 移植) | 🏭 | OnePlus fengchi;HyperOS 无 hmbird daemon → R6 | ❌ | **不做**——零收益,与 MTK EAS/HyperOS 冲突 |
-| CPU 扫描顺序修正 | 🏷️ | Hao Jia 上游提交,1 行;stable 6.6 已含,ACK 树未含 = 补齐上游 → R2 | ❌ | **做(未开始)** |
-| CACHE_HOT_BUDDY 关闭 | 👤 | Sultan 1 行(features.h);DSU 同簇迁移不掉局部性 → R2 | ❌ | **做(未开始)**——与 MTK EAS 叠加实测 |
-| PREEMPT_SHORT backport | 🏷️ | 上游 v6.12 EEVDF 特性:短 slice eligible 任务可抢占长任务 → R2 | ❌ | **做(未开始)**——同批实测 |
-| mem_opt_prefetch | 🏭 | Motorola 2015:copy_template.S +2 条 prfm(=GKID 0007 同补丁) → R3 | ❌ | **做(未开始)**——收录一份 |
-| arm64 memcmp(0008) | 🏷️ | ARM 官方 optimized-routines 新版(SIMD) → R3 | ❌ | **做(未开始)**——一次性正确性验证 |
-| arm64 clear_page 16B 对齐(0017) | 👤 | Sultan 1 行 `.p2align 4`;INIT_ON_ALLOC=y 故为热路径 → R3 | ❌ | **做(未开始)** |
-| int_sqrt 3x | 👤 | StatixOS 起源,微基准 3x → R3 | ❌ | **做(未开始)**——微收益零风险 |
+| CPU 扫描顺序修正 | 🏷️ | Hao Jia 上游提交,1 行;stable 6.6 已含,ACK 树未含 = 补齐上游 → R2 | ❌ | **✅ 已落地(未实机)**——WK-P 原版(=上游 20e508d375c0),入 100-sched-eevdf |
+| CACHE_HOT_BUDDY 关闭 | 👤 | Sultan 1 行(features.h);DSU 同簇迁移不掉局部性 → R2 | ❌ | **✅ 已落地(未实机)**—— Sultan 原版,SCHED_FEAT(false);与 MTK EAS 叠加实测待刷后 |
+| PREEMPT_SHORT backport | 🏷️ | 上游 v6.12 EEVDF 特性:短 slice eligible 任务可抢占长任务 → R2 | ❌ | **✅ 已落地(未实机)**——上游 85e511df3cec 适配(did/do_preempt_short + vlag 保护取消),保留 android_rvh_update_deadline/android_vh_resched_curr_lazy;feature 默认 true |
+| mem_opt_prefetch | 🏭 | Motorola 2015:copy_template.S +2 条 prfm(=GKID 0007 同补丁) → R3 | ❌ | **✅ 已落地(未实机)**——WK-P 原版,入 120-arm64-perf |
+| arm64 memcmp(0008) | 🏷️ | ARM 官方 optimized-routines 新版(SIMD) → R3 | ❌ | **✅ 已落地(未实机)**——WK-P 原版(7a9fd1603e);**限制**:≥160B SIMD 路径无 kernel_neon_begin 保护(ARM 上游为用户态语义,内核 raw 用法理论上有 FPSIMD 状态风险;hardirq 不可 begin/end);WK 系量产同款,正确性验证随实机回归 |
+| arm64 clear_page 16B 对齐(0017) | 👤 | Sultan 1 行 `.p2align 4`;INIT_ON_ALLOC=y 故为热路径 → R3 | ❌ | **✅ 已落地(未实机)**——适配为 GKI 的 `__pi_clear_page` 符号前 .p2align 4 |
+| int_sqrt 3x | 👤 | StatixOS 起源,微基准 3x → R3 | ❌ | **✅ 已落地(未实机)**——WK-P 原版(lib/math/int_sqrt.c) |
 | file_struct 8B 对齐 / fs cache pressure | ✍️ | → R3 | ❌ | **不做**——收益趋零 + CRC 风险 / 运行时 sysctl 即可 |
 | 300Hz timer | 🔧 | stock 250Hz | ⚠️ | **不做**——收益边际,功耗回归风险大 |
 | Fake config | ✍️ | 伪装 /proc/config* | ❌ | **不做**——已有 SUSFS spoof_cmdline |
-| hide_adb_jdwp_sockets | ❓/✍️ | 对 app-UID 四层隐藏 adbd/jdwp-control → R5;依赖 helper 已自带 | ❌ | **做(未开始)**——实测 adb 调试不受影响 |
+| hide_adb_jdwp_sockets | ❓/✍️ | 对 app-UID 四层隐藏 adbd/jdwp-control → R5;依赖 helper 已自带 | ❌ | **✅ 已落地(未实机)**——readdir/avc 半入 010-bakasu-susfs,af_unix 半入 115-hide-appsockets;fs/susfs.c+SUSFS_FILLDIR_SKIP 经 `patches/susfs-overrides/`(apply-patches.sh 安装后套用);shell(2000)/root 调试不受影响,adb 回归待实机 |
 | 模块强制加载(fail signature) | 👤 | Pzqqt | ✅ 超集 | **不做**——vendor-ko-compat 更全 |
-| LTO Full | 🔧 | `CONFIG_LTO_CLANG_FULL`(arch/Kconfig:770;stock 本身 LTO_NONE) | ✅ ThinLTO | **做(未开始)**——零 ABI;构建时长↑,CI fast 保持 NoLTO |
-| MGLO(=LLVM MLGO) | ❓ | MLGO 需带模型 clang(实测 r614150 不支持) → R4 | ⚠️ | **做(未开始)**——以 AutoFDO 落地(工具链已实证);MLGO 列后续 |
-| schedutil 限流溢出/policy init 修复 | 🏷️ | 主线修复;限流溢出已进 stable 6.6.157,policy init 不在 → R7 | ❌ | **做(未开始)** |
-| uclamp DVFS 通知/EAS carryover 修复 | 🏷️ | 主线修复,不在 stable;MTK EAS 高相关 | ❌ | **做(未开始)**(实机核 EAS) |
-| misfit 迁移/CPU-group 选择修复 | 🏷️ | 主线 EAS 修复;同族已进 6.6.158 → R7 | ❌ | **做(未开始)**(实机核 EAS) |
-| RT push-IPI livelock 修复 | 🏷️ | 主线 RT 均衡修复,不在 stable | ❌ | **做(未开始)** |
+| LTO Full | 🔧 | `CONFIG_LTO_CLANG_FULL`(arch/Kconfig:770;stock 本身 LTO_NONE) | ✅ ThinLTO | **✅ 已落地(配置级,生产构建专用)**——默认生产配置为 LTO_CLANG_FULL;按 2026-11-21 构建策略,日常编译/CRC/KMI 验证统一 FAST=1 NoLTO,仅明确要求产出最终生产级内核时跑 Full LTO;本轮 Full LTO 已修 OpenSSL 4 host-tool 与 arm64 idmap KCFI 阻塞,最终重链接因耗时由机主要求停止,不宣称构建通过 |
+| MGLO(=LLVM MLGO) | ❓ | MLGO 需带模型 clang(实测 r614150 不支持) → R4 | ⚠️ | **✅ 已落地(AutoFDO 支持落地,profile 受限)**——`CONFIG_AUTOFDO_CLANG=y` + 采集流程(docs/kernel/README.md「AutoFDO」);**实测 dash 无 `arm_spe_*` PMU**(arm64 AutoFDO 依赖 SPE),profile 采集需 DT 启用 SPE(单独刷机决策,未做);MLGO 列后续 |
+| schedutil 限流溢出/policy init 修复 | 🏷️ | 主线修复;限流溢出已进 stable 6.6.157,policy init 不在 → R7 | ❌ | **✅ policy init 已落地(未实机)**——`cpufreq: initialize policy rwsem before sysfs publication`(3e5d1bf4bd68)+`zero-initialize policy cpumask`(54d37bcf2f49);限流溢出仍批次0 |
+| uclamp DVFS 通知/EAS carryover 修复 | 🏷️ | 主线修复,不在 stable;MTK EAS 高相关 | ❌ | **✅ uclamp DVFS 通知已落地(未实机)**——EVONIX cf8010f36cdb(`uclamp_update_active` 尾部比较 rq min/max 变化后 `cpufreq_update_util`);**更正**:「EAS carryover」在 EVONIX/主线均无对得上号的 commit,无实装对象(见落地批次注) |
+| misfit 迁移/CPU-group 选择修复 | 🏷️ | 主线 EAS 修复;同族已进 6.6.158 → R7 | ❌ | **✅ 已落地(未实机)**——`58eeb2d79b54`(misfit 失败不入 backoff)+`0fbd428d0788`(dst CPU 无容量收益时不计 misfit);同族 6.6.158 部分仍批次0 |
+| RT push-IPI livelock 修复 | 🏷️ | 主线 RT 均衡修复,不在 stable | ❌ | **✅ 已落地(未实机)**——`sched/rt: Have RT_PUSH_IPI be default off for non PREEMPT_RT`(dd29c017aed6) |
 | POSIX CPU-timer 竞态/PID 泄漏修复 | 🏷️ | 6.12+ 重构系列;CVE-2026-98260 同族,exec cleanup 已进 6.6.158 → R7 | ❌ | **不做**——不手动管理:等 stable 自行下发(公开利用族系 stable 会追),重构主体审计面过大 |
-| timer slack RT 继承修复 | 🏷️ | 主线修复,不在 stable | ❌ | **做(未开始)** |
-| arm64 per-cpu write 修复 | 🏷️ | 主线 arch/arm64 修复,零 ABI,不在 stable | ❌ | **做(未开始)** |
-| OPP/EM 解析修复 | 🏷️ | 主线修复;OPP 竞态已进 6.6.160,EM 不在 → R7 | ❌ | **做(未开始)** |
-| MGLRU suspend 可中断 | 🏷️ | 主线修复,不在 stable;MGLRU 已启用 | ❌ | **做(未开始)** |
-| DAMON 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **做(未开始)**——随 bump 到得;**ACK tag 含 6.6.145 后删除此行** |
-| TLB/writeback/PSI 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **做(未开始)**——随 bump 到得;**ACK tag 含 6.6.145 后删除此行** |
+| timer slack RT 继承修复 | 🏷️ | 主线修复,不在 stable | ❌ | **✅ 已落地(未实机)**——stable e8bbcc00760d + chenguanyou RT 父继承修正(EVONIX 84b614906274 同源,init_task/fork/core) |
+| arm64 per-cpu write 修复 | 🏷️ | 主线 arch/arm64 修复,零 ABI,不在 stable | ❌ | **✅ 已落地(未实机)**——`this_cpu_and` 掩码(44274c657256)+`this_cpu_write` 括号(885bff055a0f) |
+| OPP/EM 解析修复 | 🏷️ | 主线修复;OPP 竞态已进 6.6.160,EM 不在 → R7 | ❌ | **✅ 已落地(未实机)**——`opp: fix memory leak in supply parsing`(f0776d142e53)+`prevent frequency calculation overflow`(dcaa77d10ea1);竞态(932ebfad767b)仍批次0 |
+| MGLRU suspend 可中断 | 🏷️ | 主线修复,不在 stable;MGLRU 已启用 | ❌ | **✅ 已落地(未实机)**——上游 dc37771a43d4(经 ACK b61e79936c0b),memcg fairness guard 前查取消,mm/memcontrol.c+mm/vmscan.c(后者与 030 hooks 交错归 030) |
+| DAMON 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **⏳ 等待 ACK tag**——随 ACK 基线 bump 到货;当前 r4 仍为 6.6.143 |
+| TLB/writeback/PSI 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **⏳ 等待 ACK tag**——随 ACK 基线 bump 到货;当前 r4 仍为 6.6.143 |
 
 ### 文件系统 / I/O
 
 | 特性 | 性质 | 说明 | dash 现状 | 决策 |
 |---|---|---|---|---|
-| F2FS GC 50ms / uncongestion 6ms / min_fsync_blocks 20 | ✍️/👤 | 三件套 → R5;OPPO/Huawei 量产同款 | ❌ | **做(未开始)**——各一行零 ABI;与 060-f2fs-xiaomi 回归 |
+| F2FS GC 50ms / uncongestion 6ms / min_fsync_blocks 20 | ✍️/👤 | 三件套 → R5;OPPO/Huawei 量产同款 | ❌ | **✅ 已落地(未实机)**——gc.h/segment.h 入 130-f2fs-perf,f2fs.h 的 6ms 与 file.c move-range 修复并入 060 文件块;060 回归=构建级通过,运行时待实机 |
 | ext4 commit age 5→30s | ✍️/👤 | Arjan distro tweak → R5 | ❌ | **不做**——rw ext4 少;可用挂载参数 `commit=` 调 |
 | SK_MEM_PACKETS 256→1024 | ✍️ | 即 net.core.wmem/rmem_max 默认 ×4 → R5 | ❌ | **不做**——运行时 sysctl 可调(同 cache pressure 立场) |
-| ADIOS I/O 调度器 | 🏷️ | 独立上游(Masahito Suzuki 2025);EVONIX 用于 UFS 4.0 MCQ 默认 | ❌ | **做(未开始)**——实测对照 mq-deadline 后定默认 |
+| ADIOS I/O 调度器 | 🏷️ | 独立上游(Masahito Suzuki 2025);EVONIX 用于 UFS 4.0 MCQ 默认 | ❌ | **✅ 已落地(未实机)**——EVONIX 当前 6.6 API 版入 `160-block-adios`,`CONFIG_MQ_IOSCHED_ADIOS=y`;保持非默认,刷入后再与 mq-deadline A/B |
 | zRAM LZ4 回写 / mq-deadline / schedutil | 🔧 | stock | ✅ 超集 | —(lz4kd+ExtM 实跑) |
-| ext4 orphan 泄漏/DIO fallback 修复 | 🏷️ | 主线修复;orphan 已进 6.6.157 → R7 | ❌ | **做(未开始)** |
-| F2FS move-range 校验/writeback 报错修复 | 🏷️ | 主线修复,不在 stable;HyperOS 文件管理走 move-range | ❌ | **做(未开始)** |
-| swap readahead ceiling 修复 | 🏷️ | 主线修复,不在 stable;swap=zRAM | ❌ | **做(未开始)** |
+| ext4 orphan 泄漏/DIO fallback 修复 | 🏷️ | 主线修复;orphan 已进 6.6.157 → R7 | ❌ | **⛔ orphan 部分批次0;DIO fallback 无已合并主线修复(2026-09 RFC 仅 atomic write,6.6 无该路径)且 EVONIX 亦未实装——无对象,不再追** |
+| F2FS move-range 校验/writeback 报错修复 | 🏷️ | 主线修复,不在 stable;HyperOS 文件管理走 move-range | ❌ | **✅ 已落地(未实机)**——`f2fs: reject overlapping move range after len expansion`(28c1ef094e7c,fs/f2fs/file.c 归 060) |
+| swap readahead ceiling 修复 | 🏷️ | 主线修复,不在 stable;swap=zRAM | ❌ | **✅ 已落地(未实机)**——EVONIX ca0a0229886b(mm/swap_state.c;作者自述为本地 policy-bound 修正,非上游 cherry-pick) |
 
 ### 电池 / 电源
 
 | 特性 | 性质 | 说明 | dash 现状 | 决策 |
 |---|---|---|---|---|
 | Freezer timeout 20s→1s | 👤 | Sultan;还锁死 sysfs 写入口 → R5 | ❌ | **不做**——与厂商冻结策略交叉,收益仅死锁场景 |
-| alarmtimer 唤醒窗口收敛 | ✍️ | 固定 2s → 最近到期+1ms → R5 | ❌ | **做(未开始)**——一两行省电零风险 |
-| s2idle 单次唤醒 | 👤 | Sultan:pm_abort_suspend 到 1 才调 s2idle_wake → R5 | ❌ | **做(未开始)** |
+| alarmtimer 唤醒窗口收敛 | ✍️ | 固定 2s → 最近到期+1ms → R5 | ❌ | **✅ 已落地(未实机)**——WK-P minimise_wakeup_time 原版 |
+| s2idle 单次唤醒 | 👤 | Sultan:pm_abort_suspend 到 1 才调 s2idle_wake → R5 | ❌ | **✅ 已落地(未实机)**——WK-P avoid_extra_s2idle_wake_attempts 原版(drivers/base/power/wakeup.c) |
 | wakelock 全局 500ms cap | 👤 | 无超时 wake_lock 强制过期 → R5 | ❌ | **不做**——HyperOS critical 路径依赖无超时 wake_lock |
 | SDP 900mA 充电 | ✍️ | 纯 oplus/高通方案(DT 属性) → R5 | ❌ | **不做**——MTK 充电栈不可移植 |
 
@@ -112,9 +113,9 @@
 | SUSFS 全套 | 🏷️ | simonpunk;pin f98f082 实为 **v2.4.0**(STATUS 曾误标 v2.3.0 已订正) | ✅ v2.4.0 九特性 | — |
 | SUSFS priority-uid filter | 🏷️ | f98f082 门控,apply-patches.sh 注入 Kconfig | ✅ 2026-11-21 启用 | — |
 | maps 伪装(maphide) | 👤 | backslashxx,WK-P 归档 → R8 | ✅ SUSFS sus_map 已启用(`SUS_MAP=y`) | **不做**——sus_map 覆盖同域 |
-| Baseband Guard(BBG LSM) | 🏷️ | vc-teahouse 上游(EVONIX 按 commit `a54e0dc6cf0a` 集成) | ❌ | **做(未开始)**——MTK 适配需评估(efisp 是高通向) |
-| Unicode bypass fix(零宽字符) | ❓/✍️ | casefold 空分解边界修复;上游从未采纳 → R5 | ❌ | **做(未开始)**——采纳前 casefold 回归 |
-| AVC log spoofing | ✍️ | KSU 触发路径 avc 日志伪装 | ❌ | **做(未开始)**——需移植到 BakaSU 路径 |
+| Baseband Guard(BBG LSM) | 🏷️ | vc-teahouse 上游(EVONIX 按 commit `a54e0dc6cf0a` 集成) | ❌ | **✅ 已落地(未实机)**——LSM 本体通用(allowlist=boot/dtbo/userdata/super/vbmeta 等 Android 分区,无高通依赖;efisp 为 WK 另发的高通向补丁,未采用);`CONFIG_BBG=y`+CONFIG_LSM 末尾追加 baseband_guard(与 EVONIX 相同);BBG_BLOCK_BOOT/RECOVERY 保持 n,不影响刷机 |
+| Unicode bypass fix(零宽字符) | ❓/✍️ | casefold 空分解边界修复;上游从未采纳 → R5 | ❌ | **✅ 已落地(未实机)**——WK-P unicode_bypass_fix_6.1+(fs/unicode/utf8-norm.c);casefold 回归待实机 |
+| AVC log spoofing | ✍️ | KSU 触发路径 avc 日志伪装 | ❌ | **✅ 已有(SUSFS v2.4.0 自带,无需移植)**——avc.c audit 回调已按 `susfs_ksu_sid→priv_app_sid` 伪装,sid 由 KSU susfs 集成注入;开关=管理器 susfs 命令 CMD_SUSFS_ENABLE_AVC_LOG_SPOOFING;gkid 版为其 KSU fork 专属实现,与 SUSFS 上游同域,不重复移植 |
 | throne_tracker kthread / supercall pull-list | ✍️ | gkid KSU fork 专属 → R5 | ❌ | **不做**——跟 BakaSU 上游 |
 | Multiple Managers | ✍️/🔧 | BakaSU 已带 | ✅ | — |
 | ptrace leak fix(<5.16) / vendor modules blacklist / uname 自定义伪装串 | ✍️/🏷️ | — | ❌ | **不做**(6.6 不适用 / dash 无对应模块 / 我们伪装 stock 串更优) |
@@ -126,31 +127,57 @@
 | DroidSpaces | 🏷️ | 官方配方(与我们 090 同源) | ✅ CRC 零漂移实证 | — |
 | NoMount / Mountify | 🏷️ | 上游 metamodule | ✅ 内建 v2.3.1 | —(已选型 NoMount) |
 | ZeroMount(NoMount 替代) | 🏷️ | 自研 VFS 驱动+Rust,3 策略回退+WebUI+bootloop guard → R8 | ❌ | **不做**——只用 NoMount;bootloop guard/策略回退仅作思路参考 |
-| NTSync | 🏷️+🔧 | 主线驱动(Wine)backport,/dev/ntsync | ❌ | **做(未开始)**——EVONIX 已实证;纯新增驱动零 ABI |
+| NTSync | 🏷️+🔧 | 主线驱动(Wine)backport,/dev/ntsync | ❌ | **✅ 已落地(未实机)**——WK-P ntsync_base+compat_android15-6.6(主线 v6.14 驱动),`CONFIG_NTSYNC=y` 内建 |
 | NetHunter + WirelessKSU | 🔧+✍️ | 渗透驱动 + monitor-mode patch | ❌ | **不做**——维护面大,需要时单独评估 |
 | ReSuSFS / apply_kernel_compat.py / usbadb_gate | ✍️ | 用户态/反纪律/自写驱动 | ❌ | **不做**(管理器生态 / 与"补丁可审"相反 / 无场景) |
 | 多 Root 变体 | 🏷️ | 各上游 fork | ✅ 已选 BakaSU | — |
 
-## 做(未开始)——落地批次(38 项)
+## 落地状态(2026-11-21 构建落地,实机验证待刷)
 
-- **批次 0:随基线 bump 自动到货**(等 ACK 2026-11+ tag;到货后删/改行,勿手动 backport):
-  DAMON 组、TLB/writeback/PSI 组(6.6.145 整行);
-  schedutil 限流溢出(157)、TCP urgent data(157)、IPv6 checksum bounds(158)、
-  misfit 同族(158)、ext4 orphan(157)、OPP 竞态(160)、UDP tunnel/GSO 组(151–161)、
-  posix-timer exec cleanup(158)——以上为混合行的 stable 部分,到货后更新行说明。
-- **批次 1:纯 config(features.fragment 即可)**:Westwood+/BIC/HTCP、
-  CAKE/PIE/FQ-PIE、IP Set 全家桶、RCU_LAZY 启用(`rcutree.enable_rcu_lazy=0` 回退)、
+> 全部 38 项「做」按批次落地完成(仅批次0 的 stable 到货项按台账规则
+> 继续**等待 ACK 2026-11+ tag**,截至 2026-11-21 该 tag 尚未发布,不手动
+> backport)。下表为实施落点;验证分层按 TEST_REPORT §24:补丁级静态核查
+> 全部完成、NoLTO 开发构建通过、9102 个历史公共导出 CRC 零漂移；Full LTO
+> 仅在明确要求生产级产物时运行，本轮最终重链接按机主新策略主动停止，**未刷机——
+> 所有「未实机」标注即指运行时行为未经真机回归**。
+
+- **批次 0:随基线 bump 自动到货(继续等待,勿手动 backport)**:
+  DAMON 组、TLB/writeback/PSI 组(6.6.145 整行);schedutil 限流溢出(157)、
+  TCP urgent data(157)、IPv6 checksum bounds(158)、misfit 同族(158)、
+  ext4 orphan(157)、OPP 竞态(160)、UDP tunnel/GSO 组(151–161)、
+  posix-timer exec cleanup(158)。`git ls-remote` 确认 AOSP android15-6.6
+  最新仍为 2026-10_r4(6.6.143)。
+- **批次 1:纯 config(全部落地,configs/features.fragment 为唯一权威输入,
+  scripts/configure.sh 负责 fragment 合并 + required 断言)**:
+  Westwood+/BIC/HTCP、CAKE/PIE/FQ-PIE、IP Set 全家桶(14 种补齐)、
+  RCU_LAZY(`rcutree.enable_rcu_lazy=0` 回退;DEFAULT_OFF 显式关闭)、
   WQ_POWER_EFFICIENT_DEFAULT(`workqueue.power_efficient=0` 回退)、
-  KFENCE_DEFERRABLE(`kfence.deferrable=1` 等价)、LTO Full(CI fast 保持 NoLTO)、
-  ARM64_TUNE(**先读实机 `/proc/cpuinfo` CPU part/DTB 定核心型号再选 `-mtune` 自加 Kconfig**,不照搬 rodin A725)。
-- **批次 2:一行/小型补丁(零 ABI)**:CPU 扫描顺序、CACHE_HOT_BUDDY、
-  mem_opt_prefetch、memcmp、clear_page 16B、int_sqrt、alarmtimer 唤醒窗口、s2idle 单次唤醒。
-- **批次 3:中型 backport/移植(逐条审 + 实测)**:BBRv3(三层验证 R1)、
-  PREEMPT_SHORT、ADIOS、uclamp/EAS 组、misfit CPU-group、RT push-IPI、
-  timer slack、arm64 per-cpu write、OPP/EM、TCP 重传生命周期、F2FS 三件套(与 060 回归)、
-  F2FS move-range、swap readahead、MGLRU suspend、Unicode bypass(casefold 回归)、
-  hide_adb_jdwp(adb 回归)、NTSync、BBG(MTK 适配评估)、AVC log spoofing(移植 BakaSU)、
-  AutoFDO(profile 采集流程,见 R4)。
+  KFENCE_DEFERRABLE(`kfence.deferrable=1` 等价)、LTO Full(生产配置
+  LTO_CLANG_FULL;日常验证按策略统一 NoLTO)、ARM64_TUNE(实机 MIDR:
+  cpu0-3 = A720 @2.4GHz,cpu4-6 = A725 @3.3GHz,cpu7 = X925 @3.73GHz →
+  默认以最大同构簇/能效簇的 `-mtune=cortex-a720` 为保守模型;
+  `DASH_ARM64_TUNE` choice 可切 a725/x925/无)。
+- **批次 2:一行/小型补丁(全部落地,零 ABI)**:CPU 扫描顺序
+  (100-sched-eevdf)、CACHE_HOT_BUDDY(100-sched-eevdf)、mem_opt_prefetch/
+  memcmp/clear_page 16B/int_sqrt(120-arm64-perf)、alarmtimer 唤醒窗口/
+  s2idle 单次唤醒(140-power-mm)。
+- **批次 3:中型 backport/移植(全部落地,除注明的两项)**:
+  BBRv3(WK android15-6.6 KABI 版 → 110-net-bbrv3)、PREEMPT_SHORT
+  (85e511df3cec 适配)、ADIOS(EVONIX HEAD 版 → 160-block-adios,
+  非默认)、uclamp DVFS 通知(EVONIX cf8010f36cdb)、misfit ×2
+  (58eeb2d79b54+0fbd428d0788)、RT push-IPI(dd29c017aed6)、timer slack
+  (e8bbcc00760d+lore 继承修正,rt_or_dl_task_policy 以 6.6 policy 检查
+  等价替换)、arm64 per-cpu write(44274c657256+885bff055a0f)、
+  OPP/EM 解析(f0776d142e53+dcaa77d10ea1)、TCP retransmit_skb_hint UAF
+  (fe99bbeee5c5)、F2FS 三件套(130-f2fs-perf + 060 文件块)、
+  F2FS move-range(28c1ef094e7c)、swap readahead(EVONIX ca0a02)、
+  MGLRU suspend(dc37771a43d4)、Unicode bypass(WK-P)、hide_adb_jdwp
+  (010+115+susfs-overrides)、NTSync(WK-P 主线 backport)、BBG(LSM 本体
+  通用,无 MTK 适配负担)、AutoFDO(CONFIG_AUTOFDO_CLANG=y + 采集流程,
+  README「AutoFDO」节)。
+  **未实装(无对象,行内已注)**:「EAS carryover」无对得上号的主线/EVONIX
+  commit;ext4 DIO fallback 无已合并主线修复(2026-09 RFC 仅 atomic write,
+  6.6 无该路径)。
 
 ## 不做——原因速查
 
@@ -181,8 +208,9 @@
 
 ## 待定
 
-无——决策总表 59 行全部定案(38 行做 + 21 行不做;合并行按行计,
-如"ptrace/blacklist/uname"合为一行),另有 12 项 `✅` 已有。
+无——决策总表 59 行全部定案;2026-11-21 起 38 行「做」已落地(其中批次0
+各行为等待 ACK tag 的既定状态),21 行「不做」,另有 12 项 `✅` 已有
+(SUSFS AVC 伪装计入 ✅)。
 
 ## 调查纪要
 

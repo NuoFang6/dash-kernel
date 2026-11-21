@@ -13,7 +13,7 @@
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
 | 当前内核 | `6.6.143-4k #8` |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；ThinLTO 已开启，AutoFDO 未启用 |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机 #8 为 ThinLTO；待产出生产配置为 LTO Full + AutoFDO 构建支持（无 profile），日常验证统一 NoLTO |
 | 运行槽位 | `boot_b` |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
@@ -25,11 +25,20 @@
 | 网络代理 | AsteriskMETA（mihomo core）：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT、BPF2SOCKS 能力齐备；MPTCP 关闭 |
 | TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
 
-完整产物哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
-`dash/out/artifacts/BUILD_INFO`；这两处与真机实测冲突时以它们为准。
+完整交付哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
+`dash/out/artifacts/BUILD_INFO`；当前 #8 的 Image/Image.lz4/boot/config/brutal.ko
+均按清单复核，历史 System.map 本地副本已缺失（清单保留目标哈希）。本轮验证
+产物隔离在 `dash/out/features-final/`，未作为当前实机产物发布。
 
 ## 2. 最近验证
 
+- **2026-11-21（构建级，未刷机）**：FEATURES_SURVEY 落地批次完成；固定 r4
+  干净树重放 28 补丁/140 文件 + SUSFS override，零 warning/error；NoLTO
+  全量构建通过。对实机 #8 历史 `vmlinux` 比较 9102 个公共导出符号，CRC
+  `0 mismatch / 0 removed`（新增 10）；`task_struct` 仍 4800B，SYSV 字段保持
+  KABI 槽 6/7/8 偏移；638 模块 `hard_missing=0 weak_missing=0`，KCFI 13/13。
+  Full LTO 仅在明确要求生产级产物时运行，本轮最终重链接按新策略主动停止；
+  未刷入任何手机分区。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §24。
 - **2026-11-21（实机 + 构建）**：6.6.143 #8 实机运行 23h51m 无
   panic/OOM/stall/fs 错误，crash buffer 为空；AOSP 基线 bump r2→r4、
   BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；SUSFS f98f082 优先级
@@ -68,7 +77,7 @@
 | 数据 | 来源 |
 |---|---|
 | 内核版本、AOSP commit、配置哈希 | `dash/out/artifacts/BUILD_INFO` |
-| Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS` |
+| Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS`（历史 System.map 副本缺失，目标哈希仍在清单） |
 | 模块版本 | AsteriskMETA 上游 release（自带 mihomo core；本仓库不再维护模块） |
 | 实机证据 | `docs/kernel/TEST_REPORT.md` |
 | 缺口状态 | `docs/kernel/OPEN_ISSUES.md` |

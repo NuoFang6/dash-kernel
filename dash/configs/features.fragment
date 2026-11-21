@@ -1,3 +1,7 @@
+# dash kernel 功能开关 fragment —— **唯一权威的功能配置输入**(configure.sh
+# 会把它合并进 out/<dev>/.config 后跑 olddefconfig;"# CONFIG_X is not set"
+# 与 "CONFIG_X=..." 都是生效指令,不是注释)。required 断言在
+# scripts/configure.sh,防止开关被静默丢弃。
 CONFIG_KSU=y
 CONFIG_KSU_MULTI_MANAGER_SUPPORT=y
 # CONFIG_KSU_TRACEPOINT_HOOK is not set
@@ -21,8 +25,8 @@ CONFIG_BLOCK_HYBRID_UFS=y
 CONFIG_GKI_DYNAMIC_TASK_STRUCT_SIZE=y
 CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024
 CONFIG_CRYPTO_LZ4KD=y
-CONFIG_LTO_CLANG_THIN=y
-# CONFIG_LTO_NONE is not set
+# LTO 是构建模式而非功能开关：configure.sh 按 FAST=1 → NoLTO、
+# 最终生产构建 → Full LTO 选择，不在本 fragment 固定。
 
 # mihomo Android runtime support (2026-10-30)
 # TProxy/redir scripts use "-m addrtype"; stock GKI disables this match.
@@ -61,3 +65,61 @@ CONFIG_NETFILTER_XT_MATCH_RECENT=y
 # CONFIG_CFS_BANDWIDTH / CONFIG_CGROUP_PIDS stay off on purpose: they resize
 # scheduler/cgroup structs and would break every prebuilt vendor module
 # (--cpus / --pids-limit are skipped with a warning by droidspaces).
+
+# === WildKernels/GKID/EVONIX 特性调查落地(2026-11-21,FEATURES_SURVEY.md)===
+
+# 网络:BBRv3(110-net-bbrv3;DEFAULT_TCP_CONG 仍 cubic)
+CONFIG_TCP_CONG_BBR3=y
+# 网络:额外拥塞控制算法(默认仍 cubic;sched_setdefault 运行时切换)
+CONFIG_TCP_CONG_WESTWOOD=y
+CONFIG_TCP_CONG_BIC=y
+CONFIG_TCP_CONG_HTCP=y
+# 网络:活动队列管理 qdisc(不设默认,按需 tc qdisc add)
+CONFIG_NET_SCH_CAKE=y
+CONFIG_NET_SCH_PIE=y
+CONFIG_NET_SCH_FQ_PIE=y
+# 网络:IP Set 全家桶(DroidSpaces 防火墙;HASH_IP/HASH_NET 此前已有)
+CONFIG_IP_SET_BITMAP_IP=y
+CONFIG_IP_SET_BITMAP_IPMAC=y
+CONFIG_IP_SET_BITMAP_PORT=y
+CONFIG_IP_SET_HASH_IPMAC=y
+CONFIG_IP_SET_HASH_IPMARK=y
+CONFIG_IP_SET_HASH_IPPORT=y
+CONFIG_IP_SET_HASH_IPPORTIP=y
+CONFIG_IP_SET_HASH_IPPORTNET=y
+CONFIG_IP_SET_HASH_MAC=y
+CONFIG_IP_SET_HASH_NETIFACE=y
+CONFIG_IP_SET_HASH_NETNET=y
+CONFIG_IP_SET_HASH_NETPORT=y
+CONFIG_IP_SET_HASH_NETPORTNET=y
+CONFIG_IP_SET_LIST_SET=y
+# 电源/内存:RCU lazy 回调批量(RCU_NOCB_CPU=y 已满足依赖;异常时
+# rcutree.enable_rcu_lazy=0 回退)
+CONFIG_RCU_LAZY=y
+# 电源:power-efficient workqueue(workqueue.power_efficient=0 可回退)
+CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y
+# 内存:KFENCE 延迟采样定时器(kfence.deferrable=1 等价;KUnit 自测在该
+# 模式必失败,本仓未开 KUNIT_TEST)
+CONFIG_KFENCE_DEFERRABLE=y
+# NT 同步原语模拟(/dev/ntsync,Wine 系;主线 v6.14 驱动的 6.6 backport)
+CONFIG_NTSYNC=y
+# ADIOS I/O 调度器(EVONIX 同款 6.6 适配;非默认,对照 mq-deadline 后再定)
+CONFIG_MQ_IOSCHED_ADIOS=y
+# CONFIG_MQ_IOSCHED_DEFAULT_ADIOS is not set
+# Baseband Guard LSM(通用 Android 分区防格式化;boot/recovery 不保护,
+# 保持可刷;LSM 链末尾追加,顺序与 EVONIX 一致)
+CONFIG_BBG=y
+# CONFIG_BBG_BLOCK_BOOT is not set
+# CONFIG_BBG_BLOCK_RECOVERY is not set
+CONFIG_LSM="landlock,lockdown,yama,loadpin,safesetid,selinux,smack,tomoyo,apparmor,bpf,baseband_guard"
+# LLVM AutoFDO 构建支持(无 profile 时仅增加 fs-discriminator 元数据;
+# 采集流程见 docs/kernel/README.md "AutoFDO")
+CONFIG_AUTOFDO_CLANG=y
+# dash -mtune 调度模型(实机 MIDR:4x A720 + 3x A725 + 1x X925;
+# 默认选最大同构簇/能效簇 A720 的保守模型,choice 也可选 A725/X925/无)
+CONFIG_DASH_ARM64_TUNE_A720=y
+# 版本串不含自动 -dirty/+gHASH 后缀(KBUILD_BUILD_*,见 build.sh)
+# CONFIG_LOCALVERSION_AUTO is not set
+
+# RCU lazy 默认启用(异常时用 rcutree.enable_rcu_lazy=0 回退)
+# CONFIG_RCU_LAZY_DEFAULT_OFF is not set

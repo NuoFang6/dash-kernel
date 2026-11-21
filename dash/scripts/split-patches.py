@@ -148,8 +148,9 @@ SERIES = [
             "fs/erofs/sysfs.c",
         ]),
     ]),
-    ("080-dash-misc", "dash 维护性独立修复（PID 上限钳制，规避 0x8000 pid 掩码 bug）", [
+    ("080-dash-misc", "dash 维护性独立修复（PID 上限钳制；OpenSSL 4 extract-cert 兼容）", [
         ("0001-pid-max-limit-clamp.patch", [
+            "certs/extract-cert.c",
             "include/linux/threads.h",
             "kernel/pid.c",
         ]),
@@ -157,6 +158,112 @@ SERIES = [
     ("090-droidspaces", "DroidSpaces 容器支持：SYSVIPC 字段移入 ANDROID_KABI 填充槽（task_struct 偏移不变）", [
         ("0001-sysvipc-kabi-padding.patch", [
             "include/linux/sched.h",
+        ]),
+    ]),
+    ("100-sched-eevdf", "调度落地（2026-11-21 FEATURES_SURVEY）：CPU 扫描顺序/CACHE_HOT_BUDDY/PREEMPT_SHORT/misfit×2/RT_PUSH_IPI/uclamp DVFS 通知/timer slack RT 继承", [
+        ("0001-sched-fair-features.patch", [
+            "kernel/sched/fair.c",
+            "kernel/sched/features.h",
+        ]),
+        ("0002-sched-core-timer-slack.patch", [
+            "init/init_task.c",
+            "kernel/fork.c",
+            "kernel/sched/core.c",
+        ]),
+    ]),
+    ("110-net-bbrv3", "BBRv3（WK android15-6.6 KABI 版，含 tcp_output.c 内 TCP retransmit_skb_hint UAF 修复 fe99bbeee5c5）", [
+        ("0001-tcp-bbrv3-kabi.patch", [
+            "include/linux/tcp.h",
+            "include/net/tcp.h",
+            "include/uapi/linux/inet_diag.h",
+            "include/uapi/linux/rtnetlink.h",
+            "net/ipv4/Kconfig",
+            "net/ipv4/Makefile",
+            "net/ipv4/tcp.c",
+            "net/ipv4/tcp_bbr3.c",
+            "net/ipv4/tcp_cong.c",
+            "net/ipv4/tcp_input.c",
+            "net/ipv4/tcp_minisocks.c",
+            "net/ipv4/tcp_output.c",
+            "net/ipv4/tcp_rate.c",
+        ]),
+    ]),
+    ("115-hide-appsockets", "hide_adb_jdwp：app-UID 隐藏 adbd socket（readdir/fdinfo 半在 010-bakasu-susfs 的 fs 文件里；此处为 af_unix bind/connect/proc-net-unix）", [
+        ("0001-unix-hide-adbd-sockets.patch", [
+            "net/unix/af_unix.c",
+        ]),
+    ]),
+    ("120-arm64-perf", "arm64/库性能：copy_template prfm、ARM optimized-routines memcmp、clear_page 16B 对齐、int_sqrt、this_cpu_write/and 修复、DASH_ARM64_TUNE", [
+        ("0001-arm64-lib-perf.patch", [
+            "arch/arm64/lib/clear_page.S",
+            "arch/arm64/lib/copy_template.S",
+            "arch/arm64/lib/memcmp.S",
+            "lib/math/int_sqrt.c",
+        ]),
+        ("0002-arm64-percpu-fixes.patch", [
+            "arch/arm64/include/asm/mmu_context.h",
+            "arch/arm64/include/asm/percpu.h",
+        ]),
+        ("0003-arm64-dash-tune.patch", [
+            "arch/arm64/Kconfig",
+            "arch/arm64/Makefile",
+        ]),
+    ]),
+    ("130-f2fs-perf", "F2FS 三件套：GC urgent sleep 50ms / congestion wait 6ms / min_fsync_blocks 20（f2fs.h 的 6ms 落在 060-f2fs-xiaomi；file.c move-range 修复同样在 060）", [
+        ("0001-f2fs-gc-segment-tuning.patch", [
+            "fs/f2fs/gc.h",
+            "fs/f2fs/segment.h",
+        ]),
+    ]),
+    ("131-unicode-bypass", "casefold 零宽字符空分解边界修复（社区 unicode bypass fix，上游未采纳）", [
+        ("0001-utf8-empty-decomposition.patch", [
+            "fs/unicode/utf8-norm.c",
+        ]),
+    ]),
+    ("140-power-mm", "电源/内存：alarmtimer 唤醒窗口、s2idle 单次唤醒、swap readahead ceiling、MGLRU suspend 可中断（mm/vmscan.c 半在 030）、cpufreq policy init、OPP supply-parsing 泄漏与频率溢出", [
+        ("0001-power-mm-fixes.patch", [
+            "drivers/base/power/wakeup.c",
+            "kernel/time/alarmtimer.c",
+        ]),
+        ("0002-mm-swap-readahead.patch", [
+            "mm/swap_state.c",
+        ]),
+        ("0003-mglru-suspend-memcontrol.patch", [
+            "mm/memcontrol.c",
+        ]),
+        ("0004-cpufreq-opp-init-fixes.patch", [
+            "drivers/cpufreq/cpufreq.c",
+            "drivers/opp/of.c",
+        ]),
+    ]),
+    ("150-drivers-ntsync", "NTSync 主线驱动（Wine /dev/ntsync）6.6 backport", [
+        ("0001-ntsync-driver.patch", [
+            "drivers/misc/Kconfig",
+            "drivers/misc/Makefile",
+            "drivers/misc/ntsync.c",
+            "include/uapi/linux/ntsync.h",
+        ]),
+    ]),
+    ("160-block-adios", "ADIOS blk-mq I/O 调度器（EVONIX 6.6 适配；非默认，MQ_IOSCHED_DEFAULT_ADIOS 保持 n）", [
+        ("0001-adios-scheduler.patch", [
+            "block/adios.c",
+            "block/Kconfig.iosched",
+            "block/Makefile",
+        ]),
+    ]),
+    ("170-security-bbg", "Baseband Guard LSM（vc-teahouse，EVONIX MTK 同款集成；boot/recovery 不保护）", [
+        ("0001-baseband-guard-lsm.patch", [
+            "security/Kconfig",
+            "security/Makefile",
+            "security/baseband-guard/Kconfig",
+            "security/baseband-guard/Makefile",
+            "security/baseband-guard/baseband_guard.c",
+            "security/baseband-guard/baseband_guard.h",
+            "security/baseband-guard/blkdev_helper.c",
+            "security/baseband-guard/blkdev_helper.h",
+            "security/baseband-guard/kernel_compat.h",
+            "security/baseband-guard/tracing/tracing.c",
+            "security/baseband-guard/tracing/tracing.h",
         ]),
     ]),
 ]
@@ -300,7 +407,8 @@ def cmd_check(args):
                 fail(f"{rel} touches {sorted(set(got))}, mapping says {sorted(set(files))}")
             actual[rel] = set(got)
     stale = [p for p in patches_dir.glob("*/*.patch")
-             if f"{p.parent.name}/{p.name}" not in mapping]
+             if p.parent.name != "susfs-overrides"
+             and f"{p.parent.name}/{p.name}" not in mapping]
     if stale:
         fail(f"patch files not covered by mapping: {[str(p) for p in stale]}")
 

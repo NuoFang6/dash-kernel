@@ -12,7 +12,7 @@ GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编
 ```text
 configs/stock.config          设备 stock 配置，构建起点
 configs/abi_symbollist.raw    stock 导出白名单，保持 TRIM_UNUSED_KSYMS
-configs/features.fragment     本次新增配置摘要
+configs/features.fragment     功能开关唯一权威输入(configure.sh 合并进 .config)
 patches/                      按特性分目录的补丁；series 是唯一应用顺序
 scripts/                      同步、打补丁、配置、构建、boot 打包和静态检查
 src/aosp/common/              clean AOSP 浅克隆，可随时重置
@@ -29,11 +29,11 @@ out/                          构建目录和 artifacts
 cd dash
 make deps       # Arch/CachyOS 依赖检查
 make toolchain  # 获取固定 clang r614150
-make source     # 浅克隆/更新 AOSP 到 2026-10_r2（6.6.143）
+make source     # 浅克隆/更新 AOSP 到 2026-10_r4（6.6.143）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
-make build      # Image / Image.lz4 / vmlinux / System.map
-make config FAST=1 build  # 速度优先测试构建：关 ThinLTO；产物未经 finalize，不可刷机
+make build      # 最终生产构建：LTO Full（仅明确要产出生产级内核时运行）
+make config FAST=1 build  # 默认开发/验证：NoLTO；产物未经 finalize，不可刷机
 make brutal     # 外部 tcp-brutal v2.0.1 模块（需要先 build）
 make boot       # 从 stock boot_b 继承生成 boot.img
 bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
@@ -42,15 +42,66 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 
 > **6.6.143 补丁序列（2026-11-21 起按特性拆分）**：`patches/` 下是按功能
 > 特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat / vendor-hooks-os4
-> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc），`series` 是唯一
-> 应用顺序；文件级拆分（每文件只属于一个补丁），归属表在
+> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc / sched-eevdf / bbrv3 /
+> arm64-perf / power-mm / ntsync / adios / bbg），`series` 是唯一应用顺序；
+> 文件级拆分（每文件只属于一个补丁），归属表在
 > `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
-> squash 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 11 个
-> 补丁 apply 后与构建工作树逐字节一致，无 warning。
+> squash 已从仓库删除（git 历史保留）。已在固定 r4 (`e6c23f621`) 干净树
+> 验证 28 个补丁/140 个文件与 SUSFS override 全量重放，零 warning/error；
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
-产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
+产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。非默认
+`DEVICE=<name>` 验证构建只写 `out/<name>/`，不会污染共享 artifacts；确需将
+变体晋升为交付产物时显式设 `PUBLISH_ARTIFACTS=1`。
+
+> **构建策略（2026-11-21 起）**：日常编译、补丁重放、CRC/KMI 与静态门禁
+> 一律使用 `FAST=1`（NoLTO）；只有机主明确要求“产出最终生产级内核”时才运行
+> 默认的 LTO Full 构建。Full LTO 在 15 GiB 主机上单次链接耗时很长，不作为
+> 常规验证门禁；NoLTO 不改变源码级 genksyms CRC。
+
+## AutoFDO profile 采集流程
+
+`CONFIG_AUTOFDO_CLANG=y` 已内建(arch/Kconfig;无 profile 时仅多出
+fs-discriminator 元数据,行为不变)。要产出以 profile 优化的内核:
+
+> **dash 实机限制(2026-11-21 实测)**:设备 PMU 仅
+> `arm_dsu_0`/`armv8_pmuv3`/`armv9_cortex_a720`/`armv9_cortex_x4`,**无
+> `arm_spe_*`**——SPE 采集在当前 DT 下不可行(AutoFDO 在 arm64 依赖 SPE,
+> 无 LBR)。当前状态=构建支持已落地(`CONFIG_AUTOFDO_CLANG=y`),profile
+> 优化需先在 DT(vendor dtbo/dts)启用 SPE,属于单独的刷机决策,未做。
+
+1. **采集**(当前刷机内核或未来 AutoFDO 内核上均可,需 root):
+
+   ```bash
+   # arm64 用 SPE(不存在 LBR);确认 SPE PMU 存在:
+   adb shell su -c 'ls /sys/devices | grep -i spe'
+   # 采集代表性负载(约 10–30 分钟:日常滑动、mihomo 转发、应用切换):
+   adb shell su -c 'perf record -e arm_spe_0/load_filter=1,store_filter=1,ts_enable=1 \
+       -a -o /data/local/tmp/spe.data -- sleep 600'
+   adb pull /data/local/tmp/spe.data .
+   ```
+
+2. **转换**(主机,需安装支持 ARM SPE perf.data 的 AutoFDO/LLVM profile
+   转换工具；不同发行版打包的工具名与参数可能不同，以下命令是流程示意，
+   本机未安装 `create_llvm_prof`，不可视为已验证 CLI)：
+
+   ```bash
+   create_llvm_prof --format=extbinary --spe=/path/spe.data \
+       --binary=out/artifacts/vmlinux --out=afdo.prof
+   ```
+
+3. **重编**:构建时带 profile:
+
+   ```bash
+   CLANG_AUTOFDO_PROFILE="$PWD/afdo.prof" bash dash/scripts/build.sh
+   ```
+
+   `scripts/Makefile.autofdo` 会注入 `-fprofile-sample-use`,ThinLTO 链接期
+   也会挂 `--lto-sample-profile`(LTO Full 走编译期 sample-profile)。
+
+4. 对照 `out/dash/build.log` 无 profile 缺失告警;产物按 `finalize.sh`
+   正常校验。profile 与源码版本强相关:AOSP tag/补丁大改后需重新采集。
 
 ## CI（GitHub Actions）
 

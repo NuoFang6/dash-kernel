@@ -239,7 +239,7 @@ index 3afca31e2..809e6716d 100644
  }
  EXPORT_SYMBOL(__filemap_get_folio);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bb231a8aa..b3db22247 100644
+index bb231a8aa..c36560078 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
 @@ -1430,6 +1430,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
@@ -258,3 +258,14 @@ index bb231a8aa..b3db22247 100644
  	return 0;
  }
  
+@@ -5592,6 +5594,10 @@ static bool should_abort_scan(struct lruvec *lruvec, struct scan_control *sc)
+ #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
+ 	trace_android_vh_mglru_should_abort_scan(&sc->android_vendor_data1, &bypass);
+ #endif
++	/* Cancellation also applies to proactive memcg reclaim. */
++	if (unlikely(sc->proactive && signal_pending(current)))
++		return true;
++
+ 	/* don't abort memcg reclaim to ensure fairness */
+ 	if (!root_reclaim(sc) && !bypass)
+ 		return false;

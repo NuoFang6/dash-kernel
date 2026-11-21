@@ -1,3 +1,27 @@
+diff --git a/certs/extract-cert.c b/certs/extract-cert.c
+index da834c81c..359462f15 100644
+--- a/certs/extract-cert.c
++++ b/certs/extract-cert.c
+@@ -56,7 +56,7 @@ static void display_openssl_errors(int l)
+ 	}
+ }
+ 
+-#ifndef OPENSSL_IS_BORINGSSL
++#if !defined(OPENSSL_IS_BORINGSSL) && !defined(OPENSSL_NO_ENGINE)
+ static void drain_openssl_errors(void)
+ {
+ 	const char *file;
+@@ -128,8 +128,8 @@ int main(int argc, char **argv)
+ 		fclose(f);
+ 		exit(0);
+ 	} else if (!strncmp(cert_src, "pkcs11:", 7)) {
+-#ifdef OPENSSL_IS_BORINGSSL
+-		ERR(1, "BoringSSL does not support extracting from PKCS#11");
++#if defined(OPENSSL_IS_BORINGSSL) || defined(OPENSSL_NO_ENGINE)
++		ERR(1, "OpenSSL does not support extracting from PKCS#11 ENGINE");
+ 		exit(1);
+ #else
+ 		ENGINE *e;
 diff --git a/include/linux/threads.h b/include/linux/threads.h
 index c34173e6c..db63cd850 100644
 --- a/include/linux/threads.h

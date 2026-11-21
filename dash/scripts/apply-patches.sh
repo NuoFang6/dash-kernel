@@ -59,6 +59,15 @@ install -D -m 0644 "$SUSFS_DIR/kernel_patches/include/linux/susfs.h" \
 install -D -m 0644 "$SUSFS_DIR/kernel_patches/include/linux/susfs_def.h" \
 	"$AOSP_DIR/include/linux/susfs_def.h"
 
+# dash susfs overrides: dash-owned changes to the INSTALLED susfs files (not
+# the submodule).  These apply AFTER the install above; gen-patches excludes
+# fs/susfs*.c/h from the squash, so they are maintained by hand here.
+# (nullglob is still on from the series walk above.)
+for patch in "$DASH_ROOT/patches/susfs-overrides/"*.patch; do
+	echo "applying susfs-overrides/$(basename "$patch")"
+	(cd "$AOSP_DIR" && git apply "$patch")
+done
+
 # susfs4ksu f98f082 ("Sync with upstream") wraps the priority-uid filter
 # (susfs_is_priority_uid_filtered and friends) in
 # #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER but ships no Kconfig entry for

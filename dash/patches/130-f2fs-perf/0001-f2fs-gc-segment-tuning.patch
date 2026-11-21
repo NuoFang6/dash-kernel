@@ -1,0 +1,26 @@
+diff --git a/fs/f2fs/gc.h b/fs/f2fs/gc.h
+index feb574c49..d3d58d6aa 100644
+--- a/fs/f2fs/gc.h
++++ b/fs/f2fs/gc.h
+@@ -10,7 +10,7 @@
+ 						 * whether IO subsystem is idle
+ 						 * or not
+ 						 */
+-#define DEF_GC_THREAD_URGENT_SLEEP_TIME	500	/* 500 ms */
++#define DEF_GC_THREAD_URGENT_SLEEP_TIME	50	/* 50 ms */
+ #define DEF_GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
+ #define DEF_GC_THREAD_MAX_SLEEP_TIME	60000
+ #define DEF_GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
+diff --git a/fs/f2fs/segment.h b/fs/f2fs/segment.h
+index 0a822ee02..4013a8cb7 100644
+--- a/fs/f2fs/segment.h
++++ b/fs/f2fs/segment.h
+@@ -718,7 +718,7 @@ static inline int utilization(struct f2fs_sb_info *sbi)
+  * F2FS_IPU_DISABLE - disable IPU. (=default option in LFS mode)
+  */
+ #define DEF_MIN_IPU_UTIL	70
+-#define DEF_MIN_FSYNC_BLOCKS	8
++#define DEF_MIN_FSYNC_BLOCKS	20
+ #define DEF_MIN_HOT_BLOCKS	16
+ 
+ #define SMALL_VOLUME_SEGMENTS	(16 * 512)	/* 16GB */

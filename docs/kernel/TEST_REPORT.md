@@ -793,3 +793,83 @@ QoS sysfs 与 stock 行为一致：
   cache）；artifact 收集增强（final-config、build-inputs.tar.gz、
   build-info.txt，`if: always()` 保留失败产物）；Image.lz4 超 64MiB
   boot 预算（67098176 B）时 fail 但不丢弃产物。
+
+## 24. FEATURES_SURVEY 落地批次：NoLTO 构建、CRC/KMI 与 Full LTO 边界（2026-11-21）
+
+**证据分级：补丁重放 + 构建级 + 静态 ABI；未刷机、运行时未验证。**
+本节只记录本轮新增证据；功能来源与逐项决策见 `FEATURES_SURVEY.md`。
+
+### 补丁与配置闭环
+
+- `features.fragment` 改为功能开关唯一权威输入；`configure.sh` 合并 fragment、
+  执行 `olddefconfig` 后逐项 required 断言。修复解析器把未加引号整数 `1024`
+  误传为字符串的问题，并新增
+  `CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024` 强断言；字符串 `CONFIG_LSM`
+  和 `# CONFIG_X is not set` 语义均实测生效。
+- 固定 AOSP r4 `e6c23f621ca6e839abdeca58957bbc529536cff1` 干净树完整重放：
+  28 个普通补丁、140 个唯一归属文件，以及 1 个 SUSFS 安装后 override；
+  `apply-patches.sh` 输出零 warning/error。`split-patches.py check` 确认 series、
+  文件归属和 source-tree squash 逐字节一致。
+- BakaSU 与 `third_party/susfs4ksu` 子模块工作树均为空；没有修改 BakaSU。
+  SUSFS override 只作用于 apply 后安装到 AOSP 树的副本。
+
+### NoLTO 全量构建
+
+- 最终门禁按机主 2026-11-21 新策略使用 `FAST=1`（NoLTO）；仅明确要求
+  “产出最终生产级内核”时才运行 Full LTO。NoLTO 不改变源码级 genksyms CRC。
+- 全新 `out/features-final` 从上述干净重放树配置并编译；配置至少包含：
+  BBRv3、NTSync、ADIOS（非默认）、BBG、AutoFDO 构建支持、A720 tune、
+  `GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024`；MPTCP、BBG boot/recovery 拦截保持关闭。
+- 构建日志除 ACK `scripts/sorttable.c` 两条既有 host warning 外无编译/链接错误；
+  `vmlinux`、BTF、`Image` 与 `Image.lz4` 均生成。产物没有打包为 boot，也没有
+  写入任何手机分区。`DEVICE=features-final` 最初暴露出 `build.sh` 会把验证
+  变体复制到共享 `out/artifacts/`；现已改为只有默认 `DEVICE=dash`（或显式
+  `PUBLISH_ARTIFACTS=1`）才发布。共享目录已从当前 boot/备份恢复 manifest 可
+  校验的 Image/Image.lz4/config，删除不匹配的 vmlinux/System.map；其中 #8
+  System.map 的本地副本已无，仅 `SHA256SUMS` 保留目标哈希，不以别的构建冒充。
+
+### CRC、结构与厂商模块门禁
+
+以已实机运行的 #8 历史 `handoff/boot-6.6.143-4/vmlinux` 为旧基准，读取
+新旧 ELF 的 `__crc_*` 地址及 `__kcrctab{,_gpl}` 中实际 32 位值，按符号名比较：
+
+```text
+old=9102 new=9112 common=9102 mismatch=0 removed=0 added=10
+```
+
+新增 10 个导出为 USER_NS uid/gid 映射辅助函数 6 个与 BBRv3 所需 TCP 导出
+4 个（`tcp_prot`、`tcpv6_prot`、congestion-control register/unregister）；旧导出
+无 CRC 变化、无移除。
+
+- 初次检查曾发现 3 个真实漂移并已修复：整数 fragment 解析错误令
+  `vendor_data_pad` 从 1024 回落 512；新增 PREEMPT_SHORT 令导出的
+  `sched_feat_keys/names` 数组边界进入 genksyms。前者修 parser + 强断言，
+  后者用 `__GENKSYMS__` 隐藏新增 feature 条目但保留运行时条目；复验归零。
+- `pahole -C task_struct`：新旧均 4800B；`sysvsem` @3616、`sysvshm` @3624，
+  对应原 `android_kabi_reserved6` 与 `reserved7/8`，关键偏移不变。
+- 638 个 stock `.ko` 离线符号集合检查：
+  `modules=638 kernel_exports=9112 hard_missing=0 weak_missing=0`。这是符号解析
+  门禁，不替代运行时加载或 CRC 检查。
+- `verify-os4-kcfi.py`：13/13 vendor-hook 原型与 stock KCFI hash 一致。
+
+### Full LTO 调查与停止点
+
+- 首次全新 Full LTO 构建先因主机 OpenSSL 4.1 移除 ENGINE 符号而失败；
+  `certs/extract-cert.c` 现按 `OPENSSL_NO_ENGINE` 禁用仅 PKCS#11 ENGINE 分支，
+  普通 PEM 路径可构建。
+- 随后最终链接暴露 arm64 typed assembly 的
+  `__kcfi_typeid_idmap_cpu_replace_ttbr1` 未生成。根因是函数 typedef/extern 仅在
+  inline caller 函数体内，Full LTO 丢弃 address-taken 类型元数据；提升到文件
+  作用域后，三个调用对象均实测生成该弱 type-id 定义。
+- 修复后重链接进入 `LD vmlinux.o` 且无新错误，但 15 GiB 主机大量 swap、链接
+  约 12 分钟仍未完成。机主要求停止，并定下“日常验证一律 NoLTO，只有明确要求
+  最终生产级内核才 Full LTO”的规则；任务已停止并确认无残留进程。因此本节
+  **不声明 Full LTO 构建通过**，只声明配置和两个已发现阻塞已落地修复。
+
+### 运行时缺口
+
+设备在验证期间由机主断开，本轮本来也明确禁止刷机。BBRv3 `ss -i`、
+ADIOS 与 mq-deadline A/B、hide_adb/JDWP、BBG、NTSync、F2FS/Unicode、
+suspend/resume 及 638 模块实机加载均保持“未实机”；AutoFDO 仅有构建支持，
+此前静态调查确认当前 DT 未暴露 `arm_spe_*` PMU，且主机未安装
+`create_llvm_prof`，README 中转换命令只作为未验证 CLI 的流程示意。

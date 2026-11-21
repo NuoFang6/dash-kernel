@@ -71,7 +71,7 @@ index c3a169950..9719c2e39 100644
  f2fs-$(CONFIG_F2FS_FS_XATTR) += xattr.o
  f2fs-$(CONFIG_F2FS_FS_POSIX_ACL) += acl.o
 diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
-index d61cca5a6..7166bd539 100644
+index d61cca5a6..640db17f8 100644
 --- a/fs/f2fs/f2fs.h
 +++ b/fs/f2fs/f2fs.h
 @@ -27,6 +27,8 @@
@@ -91,6 +91,15 @@ index d61cca5a6..7166bd539 100644
  	int discard_unit;		/*
  					 * discard command's offset/size should
  					 * be aligned to this unit: block,
+@@ -628,7 +631,7 @@ enum {
+ #define MAX_FLUSH_RETRY_COUNT	3	/* maximum flush retry count in f2fs_enable_checkpoint() */
+ 
+ /* congestion wait timeout value, default: 20ms */
+-#define	DEFAULT_IO_TIMEOUT	(msecs_to_jiffies(20))
++#define	DEFAULT_IO_TIMEOUT	(msecs_to_jiffies(6))
+ 
+ /* maximum retry quota flush count */
+ #define DEFAULT_RETRY_QUOTA_FLUSH_COUNT		8
 @@ -1931,6 +1934,15 @@ struct f2fs_sb_info {
  	spinlock_t iostat_lat_lock;
  	struct iostat_lat_info *iostat_io_lat;
@@ -108,7 +117,7 @@ index d61cca5a6..7166bd539 100644
  	struct lock_class_key cp_global_sem_key;
  #endif
 diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
-index ce54bd8c8..259492208 100644
+index ce54bd8c8..715cb289c 100644
 --- a/fs/f2fs/file.c
 +++ b/fs/f2fs/file.c
 @@ -597,6 +597,7 @@ static int finish_preallocate_blocks(struct inode *inode)
@@ -147,6 +156,24 @@ index ce54bd8c8..259492208 100644
  	err = dquot_file_open(inode, filp);
  	if (err)
  		return err;
+@@ -3075,8 +3097,6 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+ 	if (src == dst) {
+ 		if (pos_in == pos_out)
+ 			return 0;
+-		if (pos_out > pos_in && pos_out < pos_in + len)
+-			return -EINVAL;
+ 	}
+ 
+ 	inode_lock(src);
+@@ -3102,6 +3122,8 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+ 		goto out_unlock;
+ 	if (len == 0)
+ 		olen = len = src->i_size - pos_in;
++	if (src == dst && pos_out > pos_in && pos_out < pos_in + len)
++		goto out_unlock;
+ 	if (pos_in + len == src->i_size)
+ 		len = ALIGN(src->i_size, F2FS_BLKSIZE) - pos_in;
+ 	if (len == 0) {
 diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
 index 1c0dab2ad..6f5a1a6bd 100644
 --- a/fs/f2fs/inode.c

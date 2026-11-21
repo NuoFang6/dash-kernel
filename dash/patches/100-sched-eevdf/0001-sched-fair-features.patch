@@ -1,0 +1,187 @@
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index 5965e9c47..9b12e4bd8 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -1022,6 +1022,31 @@ int sched_update_scaling(void)
+ 
+ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
+ 
++static inline bool did_preempt_short(struct cfs_rq *cfs_rq,
++				     struct sched_entity *curr)
++{
++	if (!sched_feat(PREEMPT_SHORT))
++		return false;
++
++	if (curr->vlag == curr->deadline)
++		return false;
++
++	return !entity_eligible(cfs_rq, curr);
++}
++
++static inline bool do_preempt_short(struct cfs_rq *cfs_rq,
++				    struct sched_entity *pse,
++				    struct sched_entity *se)
++{
++	if (!sched_feat(PREEMPT_SHORT) || pse->slice >= se->slice)
++		return false;
++
++	if (!entity_eligible(cfs_rq, pse))
++		return false;
++
++	return entity_before(pse, se) || !entity_eligible(cfs_rq, se);
++}
++
+ /*
+  * XXX: strictly: vd_i += N*r_i/w_i such that: vd_i > ve_i
+  * this is probably good enough.
+@@ -1029,12 +1054,19 @@ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se);
+ static void update_deadline(struct cfs_rq *cfs_rq, struct sched_entity *se)
+ {
+ 	bool skip_preempt = false;
++	bool expired;
+ 
+ 	trace_android_rvh_update_deadline(cfs_rq, se, &skip_preempt);
+ 	if (skip_preempt)
+ 		return;
+ 
+-	if ((s64)(se->vruntime - se->deadline) < 0)
++	expired = (s64)(se->vruntime - se->deadline) >= 0;
++
++	/*
++	 * A preempted request must also yield once its entity is
++	 * ineligible (PREEMPT_SHORT); ordinary requests keep their slice.
++	 */
++	if (!expired && (cfs_rq->nr_running < 2 || !did_preempt_short(cfs_rq, se)))
+ 		return;
+ 
+ 	/*
+@@ -7546,7 +7578,7 @@ select_idle_capacity(struct task_struct *p, struct sched_domain *sd, int target)
+ 	util_min = uclamp_eff_value(p, UCLAMP_MIN);
+ 	util_max = uclamp_eff_value(p, UCLAMP_MAX);
+ 
+-	for_each_cpu_wrap(cpu, cpus, target) {
++	for_each_cpu_wrap(cpu, cpus, target + 1) {
+ 		unsigned long cpu_cap = capacity_of(cpu);
+ 
+ 		if (!available_idle_cpu(cpu) && !sched_idle_cpu(cpu))
+@@ -8438,6 +8470,16 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
+ 	if (ignore)
+ 		return;
+ 
++	/*
++	 * If @p has a shorter slice than current and @p is eligible, override
++	 * current's slice protection in order to allow preemption.
++	 *
++	 * Note that even if @p does not turn out to be the most eligible
++	 * task at this moment, current's slice protection will be lost.
++	 */
++	if (do_preempt_short(cfs_rq, pse, se) && se->vlag == se->deadline)
++		se->vlag = se->deadline + 1;
++
+ 	/*
+ 	 * XXX pick_eevdf(cfs_rq) != se ?
+ 	 */
+@@ -10069,11 +10111,24 @@ static inline void update_sg_lb_stats(struct lb_env *env,
+ 			continue;
+ 
+ 		if (env->sd->flags & SD_ASYM_CPUCAPACITY) {
+-			/* Check for a misfit task on the cpu */
+-			if (sgs->group_misfit_task_load < rq->misfit_task_load) {
+-				sgs->group_misfit_task_load = rq->misfit_task_load;
+-				sgs->group_misfit_reason = rq->misfit_reason;
++			if (rq->misfit_task_load) {
++				/*
++				 * Keep the root-domain overload indication so a
++				 * higher-capacity CPU can pick up the misfit task.
++				 */
+ 				*sg_status |= SG_OVERLOAD;
++
++				/*
++				 * Only account misfit load when dst_cpu can help.
++				 * Otherwise allow normal group classification and
++				 * load balancing to proceed.
++				 */
++				if (capacity_greater(capacity_of(env->dst_cpu),
++						     group->sgc->max_capacity) &&
++				    sgs->group_misfit_task_load < rq->misfit_task_load) {
++					sgs->group_misfit_task_load = rq->misfit_task_load;
++					sgs->group_misfit_reason = rq->misfit_reason;
++				}
+ 			}
+ 		} else if ((env->idle != CPU_NOT_IDLE) &&
+ 			   sched_reduced_capacity(rq, env->sd)) {
+@@ -11595,8 +11650,12 @@ static int load_balance(int this_cpu, struct rq *this_rq,
+ 		 * We do not want newidle balance, which can be very
+ 		 * frequent, pollute the failure counter causing
+ 		 * excessive cache_hot migrations and active balances.
++		 *
++		 * Similarly, misfit migration is not load/util balancing and
++		 * must not pollute nr_balance_failed.
+ 		 */
+-		if (idle != CPU_NEWLY_IDLE)
++		if (idle != CPU_NEWLY_IDLE &&
++		    env.migration_type != migrate_misfit)
+ 			sd->nr_balance_failed++;
+ 
+ 		if (need_active_balance(&env)) {
+@@ -11679,8 +11738,12 @@ static int load_balance(int this_cpu, struct rq *this_rq,
+ 	 * repeatedly reach this code, which would lead to balance_interval
+ 	 * skyrocketing in a short amount of time. Skip the balance_interval
+ 	 * increase logic to avoid that.
++	 *
++	 * Misfit migration is not an indication that the system is busy
++	 * and needs load balancing to back off either.
+ 	 */
+-	if (env.idle == CPU_NEWLY_IDLE)
++	if (env.idle == CPU_NEWLY_IDLE ||
++	    env.migration_type == migrate_misfit)
+ 		goto out;
+ 
+ 	/* tune up the balancing interval */
+diff --git a/kernel/sched/features.h b/kernel/sched/features.h
+index eb315c739..2f2b13e22 100644
+--- a/kernel/sched/features.h
++++ b/kernel/sched/features.h
+@@ -19,7 +19,7 @@ SCHED_FEAT(NEXT_BUDDY, false)
+  * Consider buddies to be cache hot, decreases the likeliness of a
+  * cache buddy being migrated away, increases cache locality.
+  */
+-SCHED_FEAT(CACHE_HOT_BUDDY, true)
++SCHED_FEAT(CACHE_HOT_BUDDY, false)
+ 
+ /*
+  * Allow wakeup-time preemption of the current task:
+@@ -68,8 +68,16 @@ SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
+  * rq lock and possibly create a large contention, sending an
+  * IPI to that CPU and let that CPU push the RT task to where
+  * it should go may be a better scenario.
++ *
++ * This is best for PREEMPT_RT, but for non-RT it can cause issues
++ * when preemption is disabled for long periods of time. Have
++ * it only default enabled for PREEMPT_RT.
+  */
++# ifdef CONFIG_PREEMPT_RT
+ SCHED_FEAT(RT_PUSH_IPI, true)
++# else
++SCHED_FEAT(RT_PUSH_IPI, false)
++# endif
+ #endif
+ 
+ SCHED_FEAT(RT_RUNTIME_SHARE, false)
+@@ -88,3 +96,16 @@ SCHED_FEAT(UTIL_EST, true)
+ SCHED_FEAT(LATENCY_WARN, false)
+ 
+ SCHED_FEAT(HZ_BW, true)
++
++/*
++ * Allow wakeup of tasks with a shorter slice to cancel the current
++ * entity's slice protection (upstream v6.12 85e511df3cec).
++ */
++/*
++ * Keep the exported sched_feat_{keys,names} array types at the ACK KMI
++ * length.  PREEMPT_SHORT is a dash runtime feature, but exposing its extra
++ * element to genksyms would change both exported-symbol CRCs.
++ */
++#ifndef __GENKSYMS__
++SCHED_FEAT(PREEMPT_SHORT, true)
++#endif

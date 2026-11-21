@@ -34,15 +34,29 @@ MAKE=(
 	KCFLAGS=-D__ANDROID_COMMON_KERNEL__
 )
 
-mkdir -p "$OUT_DIR" "$ARTIFACT_DIR"
+mkdir -p "$OUT_DIR"
 "${MAKE[@]}" -j"$JOBS" Image 2>&1 | tee "$OUT_DIR/build.log"
 
 lz4 -l -12 -f "$OUT_DIR/arch/arm64/boot/Image" "$OUT_DIR/arch/arm64/boot/Image.lz4"
-cp "$OUT_DIR/arch/arm64/boot/Image" "$ARTIFACT_DIR/Image"
-cp "$OUT_DIR/arch/arm64/boot/Image.lz4" "$ARTIFACT_DIR/Image.lz4"
-cp "$OUT_DIR/vmlinux" "$ARTIFACT_DIR/vmlinux"
-cp "$OUT_DIR/System.map" "$ARTIFACT_DIR/System.map"
-cp "$OUT_DIR/.config" "$ARTIFACT_DIR/config"
 
-echo "artifacts: $ARTIFACT_DIR"
-ls -lh "$ARTIFACT_DIR"
+# Only the canonical dash build publishes to the shared artifact directory.
+# Validation variants (DEVICE=features-*) must not mix their Image/config with
+# the current production BUILD_INFO, SHA256SUMS, or boot.img.  A deliberate
+# variant promotion can opt in with PUBLISH_ARTIFACTS=1.
+publish="${PUBLISH_ARTIFACTS:-}"
+if [[ -z "$publish" ]]; then
+	[[ "${DEVICE:-dash}" == "dash" ]] && publish=1 || publish=0
+fi
+if [[ "$publish" == "1" ]]; then
+	mkdir -p "$ARTIFACT_DIR"
+	cp "$OUT_DIR/arch/arm64/boot/Image" "$ARTIFACT_DIR/Image"
+	cp "$OUT_DIR/arch/arm64/boot/Image.lz4" "$ARTIFACT_DIR/Image.lz4"
+	cp "$OUT_DIR/vmlinux" "$ARTIFACT_DIR/vmlinux"
+	cp "$OUT_DIR/System.map" "$ARTIFACT_DIR/System.map"
+	cp "$OUT_DIR/.config" "$ARTIFACT_DIR/config"
+
+	echo "artifacts: $ARTIFACT_DIR"
+	ls -lh "$ARTIFACT_DIR"
+else
+	echo "build outputs: $OUT_DIR (shared artifacts not published)"
+fi

@@ -1,0 +1,67 @@
+diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
+index a6fb32542..50cd9c8c0 100644
+--- a/arch/arm64/include/asm/mmu_context.h
++++ b/arch/arm64/include/asm/mmu_context.h
+@@ -148,14 +148,20 @@ static inline void cpu_install_ttbr0(phys_addr_t ttbr0, unsigned long t0sz)
+ 	isb();
+ }
+ 
++/*
++ * Keep this declaration at file scope.  SYM_TYPED_FUNC_START() in proc.S
++ * needs clang to emit __kcfi_typeid_idmap_cpu_replace_ttbr1; under Full LTO a
++ * declaration local to the inline caller is discarded before the final link.
++ */
++typedef void (ttbr_replace_func)(phys_addr_t);
++extern ttbr_replace_func idmap_cpu_replace_ttbr1;
++
+ /*
+  * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
+  * avoiding the possibility of conflicting TLB entries being allocated.
+  */
+ static inline void cpu_replace_ttbr1(pgd_t *pgdp, pgd_t *idmap)
+ {
+-	typedef void (ttbr_replace_func)(phys_addr_t);
+-	extern ttbr_replace_func idmap_cpu_replace_ttbr1;
+ 	ttbr_replace_func *replace_phys;
+ 	unsigned long daif;
+ 
+diff --git a/arch/arm64/include/asm/percpu.h b/arch/arm64/include/asm/percpu.h
+index 9abcc8ef3..939dbaa7c 100644
+--- a/arch/arm64/include/asm/percpu.h
++++ b/arch/arm64/include/asm/percpu.h
+@@ -172,13 +172,13 @@ PERCPU_RET_OP(add, add, ldadd)
+ 	_pcp_protect_return(__percpu_read_64, pcp)
+ 
+ #define this_cpu_write_1(pcp, val)	\
+-	_pcp_protect(__percpu_write_8, pcp, (unsigned long)val)
++	_pcp_protect(__percpu_write_8, pcp, (unsigned long)(val))
+ #define this_cpu_write_2(pcp, val)	\
+-	_pcp_protect(__percpu_write_16, pcp, (unsigned long)val)
++	_pcp_protect(__percpu_write_16, pcp, (unsigned long)(val))
+ #define this_cpu_write_4(pcp, val)	\
+-	_pcp_protect(__percpu_write_32, pcp, (unsigned long)val)
++	_pcp_protect(__percpu_write_32, pcp, (unsigned long)(val))
+ #define this_cpu_write_8(pcp, val)	\
+-	_pcp_protect(__percpu_write_64, pcp, (unsigned long)val)
++	_pcp_protect(__percpu_write_64, pcp, (unsigned long)(val))
+ 
+ #define this_cpu_add_1(pcp, val)	\
+ 	_pcp_protect(__percpu_add_case_8, pcp, val)
+@@ -199,13 +199,13 @@ PERCPU_RET_OP(add, add, ldadd)
+ 	_pcp_protect_return(__percpu_add_return_case_64, pcp, val)
+ 
+ #define this_cpu_and_1(pcp, val)	\
+-	_pcp_protect(__percpu_andnot_case_8, pcp, ~val)
++	_pcp_protect(__percpu_andnot_case_8, pcp, ~(u8)(val))
+ #define this_cpu_and_2(pcp, val)	\
+-	_pcp_protect(__percpu_andnot_case_16, pcp, ~val)
++	_pcp_protect(__percpu_andnot_case_16, pcp, ~(u16)(val))
+ #define this_cpu_and_4(pcp, val)	\
+-	_pcp_protect(__percpu_andnot_case_32, pcp, ~val)
++	_pcp_protect(__percpu_andnot_case_32, pcp, ~(u32)(val))
+ #define this_cpu_and_8(pcp, val)	\
+-	_pcp_protect(__percpu_andnot_case_64, pcp, ~val)
++	_pcp_protect(__percpu_andnot_case_64, pcp, ~(u64)(val))
+ 
+ #define this_cpu_or_1(pcp, val)		\
+ 	_pcp_protect(__percpu_or_case_8, pcp, val)

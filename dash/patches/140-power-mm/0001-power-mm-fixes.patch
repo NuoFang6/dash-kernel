@@ -1,0 +1,28 @@
+diff --git a/drivers/base/power/wakeup.c b/drivers/base/power/wakeup.c
+index 5b93536ff..0d0838b8a 100644
+--- a/drivers/base/power/wakeup.c
++++ b/drivers/base/power/wakeup.c
+@@ -936,8 +936,8 @@ EXPORT_SYMBOL_GPL(pm_wakeup_pending);
+ 
+ void pm_system_wakeup(void)
+ {
+-	atomic_inc(&pm_abort_suspend);
+-	s2idle_wake();
++	if (atomic_inc_return_relaxed(&pm_abort_suspend) == 1)
++		s2idle_wake();
+ }
+ EXPORT_SYMBOL_GPL(pm_system_wakeup);
+ 
+diff --git a/kernel/time/alarmtimer.c b/kernel/time/alarmtimer.c
+index 2816c3a5f..f31e1e2c1 100644
+--- a/kernel/time/alarmtimer.c
++++ b/kernel/time/alarmtimer.c
+@@ -280,7 +280,7 @@ static int alarmtimer_suspend(struct device *dev)
+ 		return 0;
+ 
+ 	if (ktime_to_ns(min) < 2 * NSEC_PER_SEC) {
+-		pm_wakeup_event(dev, 2 * MSEC_PER_SEC);
++		pm_wakeup_event(dev, ktime_to_ms(min) + 1);
+ 		return -EBUSY;
+ 	}
+ 

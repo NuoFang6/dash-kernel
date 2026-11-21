@@ -1,0 +1,46 @@
+# dash susfs override: hide adbd sockets from app UIDs.  The VFS half
+# (fs/readdir.c filldir + af_unix.c) lives in the regular series; these hunks
+# adapt the susfs4ksu-installed files (fs/susfs.c, include/linux/susfs_def.h),
+# which apply-patches.sh installs from the pinned submodule AFTER the series.
+# Upstream basis: WildPlusKernel/kernel_patches hide_adb_jdwp_sockets.patch,
+# re-targeted to susfs4ksu f98f082 (v2.4.0) file layout.
+diff --git a/fs/susfs.c b/fs/susfs.c
+index f84b8a4..cca6647 100644
+--- a/fs/susfs.c
++++ b/fs/susfs.c
+@@ -370,6 +370,19 @@ __attribute__((hot)) bool susfs_is_inode_sus_path(struct inode *inode)
+ 		return false;
+ 	}
+ 
++	if (unlikely(S_ISSOCK(inode->i_mode) && susfs_is_current_app_uid())) {
++		struct dentry *dentry;
++		rcu_read_lock();
++		dentry = hlist_entry_safe(READ_ONCE(inode->i_dentry.first),
++					  struct dentry, d_u.d_alias);
++		if (dentry && !strcmp(dentry->d_name.name, "adbd") &&
++		    dentry->d_parent && !strcmp(dentry->d_parent->d_name.name, "socket")) {
++			rcu_read_unlock();
++			return true;
++		}
++		rcu_read_unlock();
++	}
++
+ 	if (!inode->i_mapping) {
+ 		SUSFS_LOGE("inode->i_mapping is NULL\n");
+ 		return false;
+diff --git a/include/linux/susfs_def.h b/include/linux/susfs_def.h
+index dab60eb..d953be8 100644
+--- a/include/linux/susfs_def.h
++++ b/include/linux/susfs_def.h
+@@ -6,6 +6,11 @@
+ #include <linux/bitmap.h>
+ #include <linux/string.h>
+ 
++#include <linux/cred.h>
++
++/* hide_adb_jdwp: filldir actors return true to skip-and-continue on >= 6.1. */
++#define SUSFS_FILLDIR_SKIP true
++
+ /********/
+ /* ENUM */
+ /********/
