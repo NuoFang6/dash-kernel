@@ -25,6 +25,19 @@ setp() {
 	log "prop $key: ${old:-<unset>} -> $(getprop "$key")"
 }
 
+# persist.* must go through property_service so it is written to the
+# persistent property store (/data/property/persistent_properties).
+setp_persist() {
+	key="$1"
+	val="$2"
+	old="$(getprop "$key")"
+	if [ -n "$RESETPROP" ]; then
+		"$RESETPROP" "$key" "$val" >>"$LOG" 2>&1
+	fi
+	[ "$(getprop "$key")" = "$val" ] || setprop "$key" "$val" >>"$LOG" 2>&1
+	log "persist $key: ${old:-<unset>} -> $(getprop "$key")"
+}
+
 # Only CPU/thread scheduling for dex2oat. Heap/GC properties are left at the
 # platform values.
 #
@@ -41,6 +54,12 @@ setp dalvik.vm.background-dex2oat-threads 4
 setp dalvik.vm.boot-dex2oat-cpu-set 0,1,2,3,4,5,6,7
 setp dalvik.vm.default-dex2oat-cpu-set 0,1,2,3,4,5,6,7
 setp dalvik.vm.background-dex2oat-cpu-set 0,1,2,3
+
+# Vendor WLAN diagnostic/logging switches. Set before wifi/cnss services start
+# so they are read at their first property lookup; persisted for later boots.
+setp_persist persist.vendor.performance.disable.wlan_logs true
+setp_persist persist.vendor.cnss_diag.enable false
+setp_persist persist.vendor.tcpdump.enable false
 
 apply_bbr
 

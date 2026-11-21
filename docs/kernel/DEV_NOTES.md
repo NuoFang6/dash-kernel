@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 02:16:03 +0800
-> 覆盖 22 个源，321812 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 02:30:03 +0800
+> 覆盖 22 个源，324184 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8168 | `780252dac2a0ac5b` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8342 | `cdbc8839516ef52c` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 67519 | `ba6e453058f85b80` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 69717 | `0811d7dd2d3f2cb0` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 8168 字节 · SHA256 `780252dac2a0ac5b9bfcc5599f09b546261a710d524805d5a079620f8857e7dc`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 8342 字节 · SHA256 `cdbc8839516ef52c25b57abaceebd83c4be8f121bcab0239a9e99e9ba927b7f4`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -206,7 +206,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
-| KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
+| KSU 模块 | 自建 `dash_art_tune` v1.3（BBRv3+fq_codel、ADIOS、ART/dex2oat 调优、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
 | 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 67519 字节 · SHA256 `ba6e453058f85b803cdbcc490d9f65a8eb7ccf046bb6a7b15b3bab9cfb3f58db`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 69717 字节 · SHA256 `0811d7dd2d3f2cb072a2e8da78403612a0b59be01c4dfbc139a9a1d011d454d4`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1979,6 +1979,44 @@ KSU + SUSFS 全套。与生产配置一致。
   `0dc871a5…`（历史自编 `#8`，不是 stock）。OTA stock `boot.img` 已放到
   `/storage/emulated/0/Download/boot.img`，哈希回读一致。
 - 未刷写任何分区，仅提取与比对。
+
+### 31. dash_art_tune v1.3：WLAN 日志关闭（2026-11-22，真机 + 模块）
+
+**证据分级：真机实测（属性、bind mount、目录状态）；模块安装为 KSU 暂存，重启后正式生效。**
+
+#### 变更
+
+- `post-fs-data.sh` 通过 property_service 设置并持久化：
+  `persist.vendor.performance.disable.wlan_logs=true`、
+  `persist.vendor.cnss_diag.enable=false`、
+  `persist.vendor.tcpdump.enable=false`（写入
+  `/data/property/persistent_properties`）。
+- `cnss_diag.conf`：模块内自带 `LOG_PATH_FLAG=0` 副本，`service.sh` 在
+  `/data/vendor/wifi/cnss_diag.conf` 不存在时先创建占位文件，再
+  `mount -o bind` 覆盖；挂载失败则回退为直接写文件。
+- `/data/vendor/wlan_logs`：删除一级普通文件，`rm -rf tcpdump.pcap0` 后
+  重建为同名目录；`vendor_tcpdump` 用 `setprop ctl.stop` 显式停止。
+
+#### 实测
+
+- 手动（不经模块）创建 `cnss_diag.conf`（原文件不存在）：
+  `LOG_PATH_FLAG=0`、`wifi:wifi 0660`、label
+  `u:object_r:vendor_wifi_vendor_data_file:s0`。
+- 三个 persist 属性当前值与持久化存储均正确。
+- 应用模块 action 后 `/proc/mounts` 出现
+  `/data/vendor/wifi/cnss_diag.conf`（源为模块内副本），读取为
+  `LOG_PATH_FLAG=0`；`/data/vendor/wlan_logs` 只剩 `tcpdump.pcap0/` 目录。
+- `vendor_tcpdump`（pid 6097，init 服务 `disabled`+`oneshot`，由
+  `sys.user.0.ce_available=true` 启动）停止前仍在向已删除的 pcap0 写入
+  （fd pos 持续增长）；`ctl.stop` 后服务状态 `stopped`、进程消失，
+  30 秒内无新日志文件。Wi-Fi 保持连接（SSID 9529，866 Mbps）。
+- 厂商 `android.hardware.wifi-service-lazy`、`wlan_assistant`、
+  `tcpdump-vendor` 的字符串中均未发现上述三个 persist 属性名；本 ROM 上
+  tcpdump 的关闭实际由模块的 `ctl.stop` + `pcap0` 目录保证，cnss_diag
+  当前未运行，配置/属性未被厂商代码读取验证。
+- `ksud module install` 将 v1.3 放入 `modules_update/`，当前运行目录仍是
+  v1.2 加上 `update` 标记；重启后切换到 v1.3，`service.sh` 会在每次启动
+  重新建立挂载、清理日志并停止 tcpdump。
 
 ---
 

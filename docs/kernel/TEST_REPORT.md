@@ -1224,3 +1224,41 @@ KSU + SUSFS 全套。与生产配置一致。
   `0dc871a5…`（历史自编 `#8`，不是 stock）。OTA stock `boot.img` 已放到
   `/storage/emulated/0/Download/boot.img`，哈希回读一致。
 - 未刷写任何分区，仅提取与比对。
+
+## 31. dash_art_tune v1.3：WLAN 日志关闭（2026-11-22，真机 + 模块）
+
+**证据分级：真机实测（属性、bind mount、目录状态）；模块安装为 KSU 暂存，重启后正式生效。**
+
+### 变更
+
+- `post-fs-data.sh` 通过 property_service 设置并持久化：
+  `persist.vendor.performance.disable.wlan_logs=true`、
+  `persist.vendor.cnss_diag.enable=false`、
+  `persist.vendor.tcpdump.enable=false`（写入
+  `/data/property/persistent_properties`）。
+- `cnss_diag.conf`：模块内自带 `LOG_PATH_FLAG=0` 副本，`service.sh` 在
+  `/data/vendor/wifi/cnss_diag.conf` 不存在时先创建占位文件，再
+  `mount -o bind` 覆盖；挂载失败则回退为直接写文件。
+- `/data/vendor/wlan_logs`：删除一级普通文件，`rm -rf tcpdump.pcap0` 后
+  重建为同名目录；`vendor_tcpdump` 用 `setprop ctl.stop` 显式停止。
+
+### 实测
+
+- 手动（不经模块）创建 `cnss_diag.conf`（原文件不存在）：
+  `LOG_PATH_FLAG=0`、`wifi:wifi 0660`、label
+  `u:object_r:vendor_wifi_vendor_data_file:s0`。
+- 三个 persist 属性当前值与持久化存储均正确。
+- 应用模块 action 后 `/proc/mounts` 出现
+  `/data/vendor/wifi/cnss_diag.conf`（源为模块内副本），读取为
+  `LOG_PATH_FLAG=0`；`/data/vendor/wlan_logs` 只剩 `tcpdump.pcap0/` 目录。
+- `vendor_tcpdump`（pid 6097，init 服务 `disabled`+`oneshot`，由
+  `sys.user.0.ce_available=true` 启动）停止前仍在向已删除的 pcap0 写入
+  （fd pos 持续增长）；`ctl.stop` 后服务状态 `stopped`、进程消失，
+  30 秒内无新日志文件。Wi-Fi 保持连接（SSID 9529，866 Mbps）。
+- 厂商 `android.hardware.wifi-service-lazy`、`wlan_assistant`、
+  `tcpdump-vendor` 的字符串中均未发现上述三个 persist 属性名；本 ROM 上
+  tcpdump 的关闭实际由模块的 `ctl.stop` + `pcap0` 目录保证，cnss_diag
+  当前未运行，配置/属性未被厂商代码读取验证。
+- `ksud module install` 将 v1.3 放入 `modules_update/`，当前运行目录仍是
+  v1.2 加上 `update` 标记；重启后切换到 v1.3，`service.sh` 会在每次启动
+  重新建立挂载、清理日志并停止 tcpdump。
