@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 04:29:17 +0800
-> 覆盖 22 个源，330113 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 04:45:33 +0800
+> 覆盖 22 个源，331620 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -155,7 +155,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 75223 | `cc3b18e25d4f0168` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 76730 | `5dca0bccce9e7476` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 75223 字节 · SHA256 `cc3b18e25d4f0168b77169e724fb19bd4365243ecdb2643aa18775efb6c9ca7f`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 76730 字节 · SHA256 `5dca0bccce9e7476522b8891cb242c4c78b11b2d95e6eb1ef1faa1688333455b`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2123,6 +2123,28 @@ KSU + SUSFS 全套。与生产配置一致。
   （04:27 一次写入把 `zram` 改回 `false`、`comp_algorithm=zstd`），因此
   以模块开机钩子作为最终保证；Scene 模块自动更新删配置的问题仍需
   在 Scene 内重新“应用”一次或避免自动更新。
+
+#### 重启后复核（2026-11-22 04:43，真机）
+
+- Scene 配置现为 `zram=true` / `comp_algorithm=lz4kd` / `zram_writeback=default`；
+  `dash_art_tune` v1.4 日志为 `zram: Scene-managed, skip lz4kd`（按设计让位），
+  zram 实际 `[lz4kd]`，swap 16 GiB、priority 0。
+- ExtM 回写正常：`Flush finished. Mode 2, flush 51209 pages ...`；
+  `bd_writes` 持续增长，无 I/O error/SCSI/F2FS error。
+- 内存：MemAvailable 3.6 GiB，PSI memory `full avg10≈1%`，无 OOM/LMK；
+  swap 使用约 12.4 GiB 属当前多后台应用场景，压力指标不高。
+- SUSFS 配置重启后仍生效：uname/bootconfig spoof、AVC log spoofing、
+  SUS mount 隐藏、logging off；`/data/adb/ksu/.susfs.json` 保持。
+- 模块 584 个；`zram`/`zsmalloc`/`node_cache`/`os_cpu_qi`/`mkp`/`cfg80211`
+  均加载；`dash_art_tune` v1.4 已正式生效（无 `modules_update` 残留）。
+- Wi-Fi 关闭是用户设置（`wifi_on=0`）；临时开启后成功连接 SSID `9529`
+  （866 Mbps），随后恢复关闭。WLAN 日志目录仅 `tcpdump.pcap0/` 目录，
+  `vendor_tcpdump` stopped，`cnss_diag.conf` bind mount 为 `LOG_PATH_FLAG=0`。
+- UFS health `eol_info=0x01`、`life_time_estimation_a/b=0x01` 未变；
+  电池 50%、35.4 °C、充电中。
+- 仅见两条良性日志：`vold: open /sys/block/zram0/idle error:-1`（idle 为
+  只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
+  （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
 
 ---
 

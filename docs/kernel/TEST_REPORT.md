@@ -1368,3 +1368,25 @@ KSU + SUSFS 全套。与生产配置一致。
   （04:27 一次写入把 `zram` 改回 `false`、`comp_algorithm=zstd`），因此
   以模块开机钩子作为最终保证；Scene 模块自动更新删配置的问题仍需
   在 Scene 内重新“应用”一次或避免自动更新。
+
+### 重启后复核（2026-11-22 04:43，真机）
+
+- Scene 配置现为 `zram=true` / `comp_algorithm=lz4kd` / `zram_writeback=default`；
+  `dash_art_tune` v1.4 日志为 `zram: Scene-managed, skip lz4kd`（按设计让位），
+  zram 实际 `[lz4kd]`，swap 16 GiB、priority 0。
+- ExtM 回写正常：`Flush finished. Mode 2, flush 51209 pages ...`；
+  `bd_writes` 持续增长，无 I/O error/SCSI/F2FS error。
+- 内存：MemAvailable 3.6 GiB，PSI memory `full avg10≈1%`，无 OOM/LMK；
+  swap 使用约 12.4 GiB 属当前多后台应用场景，压力指标不高。
+- SUSFS 配置重启后仍生效：uname/bootconfig spoof、AVC log spoofing、
+  SUS mount 隐藏、logging off；`/data/adb/ksu/.susfs.json` 保持。
+- 模块 584 个；`zram`/`zsmalloc`/`node_cache`/`os_cpu_qi`/`mkp`/`cfg80211`
+  均加载；`dash_art_tune` v1.4 已正式生效（无 `modules_update` 残留）。
+- Wi-Fi 关闭是用户设置（`wifi_on=0`）；临时开启后成功连接 SSID `9529`
+  （866 Mbps），随后恢复关闭。WLAN 日志目录仅 `tcpdump.pcap0/` 目录，
+  `vendor_tcpdump` stopped，`cnss_diag.conf` bind mount 为 `LOG_PATH_FLAG=0`。
+- UFS health `eol_info=0x01`、`life_time_estimation_a/b=0x01` 未变；
+  电池 50%、35.4 °C、充电中。
+- 仅见两条良性日志：`vold: open /sys/block/zram0/idle error:-1`（idle 为
+  只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
+  （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
