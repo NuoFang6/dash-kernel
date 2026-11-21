@@ -756,3 +756,40 @@ QoS sysfs 与 stock 行为一致：
   SHA512-CE、CHACHA20-NEON、POLY1305-NEON、POLYVAL-CE）、
   `CC_OPTIMIZE_FOR_PERFORMANCE`、ThinLTO。stock KMI 约束下无未利用的
   硬件 ISA 开关。
+
+## 23. SUSFS f98f082 bump 链接失败与修复（2026-11-21）
+
+**证据分级：CI 失败日志 + 本地 FAST 构建通过（真机构建级）。**
+
+- **失败**：CI run 44878359543（r4 + BakaSU 7b65bde + SUSFS f98f082）链接
+  `ld.lld: error: undefined symbol: susfs_is_priority_uid_filtered`
+  （引用于 kernel/sys.c setpriority/getpriority、block/ioprio.c
+  ioprio_set/getpriority）。
+- **根因**：f98f082（"Sync with upstream"）把 priority-uid filter 实现
+  （susfs.c 的 app-strings worker / bitmap / `susfs_is_priority_uid_filtered`）
+  包进新的 `#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER`（susfs.c
+  1785-2209 / 2317-2321），官方 50_add_susfs gki patch 的调用点门控也同步
+  改为该 CONFIG（带 `#else` 分支）；但**上游没有为它提供任何 Kconfig 条目**
+  （susfs4ksu 子模块、BakaSU kernel/Kconfig 均无）。本仓库固化补丁
+  010-0002 的调用点门控仍是旧版 `#ifdef CONFIG_KSU_SUSFS`（=y）→ 函数
+  不编译而调用点编译 → 链接失败。旧 pin 0606e19 的实现无门控（无条件
+  编译），故此前构建从未暴露。
+- **修复（补丁不可手改，走树 + gen-patches）**：
+  - 树内 kernel/sys.c（extern + 2 调用点）、block/ioprio.c（extern + 2
+    调用点）门控改为 `CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER`，与 f98f082
+    官方 patch 对齐；sys.c 中 `ksu_handle_setresuid` 两处保持
+    `CONFIG_KSU_SUSFS`（BakaSU hook，与 susfs 无关）。
+  - `apply-patches.sh` 幂等注入 `config KSU_SUSFS_PRIORITY_UID_FILTER`
+    （depends on KSU_SUSFS，default n）到 fs/Kconfig（借 NoMount 注入
+    先例；fs/Kconfig 被 gen-patches 排除，重放安全）。
+  - `configure.sh`：`-e CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER` + required
+    校验防回归（configure.sh 不读 features.fragment，实际开关以它为准）。
+  - features.fragment 同步 =y（保持与旧 pin 行为一致：过滤功能可用）。
+- **验证**：12 patches 重放 0 冲突、gen-patches check 通过（12/85 文件）；
+  本地 `make config FAST=1 build` 通过（Image.lz4 17M，无 undefined）；
+  CI fast 复跑见 §22 提交链接。
+- 附带：CI 工具链 cache key 从 `hashFiles(versions.env)` 改为
+  `CLANG_VERSION`（本轮 pin bump 无关变动曾每次逐出 1.99GiB clang
+  cache）；artifact 收集增强（final-config、build-inputs.tar.gz、
+  build-info.txt，`if: always()` 保留失败产物）；Image.lz4 超 64MiB
+  boot 预算（67098176 B）时 fail 但不丢弃产物。

@@ -59,6 +59,39 @@ install -D -m 0644 "$SUSFS_DIR/kernel_patches/include/linux/susfs.h" \
 install -D -m 0644 "$SUSFS_DIR/kernel_patches/include/linux/susfs_def.h" \
 	"$AOSP_DIR/include/linux/susfs_def.h"
 
+# susfs4ksu f98f082 ("Sync with upstream") wraps the priority-uid filter
+# (susfs_is_priority_uid_filtered and friends) in
+# #ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER but ships no Kconfig entry for
+# it, so the feature is unreachable and our gated call sites would fail to
+# link.  Provide the entry here (idempotent; fs/Kconfig is reset with the
+# tree and excluded from gen-patches, like the NoMount wiring below).
+# features.fragment sets it =y to keep the on-device behavior of the
+# previous SUSFS pin, where this code compiled unconditionally.
+susfs_kconfig="$AOSP_DIR/fs/Kconfig"
+if ! grep -q 'config KSU_SUSFS_PRIORITY_UID_FILTER' "$susfs_kconfig"; then
+	awk '
+		/^endmenu/ { last_match = NR }
+		{ lines[NR] = $0 }
+		END {
+			for (i = 1; i <= NR; i++) {
+				if (i == last_match) {
+					print ""
+					print "config KSU_SUSFS_PRIORITY_UID_FILTER"
+					print "\tbool \"Enable SUSFS priority uid filter (setpriority/getpriority/ioprio)\""
+					print "\tdepends on KSU_SUSFS"
+					print "\tdefault n"
+					print "\thelp"
+					print "\t  susfs4ksu f98f082 gates susfs_is_priority_uid_filtered()"
+					print "\t  behind this switch but provides no Kconfig entry for it."
+					print "\t  Enable to keep hiding uids from the setpriority /"
+					print "\t  getpriority / ioprio_set / ioprio_get syscall paths."
+				}
+				print lines[i]
+			}
+		}
+	' "$susfs_kconfig" > "$susfs_kconfig.tmp" && mv "$susfs_kconfig.tmp" "$susfs_kconfig"
+fi
+
 # NoMount (VFS path redirection subsystem) is symlinked into fs/ and hooked
 # into fs/Makefile + fs/Kconfig, mirroring upstream kernel/setup.sh but
 # re-runnable after the reset/clean above.  Apply the series first, then

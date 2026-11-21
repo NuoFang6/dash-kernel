@@ -3,6 +3,10 @@ CONFIG_KSU_MULTI_MANAGER_SUPPORT=y
 # CONFIG_KSU_TRACEPOINT_HOOK is not set
 # CONFIG_KSU_MANUAL_HOOK is not set
 CONFIG_KSU_SUSFS=y
+# susfs4ksu f98f082 wraps the priority-uid filter in this gate and ships no
+# Kconfig entry; apply-patches.sh injects one (fs/Kconfig).  Keep =y to match
+# the previous pin where the filter compiled unconditionally.
+CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER=y
 
 CONFIG_VENDOR_KO_COMPAT=y
 CONFIG_UDMABUF=y

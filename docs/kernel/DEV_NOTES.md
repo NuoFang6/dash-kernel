@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 15:01:58 +0800  
-> 覆盖 22 个源，282756 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 15:38:10 +0800  
+> 覆盖 22 个源，285662 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,9 +152,9 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4243 | `ed9c2a73bfa88fbc` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12008 | `698ad70f74f86cfd` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12372 | `55825cad60fe04dd` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 42795 | `1078714b20074ebb` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 45337 | `b161398efbfd3914` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22768 | `999340f825b5a71f` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10173 | `36c227c44e9410ce` | 当前交付（优先相信） |
@@ -262,7 +262,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 12008 字节 · SHA256 `698ad70f74f86cfdbd3b4551a58d72ae6aec609dae9871515897d46b1471d618`
+> 来源：[`docs/kernel/README.md`](README.md) · 12372 字节 · SHA256 `55825cad60fe04dd7cf5a19cc960fda042bf6dbc56a8517d94b57dfb61720212`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -327,11 +327,16 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   DEV_NOTES 的刷新/校验（`make notes`、`collect-notes.py --check`）只在本地
   做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
-  手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
+  手动 dispatch 全量构建（工具链 cache 以 `CLANG_VERSION` 为 key）。
   构建前做内存扩展（16G swapfile + 8G zram/zstd + zswap），方案经
   `storage-ram-test` 实测；磁盘清理 action 不采用——runner 基线约 87GB
-  空闲，足够 ThinLTO 构建。boot 打包和 `finalize.sh` 需要 gitignored 的
-  stock `boot_b.img` 与模块 manifest，仍只在本机执行。
+  空闲，足够 ThinLTO 构建。artifact 上传（`if: always()`）包含：内核产物
+  （Image/Image.lz4/System.map/vmlinux）、`build.log.gz`、构建实际生效的
+  `final-config`、补丁系列+configs+versions.env+关键脚本的
+  `build-inputs.tar.gz`、provenance `build-info.txt`；`Image.lz4` 超过
+  64MiB boot 可刷入预算（67098176 B）时 workflow fail 但 artifact 保留。
+  boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
+  manifest，仍只在本机执行。
 - [`.github/workflows/storage-ram-test.yml`](../../../.github/workflows/storage-ram-test.yml)：
   手动 dispatch 的存储/内存方案对比：基线探测、两个磁盘清理 action 实测
   （jlumbroso v2：28GiB/257s；endersonmenezes v4 rmz：26GiB/40s）、
@@ -622,7 +627,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 42795 字节 · SHA256 `1078714b20074ebbcc599a1e087794197b3d015e8edf2a3d8234389b6563c4f5`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 45337 字节 · SHA256 `b161398efbfd3914bebd4a06ad0417a485a55d7fa4f810f5cc39d73364f4f05d`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1381,6 +1386,43 @@ QoS sysfs 与 stock 行为一致：
   SHA512-CE、CHACHA20-NEON、POLY1305-NEON、POLYVAL-CE）、
   `CC_OPTIMIZE_FOR_PERFORMANCE`、ThinLTO。stock KMI 约束下无未利用的
   硬件 ISA 开关。
+
+### 23. SUSFS f98f082 bump 链接失败与修复（2026-11-21）
+
+**证据分级：CI 失败日志 + 本地 FAST 构建通过（真机构建级）。**
+
+- **失败**：CI run 44878359543（r4 + BakaSU 7b65bde + SUSFS f98f082）链接
+  `ld.lld: error: undefined symbol: susfs_is_priority_uid_filtered`
+  （引用于 kernel/sys.c setpriority/getpriority、block/ioprio.c
+  ioprio_set/getpriority）。
+- **根因**：f98f082（"Sync with upstream"）把 priority-uid filter 实现
+  （susfs.c 的 app-strings worker / bitmap / `susfs_is_priority_uid_filtered`）
+  包进新的 `#ifdef CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER`（susfs.c
+  1785-2209 / 2317-2321），官方 50_add_susfs gki patch 的调用点门控也同步
+  改为该 CONFIG（带 `#else` 分支）；但**上游没有为它提供任何 Kconfig 条目**
+  （susfs4ksu 子模块、BakaSU kernel/Kconfig 均无）。本仓库固化补丁
+  010-0002 的调用点门控仍是旧版 `#ifdef CONFIG_KSU_SUSFS`（=y）→ 函数
+  不编译而调用点编译 → 链接失败。旧 pin 0606e19 的实现无门控（无条件
+  编译），故此前构建从未暴露。
+- **修复（补丁不可手改，走树 + gen-patches）**：
+  - 树内 kernel/sys.c（extern + 2 调用点）、block/ioprio.c（extern + 2
+    调用点）门控改为 `CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER`，与 f98f082
+    官方 patch 对齐；sys.c 中 `ksu_handle_setresuid` 两处保持
+    `CONFIG_KSU_SUSFS`（BakaSU hook，与 susfs 无关）。
+  - `apply-patches.sh` 幂等注入 `config KSU_SUSFS_PRIORITY_UID_FILTER`
+    （depends on KSU_SUSFS，default n）到 fs/Kconfig（借 NoMount 注入
+    先例；fs/Kconfig 被 gen-patches 排除，重放安全）。
+  - `configure.sh`：`-e CONFIG_KSU_SUSFS_PRIORITY_UID_FILTER` + required
+    校验防回归（configure.sh 不读 features.fragment，实际开关以它为准）。
+  - features.fragment 同步 =y（保持与旧 pin 行为一致：过滤功能可用）。
+- **验证**：12 patches 重放 0 冲突、gen-patches check 通过（12/85 文件）；
+  本地 `make config FAST=1 build` 通过（Image.lz4 17M，无 undefined）；
+  CI fast 复跑见 §22 提交链接。
+- 附带：CI 工具链 cache key 从 `hashFiles(versions.env)` 改为
+  `CLANG_VERSION`（本轮 pin bump 无关变动曾每次逐出 1.99GiB clang
+  cache）；artifact 收集增强（final-config、build-inputs.tar.gz、
+  build-info.txt，`if: always()` 保留失败产物）；Image.lz4 超 64MiB
+  boot 预算（67098176 B）时 fail 但不丢弃产物。
 
 ---
 
