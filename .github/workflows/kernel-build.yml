@@ -76,13 +76,24 @@ jobs:
           free -h
           swapon --show
 
-      # ~1GB sparse clang checkout; keyed on versions.env so a pin bump
-      # invalidates it.  fetch-toolchain.sh no-ops when the cache hit.
+      # ~1GB sparse clang checkout; keyed on CLANG_VERSION only, so kernel /
+      # BakaSU / SUSFS pin bumps in versions.env do NOT evict the toolchain.
+      # fetch-toolchain.sh no-ops when the cache hit (TOOLCHAIN_DIR/bin/clang
+      # already executable).  restore-keys falls back to the newest clang-*
+      # entry so even a version bump reuses the git clone skeleton.
+      - name: Compute toolchain cache key
+        id: toolcache
+        run: |
+          ver="$(grep -E '^CLANG_VERSION=' dash/versions.env | cut -d= -f2 | tr -d '[:space:]')"
+          echo "key=clang-${ver}" >> "$GITHUB_OUTPUT"
+          echo "cache key: clang-${ver}"
+
       - name: Restore clang toolchain cache
         uses: actions/cache@v4
         with:
           path: dash/toolchains/clang-prebuilt
-          key: clang-${{ hashFiles('dash/versions.env') }}
+          key: ${{ steps.toolcache.outputs.key }}
+          restore-keys: clang-
 
       - name: Build Image (source → patches → config → build)
         env:
