@@ -202,7 +202,8 @@ SERIES = [
         ]),
         ("0002-arm64-percpu-fixes.patch", [
             "arch/arm64/include/asm/mmu_context.h",
-            "arch/arm64/mm/mmu.c",
+            "arch/arm64/mm/Makefile",
+            "arch/arm64/mm/idmap_cfi.c",
             "arch/arm64/include/asm/percpu.h",
         ]),
         ("0003-arm64-dash-tune.patch", [

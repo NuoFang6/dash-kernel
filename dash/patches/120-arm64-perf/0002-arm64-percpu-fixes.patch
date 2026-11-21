@@ -1,18 +1,22 @@
 diff --git a/arch/arm64/include/asm/mmu_context.h b/arch/arm64/include/asm/mmu_context.h
-index a6fb32542..50cd9c8c0 100644
+index a6fb32542..a65815a36 100644
 --- a/arch/arm64/include/asm/mmu_context.h
 +++ b/arch/arm64/include/asm/mmu_context.h
-@@ -148,14 +148,20 @@ static inline void cpu_install_ttbr0(phys_addr_t ttbr0, unsigned long t0sz)
+@@ -148,14 +148,24 @@ static inline void cpu_install_ttbr0(phys_addr_t ttbr0, unsigned long t0sz)
  	isb();
  }
  
 +/*
-+ * Keep this declaration at file scope.  SYM_TYPED_FUNC_START() in proc.S
-+ * needs clang to emit __kcfi_typeid_idmap_cpu_replace_ttbr1; under Full LTO a
-+ * declaration local to the inline caller is discarded before the final link.
++ * Declare this with an opaque object type: taking the address of a
++ * function-typed declaration makes clang emit a weak
++ * __kcfi_typeid_idmap_cpu_replace_ttbr1 in every translation unit that
++ * instantiates cpu_replace_ttbr1().  Full LTO merges those units and drops the
++ * duplicated weak absolute symbol, breaking the reference emitted by
++ * SYM_TYPED_FUNC_START() in proc.S.  The single type id is emitted from
++ * arch/arm64/mm/idmap_cfi.c instead.
 + */
 +typedef void (ttbr_replace_func)(phys_addr_t);
-+extern ttbr_replace_func idmap_cpu_replace_ttbr1;
++extern char idmap_cpu_replace_ttbr1[];
 +
  /*
   * Atomically replaces the active TTBR1_EL1 PGD with a new VA-compatible PGD,
@@ -65,31 +69,47 @@ index 9abcc8ef3..939dbaa7c 100644
  
  #define this_cpu_or_1(pcp, val)		\
  	_pcp_protect(__percpu_or_case_8, pcp, val)
-diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-index 9d9ee0325..49cc9268a 100644
---- a/arch/arm64/mm/mmu.c
-+++ b/arch/arm64/mm/mmu.c
-@@ -7,6 +7,7 @@
-  */
+diff --git a/arch/arm64/mm/Makefile b/arch/arm64/mm/Makefile
+index 09f8bd340..8a8c66bb2 100644
+--- a/arch/arm64/mm/Makefile
++++ b/arch/arm64/mm/Makefile
+@@ -12,6 +12,7 @@ obj-$(CONFIG_TRANS_TABLE)	+= trans_pgd.o
+ obj-$(CONFIG_TRANS_TABLE)	+= trans_pgd-asm.o
+ obj-$(CONFIG_DEBUG_VIRTUAL)	+= physaddr.o
+ obj-$(CONFIG_ARM64_MTE)		+= mteswap.o
++obj-$(CONFIG_CFI_CLANG)		+= idmap_cfi.o
+ KASAN_SANITIZE_physaddr.o	+= n
  
- #include <linux/cache.h>
-+#include <linux/cfi_types.h>
- #include <linux/export.h>
- #include <linux/kernel.h>
- #include <linux/errno.h>
-@@ -45,6 +46,15 @@
- #define NO_CONT_MAPPINGS	BIT(1)
- #define NO_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is not used */
- 
-+#ifdef CONFIG_CFI_CLANG
+ obj-$(CONFIG_KASAN)		+= kasan_init.o
+diff --git a/arch/arm64/mm/idmap_cfi.c b/arch/arm64/mm/idmap_cfi.c
+new file mode 100644
+index 000000000..6a32a22fa
+--- /dev/null
++++ b/arch/arm64/mm/idmap_cfi.c
+@@ -0,0 +1,26 @@
++// SPDX-License-Identifier: GPL-2.0-only
 +/*
-+ * SYM_TYPED_FUNC_START() in proc.S only references the CFI type id; the
-+ * compiler must define __kcfi_typeid_idmap_cpu_replace_ttbr1.  Taking the
-+ * address here keeps that definition alive through Full LTO.
++ * CFI type id for idmap_cpu_replace_ttbr1().
++ *
++ * SYM_TYPED_FUNC_START() in proc.S references
++ * __kcfi_typeid_idmap_cpu_replace_ttbr1, and the compiler only defines that
++ * symbol in translation units that take the function's address.  Declaring
++ * the function with its real prototype in mmu_context.h would make every
++ * instantiator of the cpu_replace_ttbr1() inline helper emit a weak absolute
++ * definition; Full LTO merges them and drops the duplicated weak symbol.
++ *
++ * Keep the address-taking in this single translation unit (which deliberately
++ * does not include mmu_context.h, so the opaque declaration there does not
++ * conflict) so the linker gets exactly one definition.
 + */
++
++#include <linux/compiler.h>
++#include <linux/types.h>
++#include <linux/cfi_types.h>
++
++#ifdef CONFIG_CFI_CLANG
++typedef void (ttbr_replace_func)(phys_addr_t);
++extern ttbr_replace_func idmap_cpu_replace_ttbr1;
++
 +DEFINE_CFI_TYPE(idmap_cpu_replace_ttbr1_cfi_type, idmap_cpu_replace_ttbr1);
 +#endif
-+
- int idmap_t0sz __ro_after_init;
- 
- #if VA_BITS > 48
