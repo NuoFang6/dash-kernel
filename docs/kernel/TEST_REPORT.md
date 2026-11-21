@@ -1262,3 +1262,46 @@ KSU + SUSFS 全套。与生产配置一致。
 - `ksud module install` 将 v1.3 放入 `modules_update/`，当前运行目录仍是
   v1.2 加上 `update` 标记；重启后切换到 v1.3，`service.sh` 会在每次启动
   重新建立挂载、清理日志并停止 tcpdump。
+
+## 32. SUSFS 最佳伪装配置（2026-11-22，真机）
+
+**依据：OS4.0.4.0 OTA `boot.img` 内 stock kernel 字符串 + 设备指纹
+`Redmi/dash/dash:17/CP2A.260605.016/OS4.0.4.0.XPLCNXM`。**
+
+- 官方 stock 值（`strings /tmp/ub-boot/kernel`）：
+  - release `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`
+  - version `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`
+- 原伪装是旧构建（`6.6.118-…gc44b714366cc-abogki519650608`，Jun 4），
+  已替换为 OTA 4.0.4.0 的对应值。
+- `ksu_susfs config`（持久化到 `/data/adb/ksu/.susfs.json`，ksud 在
+  init_event 阶段应用）现在为：
+
+  ```json
+  {
+    "enabled": true,
+    "cmdline_or_bootconfig": "/data/adb/susfs_bootconfig.txt",
+    "avc_log_spoofing": true,
+    "logging": false,
+    "hide_sus_mnts_for_non_su_procs": true,
+    "uname": {
+      "release": "6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k",
+      "version": "#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026"
+    },
+    "sus_path": [], "sus_kstat": [], "open_redirect": [], "sus_map": []
+  }
+  ```
+
+- `/proc/bootconfig` spoof 文件由官方 bootconfig 复制，仅把
+  `vbmeta.device_state` 改为 `locked`、`verifiedbootstate` 改为 `green`
+  （与 `getprop ro.boot.verifiedbootstate=green` 一致）。
+- 实测：`uname -a` = 官方 release/version；`/proc/bootconfig` 显示
+  green/locked；`enable_log 0`；AVC log spoofing 与 SUS mount 隐藏已开。
+- 未添加 `sus_path`/`sus_kstat`/`open_redirect`/`sus_map` 条目：本机
+  `/data/adb` 为 0700 root，普通 app 无法遍历，且没有需要重定向/隐藏的
+  具体目标；乱加路径可能破坏 KSU 管理器或模块功能。
+- 残留暴露（SUSFS 运行时不覆盖）：`/proc/version` 仍为
+  `6.6.143-4k (dash@mikernel) … Nov 21 16:44:37 UTC 2026`；
+  `/proc/config.gz` 仍是自编配置；`/proc/modules` 含非 stock 模块名。
+  这些需要内核侧硬编码/stock defconfig 才能处理。
+- 备份：旧配置在 `/tmp/susfs-backup.json`（主机），可用
+  `ksu_susfs config restore` 恢复。

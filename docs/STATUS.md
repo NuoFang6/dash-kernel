@@ -19,7 +19,7 @@
 | `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
 | `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
-| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
+| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 自建 `dash_art_tune` v1.3（BBRv3+fq_codel、ADIOS、ART/dex2oat 调优、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |

@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 02:30:03 +0800
-> 覆盖 22 个源，324184 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 02:34:08 +0800
+> 覆盖 22 个源，326642 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8342 | `cdbc8839516ef52c` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8743 | `2a5a00e836e1231a` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 69717 | `0811d7dd2d3f2cb0` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 71774 | `b62fb0f7bcb5a220` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 8342 字节 · SHA256 `cdbc8839516ef52c25b57abaceebd83c4be8f121bcab0239a9e99e9ba927b7f4`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 8743 字节 · SHA256 `2a5a00e836e1231a182a0161d7d6eb21ce5e71d3e649d2994be5e554da00ed46`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -204,7 +204,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
 | `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
-| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0，此前文档误标 v2.3.0） |
+| 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
 | KSU 模块 | 自建 `dash_art_tune` v1.3（BBRv3+fq_codel、ADIOS、ART/dex2oat 调优、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 69717 字节 · SHA256 `0811d7dd2d3f2cb072a2e8da78403612a0b59be01c4dfbc139a9a1d011d454d4`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 71774 字节 · SHA256 `b62fb0f7bcb5a2209a5ebfe5543f44e8d7631b11a38e885b554ad6d6ac288c8f`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2017,6 +2017,49 @@ KSU + SUSFS 全套。与生产配置一致。
 - `ksud module install` 将 v1.3 放入 `modules_update/`，当前运行目录仍是
   v1.2 加上 `update` 标记；重启后切换到 v1.3，`service.sh` 会在每次启动
   重新建立挂载、清理日志并停止 tcpdump。
+
+### 32. SUSFS 最佳伪装配置（2026-11-22，真机）
+
+**依据：OS4.0.4.0 OTA `boot.img` 内 stock kernel 字符串 + 设备指纹
+`Redmi/dash/dash:17/CP2A.260605.016/OS4.0.4.0.XPLCNXM`。**
+
+- 官方 stock 值（`strings /tmp/ub-boot/kernel`）：
+  - release `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k`
+  - version `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`
+- 原伪装是旧构建（`6.6.118-…gc44b714366cc-abogki519650608`，Jun 4），
+  已替换为 OTA 4.0.4.0 的对应值。
+- `ksu_susfs config`（持久化到 `/data/adb/ksu/.susfs.json`，ksud 在
+  init_event 阶段应用）现在为：
+
+  ```json
+  {
+    "enabled": true,
+    "cmdline_or_bootconfig": "/data/adb/susfs_bootconfig.txt",
+    "avc_log_spoofing": true,
+    "logging": false,
+    "hide_sus_mnts_for_non_su_procs": true,
+    "uname": {
+      "release": "6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k",
+      "version": "#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026"
+    },
+    "sus_path": [], "sus_kstat": [], "open_redirect": [], "sus_map": []
+  }
+  ```
+
+- `/proc/bootconfig` spoof 文件由官方 bootconfig 复制，仅把
+  `vbmeta.device_state` 改为 `locked`、`verifiedbootstate` 改为 `green`
+  （与 `getprop ro.boot.verifiedbootstate=green` 一致）。
+- 实测：`uname -a` = 官方 release/version；`/proc/bootconfig` 显示
+  green/locked；`enable_log 0`；AVC log spoofing 与 SUS mount 隐藏已开。
+- 未添加 `sus_path`/`sus_kstat`/`open_redirect`/`sus_map` 条目：本机
+  `/data/adb` 为 0700 root，普通 app 无法遍历，且没有需要重定向/隐藏的
+  具体目标；乱加路径可能破坏 KSU 管理器或模块功能。
+- 残留暴露（SUSFS 运行时不覆盖）：`/proc/version` 仍为
+  `6.6.143-4k (dash@mikernel) … Nov 21 16:44:37 UTC 2026`；
+  `/proc/config.gz` 仍是自编配置；`/proc/modules` 含非 stock 模块名。
+  这些需要内核侧硬编码/stock defconfig 才能处理。
+- 备份：旧配置在 `/tmp/susfs-backup.json`（主机），可用
+  `ksu_susfs config restore` 恢复。
 
 ---
 
