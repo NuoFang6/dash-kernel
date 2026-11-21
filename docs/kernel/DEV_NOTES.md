@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 02:34:08 +0800
-> 覆盖 22 个源，326642 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 04:23:38 +0800
+> 覆盖 22 个源，329237 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -155,7 +155,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8743 | `2a5a00e836e1231a` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 71774 | `b62fb0f7bcb5a220` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 74369 | `54329f53112d9e12` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 71774 字节 · SHA256 `b62fb0f7bcb5a2209a5ebfe5543f44e8d7631b11a38e885b554ad6d6ac288c8f`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 74369 字节 · SHA256 `54329f53112d9e1280a9a2c065401a009330e9046a47b657d2381595d210ee24`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2060,6 +2060,58 @@ KSU + SUSFS 全套。与生产配置一致。
   这些需要内核侧硬编码/stock defconfig 才能处理。
 - 备份：旧配置在 `/tmp/susfs-backup.json`（主机），可用
   `ksu_susfs config restore` 恢复。
+
+### 33. zram 消失 / Scene 附加模块失效排查（2026-11-22，真机）
+
+**结论：不是内核或 zram 驱动丢失，是 Scene 附加模块在配置文件缺失时主动
+`swapoff` 了 zram。**
+
+#### 证据链
+
+- `zram0` 一直存在：`disksize=16 GiB`、`backing_dev=/dev/block/dm-71`；
+  但 `/proc/swaps` 为空，`mm_stat` 只剩 4 KiB 原始数据。
+- Scene 应用在 `2026-11-22 01:05:47` 更新到 `N1 2026.11 PreRelease 5`；
+  其附加模块文件时间为 `01:24:31`（应用随更新重装模块）。
+- 模块 `uninstall.sh` 第一段会 `rm -f /data/swap_config.conf`；模块重装后
+  该文件一直缺失（`swap.xml` 最后写入 04:10，配置仍不存在）。
+- `/cache/lmkd_opt.log`（04:12 一次模块运行）：
+
+  ```text
+  没有找到配置文件 /data/swap_config.conf
+  等待解锁屏幕
+  关闭ZRAM
+  未配置ZRAM
+  ```
+
+- `startup.sh` 主逻辑：`$zram` 未定义时既不是 `"false"` 也不是 `"true"`，
+  走 else 分支 → `wait_until_login; sleep 10; swapoff /dev/block/zram0`；
+  随后 `set_zram` 因 `$zram != true` 只打印“未配置ZRAM”，不会重建 swap。
+- 另有两类 SELinux 拒绝，属于 Scene app（`untrusted_app_34`）直接读
+  `/sys/block/zram0`、`/proc/sys/vm/swappiness` 的正常限制，不是本内核
+  新引入的策略问题。
+
+#### 处置
+
+- 按 `swap.xml` 当前设置重建 `/data/swap_config.conf`（root 600）：
+  `zram=false`、`zram_size=16384`、`comp_algorithm=zstd`、`swap=false`、
+  `swap_priority=-2`、`swappiness=125`、`watermark_scale_factor=50`、
+  `extra_free_kbytes=131072`。`zram=false` 时模块走“ZRAM将保持系统默认
+  配置”，不再关闭厂商 ExtM 的 zram。
+- 手动恢复 swap：`mkswap /dev/block/zram0` + `swapon -p 0`，当前
+  `/proc/swaps` 为 zram0 16 GiB（priority 0），实测可用。
+- 再次执行模块 `startup.sh` 验证：日志为
+  `ZRAM将保持系统默认配置` / `未配置ZRAM`，swap 仍在，未再出现“关闭ZRAM”；
+  `swappiness=125`、`watermark_scale_factor=50`、`extra_free_kbytes=131072`
+  按 `swap.xml` 生效。
+
+#### 残留
+
+- 本次运行 zram 压缩算法为 `lz4`（列表里没有 `lz4kd`），原因是 zram 已置
+  disksize 后不允许改算法；重启后由厂商 ExtM 重新初始化应恢复
+  `lz4kd`，需重启后复核。
+- 若 Scene 应用再次自动更新附加模块，其 `uninstall.sh` 仍会删除
+  `/data/swap_config.conf`；需要在 Scene 里重新“应用”一次以重新生成，
+  或避免模块自动更新。这是 Scene 模块自身的行为，不由本内核控制。
 
 ---
 

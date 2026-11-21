@@ -1305,3 +1305,55 @@ KSU + SUSFS 全套。与生产配置一致。
   这些需要内核侧硬编码/stock defconfig 才能处理。
 - 备份：旧配置在 `/tmp/susfs-backup.json`（主机），可用
   `ksu_susfs config restore` 恢复。
+
+## 33. zram 消失 / Scene 附加模块失效排查（2026-11-22，真机）
+
+**结论：不是内核或 zram 驱动丢失，是 Scene 附加模块在配置文件缺失时主动
+`swapoff` 了 zram。**
+
+### 证据链
+
+- `zram0` 一直存在：`disksize=16 GiB`、`backing_dev=/dev/block/dm-71`；
+  但 `/proc/swaps` 为空，`mm_stat` 只剩 4 KiB 原始数据。
+- Scene 应用在 `2026-11-22 01:05:47` 更新到 `N1 2026.11 PreRelease 5`；
+  其附加模块文件时间为 `01:24:31`（应用随更新重装模块）。
+- 模块 `uninstall.sh` 第一段会 `rm -f /data/swap_config.conf`；模块重装后
+  该文件一直缺失（`swap.xml` 最后写入 04:10，配置仍不存在）。
+- `/cache/lmkd_opt.log`（04:12 一次模块运行）：
+
+  ```text
+  没有找到配置文件 /data/swap_config.conf
+  等待解锁屏幕
+  关闭ZRAM
+  未配置ZRAM
+  ```
+
+- `startup.sh` 主逻辑：`$zram` 未定义时既不是 `"false"` 也不是 `"true"`，
+  走 else 分支 → `wait_until_login; sleep 10; swapoff /dev/block/zram0`；
+  随后 `set_zram` 因 `$zram != true` 只打印“未配置ZRAM”，不会重建 swap。
+- 另有两类 SELinux 拒绝，属于 Scene app（`untrusted_app_34`）直接读
+  `/sys/block/zram0`、`/proc/sys/vm/swappiness` 的正常限制，不是本内核
+  新引入的策略问题。
+
+### 处置
+
+- 按 `swap.xml` 当前设置重建 `/data/swap_config.conf`（root 600）：
+  `zram=false`、`zram_size=16384`、`comp_algorithm=zstd`、`swap=false`、
+  `swap_priority=-2`、`swappiness=125`、`watermark_scale_factor=50`、
+  `extra_free_kbytes=131072`。`zram=false` 时模块走“ZRAM将保持系统默认
+  配置”，不再关闭厂商 ExtM 的 zram。
+- 手动恢复 swap：`mkswap /dev/block/zram0` + `swapon -p 0`，当前
+  `/proc/swaps` 为 zram0 16 GiB（priority 0），实测可用。
+- 再次执行模块 `startup.sh` 验证：日志为
+  `ZRAM将保持系统默认配置` / `未配置ZRAM`，swap 仍在，未再出现“关闭ZRAM”；
+  `swappiness=125`、`watermark_scale_factor=50`、`extra_free_kbytes=131072`
+  按 `swap.xml` 生效。
+
+### 残留
+
+- 本次运行 zram 压缩算法为 `lz4`（列表里没有 `lz4kd`），原因是 zram 已置
+  disksize 后不允许改算法；重启后由厂商 ExtM 重新初始化应恢复
+  `lz4kd`，需重启后复核。
+- 若 Scene 应用再次自动更新附加模块，其 `uninstall.sh` 仍会删除
+  `/data/swap_config.conf`；需要在 Scene 里重新“应用”一次以重新生成，
+  或避免模块自动更新。这是 Scene 模块自身的行为，不由本内核控制。
