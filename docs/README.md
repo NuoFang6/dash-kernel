@@ -45,6 +45,7 @@
 | [BOOT_PACKAGING.md](kernel/BOOT_PACKAGING.md) | boot 封装、AVB、恢复规则 | 当前 |
 | [STOCK_PARITY_AUDIT.md](kernel/STOCK_PARITY_AUDIT.md) | 实机 vs stock 6.6.118 的 config/模块/tracepoint/功能核对 | 当前 |
 | [UPSTREAM_NOTES_REVIEW.md](kernel/UPSTREAM_NOTES_REVIEW.md) | 参考仓库工作笔记核对与可借鉴/不采纳的优化 | 当前 |
+| [FEATURES_SURVEY.md](kernel/FEATURES_SURVEY.md) | WildKernels/GKID 特性调查:实现可信度分级、与 dash 对照、决策记录 | 调查快照 + 决策台账 |
 | [UFS_HYBRID_EVIDENCE.md](kernel/UFS_HYBRID_EVIDENCE.md) | UFS/hybrid/fastdiscard 缺口证据与安全边界 | 当前 |
 | [DEV_NOTES.md](kernel/DEV_NOTES.md) | 由 `dash/scripts/collect-notes.py` 生成的聚合避坑包 | **生成物**，不要手改 |
 | [UNRESOLVED_GAPS.md](kernel/UNRESOLVED_GAPS.md) | 已并入 OPEN_ISSUES | **跳转页**，不要更新 |

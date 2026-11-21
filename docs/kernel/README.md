@@ -150,6 +150,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   内核能力、tcp-brutal 与 MPTCP 结论；KSU 模块已移除，客户端为 AsteriskMETA
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
+- [FEATURES_SURVEY.md](FEATURES_SURVEY.md)：WildKernels/GKID 特性调查，
+  实现可信度分级（官方/厂商/作者自研/来源不明）、与 dash 对照与决策台账
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
   [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。
