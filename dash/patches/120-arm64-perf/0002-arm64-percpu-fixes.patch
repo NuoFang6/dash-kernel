@@ -65,3 +65,31 @@ index 9abcc8ef3..939dbaa7c 100644
  
  #define this_cpu_or_1(pcp, val)		\
  	_pcp_protect(__percpu_or_case_8, pcp, val)
+diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
+index 9d9ee0325..49cc9268a 100644
+--- a/arch/arm64/mm/mmu.c
++++ b/arch/arm64/mm/mmu.c
+@@ -7,6 +7,7 @@
+  */
+ 
+ #include <linux/cache.h>
++#include <linux/cfi_types.h>
+ #include <linux/export.h>
+ #include <linux/kernel.h>
+ #include <linux/errno.h>
+@@ -45,6 +46,15 @@
+ #define NO_CONT_MAPPINGS	BIT(1)
+ #define NO_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is not used */
+ 
++#ifdef CONFIG_CFI_CLANG
++/*
++ * SYM_TYPED_FUNC_START() in proc.S only references the CFI type id; the
++ * compiler must define __kcfi_typeid_idmap_cpu_replace_ttbr1.  Taking the
++ * address here keeps that definition alive through Full LTO.
++ */
++DEFINE_CFI_TYPE(idmap_cpu_replace_ttbr1_cfi_type, idmap_cpu_replace_ttbr1);
++#endif
++
+ int idmap_t0sz __ro_after_init;
+ 
+ #if VA_BITS > 48

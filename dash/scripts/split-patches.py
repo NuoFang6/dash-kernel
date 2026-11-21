@@ -193,7 +193,7 @@ SERIES = [
             "net/unix/af_unix.c",
         ]),
     ]),
-    ("120-arm64-perf", "arm64/库性能：copy_template prfm、ARM optimized-routines memcmp、clear_page 16B 对齐、int_sqrt、this_cpu_write/and 修复、DASH_ARM64_TUNE", [
+    ("120-arm64-perf", "arm64/库性能：copy_template prfm、ARM optimized-routines memcmp、clear_page 16B 对齐、int_sqrt、this_cpu_write/and 修复、idmap KCFI typeid、DASH_ARM64_TUNE", [
         ("0001-arm64-lib-perf.patch", [
             "arch/arm64/lib/clear_page.S",
             "arch/arm64/lib/copy_template.S",
@@ -202,6 +202,7 @@ SERIES = [
         ]),
         ("0002-arm64-percpu-fixes.patch", [
             "arch/arm64/include/asm/mmu_context.h",
+            "arch/arm64/mm/mmu.c",
             "arch/arm64/include/asm/percpu.h",
         ]),
         ("0003-arm64-dash-tune.patch", [
