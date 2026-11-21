@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := build
 
-.PHONY: deps toolchain source patches config build boot brutal all clean distclean notes notes-check
+.PHONY: deps toolchain source patches gen-patches config build boot brutal all clean distclean notes notes-check
 
 deps:
 	bash scripts/install-deps.sh
@@ -14,6 +14,9 @@ source:
 
 patches: source
 	bash scripts/apply-patches.sh
+
+gen-patches:
+	bash scripts/gen-patches.sh
 
 config: toolchain patches
 	FAST="$(FAST)" bash scripts/configure.sh

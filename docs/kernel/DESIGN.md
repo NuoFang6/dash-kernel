@@ -17,20 +17,29 @@
 
 ## 2. 补丁系列
 
-[patches/series](../../dash/patches/series) 是唯一应用顺序。当前 6.6.143 只有
-一个整树集成补丁；详细原因、生成和应用流程见
+[patches/series](../../dash/patches/series) 是唯一应用顺序。补丁按功能特性
+分目录存放，拆分是文件级的（每个文件只属于一个补丁，归属唯一记录在
+`dash/scripts/split-patches.py` 的 `SERIES` 映射表），生成和应用流程见
 [patches/README.md](../../dash/patches/README.md)。
 
-| 补丁/目录 | 内容 |
+| 特性目录 | 内容 |
 |---|---|
-| `0000-6.6.143-dash-integration.patch` | 整树 squash：vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、stock parity hooks、OS4 vendor hooks |
+| `010-bakasu-susfs` | BakaSU 内建 + SUSFS inline hook（VFS/security/core 交错文件不可再拆） |
+| `020-vendor-ko-compat` | 厂商 .ko 兼容（签名/vermagic/CRC/namespace/GKI 保护导出） |
+| `030-vendor-hooks-os4` | dash OS4 `android_vh_*` vendor hooks |
+| `040-memfd-ashmem-shim` | MEMFD_ASHMEM shim 配置接入 |
+| `050-lz4kd-zram` | lz4kd crypto 模块、LZ4 trace 事件、zram 后端 |
+| `060-f2fs-xiaomi` | Xiaomi F2FS 增强（iostat/VIP/hybrid/lock priority） |
+| `070-erofs-xiaomi` | Xiaomi EROFS iostat sysfs |
+| `080-dash-misc` | dash 维护性独立修复（pid_max clamp） |
 | `third_party/susfs4ksu`（子模块） | `kernel_patches/` 下的 SUSFS 内核文件，由 `scripts/apply-patches.sh` 安装，仓库不存副本 |
 
-旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）已于 2026-11-21 从仓库删除，
-仅存 git 历史（commit `1e5c8f4` 之前）。
+旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）与 6.6.143 整树 squash
+`0000-6.6.143-dash-integration.patch` 已于 2026-11-21 从仓库删除，
+仅存 git 历史。
 
-BakaSU 以固定提交的本地符号链接接入，不复制上游历史。集成补丁在干净
-`bf768be0` 上 apply 后，84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致。
+BakaSU 以固定提交的本地符号链接接入，不复制上游历史。特性系列在干净
+`bf768be0` 上 apply 后，与构建工作树逐字节一致（见 TEST_REPORT §20）。
 
 ## 3. 厂商模块与 trace hooks
 

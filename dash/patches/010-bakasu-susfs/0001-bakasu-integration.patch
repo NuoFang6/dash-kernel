@@ -1,0 +1,20 @@
+diff --git a/drivers/Kconfig b/drivers/Kconfig
+index efb66e25f..a2874c223 100644
+--- a/drivers/Kconfig
++++ b/drivers/Kconfig
+@@ -243,4 +243,6 @@ source "drivers/hte/Kconfig"
+ 
+ source "drivers/cdx/Kconfig"
+ 
++source "drivers/kernelsu/Kconfig"
++
+ endmenu
+diff --git a/drivers/Makefile b/drivers/Makefile
+index 1bec7819a..b244fe673 100644
+--- a/drivers/Makefile
++++ b/drivers/Makefile
+@@ -199,3 +199,4 @@ obj-$(CONFIG_DRM_ACCEL)		+= accel/
+ obj-$(CONFIG_CDX_BUS)		+= cdx/
+ 
+ obj-$(CONFIG_S390)		+= s390/
++obj-$(CONFIG_KSU)		+= kernelsu/

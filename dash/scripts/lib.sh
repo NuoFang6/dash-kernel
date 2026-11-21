@@ -6,8 +6,10 @@ DASH_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$DASH_ROOT/versions.env"
 
 # Shared paths consumed by every script that sources this library.
+# AOSP_DIR_OVERRIDE lets verification run the same flow against a throwaway
+# checkout (e.g. a git worktree at the pinned AOSP commit).
 # shellcheck disable=SC2034
-AOSP_DIR="$DASH_ROOT/src/aosp/common"
+AOSP_DIR="${AOSP_DIR_OVERRIDE:-$DASH_ROOT/src/aosp/common}"
 # shellcheck disable=SC2034
 OUT_DIR="$DASH_ROOT/out/${DEVICE:-dash}"
 # shellcheck disable=SC2034
@@ -25,6 +27,11 @@ if [[ "$SUSFS_DIR" != /* ]]; then
 	SUSFS_DIR="$DASH_ROOT/$SUSFS_DIR"
 fi
 SUSFS_DIR="$(cd "$SUSFS_DIR" && pwd)"
+
+if [[ "$NOMOUNT_DIR" != /* ]]; then
+	NOMOUNT_DIR="$DASH_ROOT/$NOMOUNT_DIR"
+fi
+NOMOUNT_DIR="$(cd "$NOMOUNT_DIR" && pwd)"
 
 if [[ "$TCP_BRUTAL_DIR" != /* ]]; then
 	TCP_BRUTAL_DIR="$DASH_ROOT/$TCP_BRUTAL_DIR"

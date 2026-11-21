@@ -1,0 +1,88 @@
+diff --git a/kernel/module/Kconfig b/kernel/module/Kconfig
+index ef582840f..485436e4c 100644
+--- a/kernel/module/Kconfig
++++ b/kernel/module/Kconfig
+@@ -22,6 +22,15 @@ menuconfig MODULES
+ 
+ if MODULES
+ 
++config VENDOR_KO_COMPAT
++	bool "Allow loading vendor modules with mismatched verification"
++	depends on MODULES
++	default n
++	help
++	  Skip module signature, vermagic, symbol CRC, namespace import and
++	  GKI protected-export checks. This allows vendor modules built for a
++	  different kernel build to load on this kernel.
++
+ config MODULE_DEBUGFS
+ 	bool
+ 
+diff --git a/kernel/module/main.c b/kernel/module/main.c
+index acd237bf6..aa11821a7 100644
+--- a/kernel/module/main.c
++++ b/kernel/module/main.c
+@@ -1073,6 +1073,9 @@ static int verify_namespace_is_imported(const struct load_info *info,
+ 	const char *namespace;
+ 	char *imported_namespace;
+ 
++	if (IS_ENABLED(CONFIG_VENDOR_KO_COMPAT))
++		return 0;
++
+ 	namespace = kernel_symbol_namespace(sym);
+ 	if (namespace && namespace[0]) {
+ 		for_each_modinfo_entry(imported_namespace, info, "import_ns") {
+@@ -2131,6 +2134,11 @@ static int check_modinfo(struct module *mod, struct load_info *info, int flags)
+ 	const char *modmagic = get_modinfo(info, "vermagic");
+ 	int err;
+ 
++	if (IS_ENABLED(CONFIG_VENDOR_KO_COMPAT)) {
++		mod->sig_ok = true;
++		return 0;
++	}
++
+ 	if (flags & MODULE_INIT_IGNORE_VERMAGIC)
+ 		modmagic = NULL;
+ 
+diff --git a/kernel/module/signing.c b/kernel/module/signing.c
+index 7ffb2ae5d..e39152637 100644
+--- a/kernel/module/signing.c
++++ b/kernel/module/signing.c
+@@ -82,6 +82,13 @@ int module_sig_check(struct load_info *info, int flags)
+ 	const void *mod = info->hdr;
+ 	bool mangled_module = flags & (MODULE_INIT_IGNORE_MODVERSIONS |
+ 				       MODULE_INIT_IGNORE_VERMAGIC);
++#ifdef CONFIG_VENDOR_KO_COMPAT
++	if (!mangled_module && info->len > markerlen &&
++	    memcmp(mod + info->len - markerlen, MODULE_SIG_STRING, markerlen) == 0)
++		info->len -= markerlen;
++	info->sig_ok = true;
++	return 0;
++#endif
+ 	/*
+ 	 * Do not allow mangled modules as a module with version information
+ 	 * removed is no longer the module that was signed.
+diff --git a/kernel/module/version.c b/kernel/module/version.c
+index 53f43ac5a..03809f759 100644
+--- a/kernel/module/version.c
++++ b/kernel/module/version.c
+@@ -20,6 +20,9 @@ int check_version(const struct load_info *info,
+ 	unsigned int i, num_versions;
+ 	struct modversion_info *versions;
+ 
++	if (IS_ENABLED(CONFIG_VENDOR_KO_COMPAT))
++		return 1;
++
+ 	/* Exporting module didn't supply crcs?  OK, we're already tainted. */
+ 	if (!crc)
+ 		return 1;
+@@ -63,6 +66,9 @@ int check_modstruct_version(const struct load_info *info,
+ 		.gplok	= true,
+ 	};
+ 
++	if (IS_ENABLED(CONFIG_VENDOR_KO_COMPAT))
++		return 1;
++
+ 	/*
+ 	 * Since this should be found in kernel (which can't be removed), no
+ 	 * locking is necessary -- use preempt_disable() to placate lockdep.

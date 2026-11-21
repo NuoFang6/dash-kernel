@@ -197,8 +197,8 @@
 - **AutoFDO**：未启用，需要先采集 profile；按当前约定跳过。
 - **pid_max clamp**：已生效并实机验证，32768 为硬上限；这是有意偏离 stock，
   用于规避 DroidSpaces 的 0x8000 PID 掩码 bug。
-- **补丁序列**：已重生成 `patches/0000-6.6.143-dash-integration.patch`；
-  旧 6.6.118 系列归档，不再参与构建。
+- **补丁序列**：已按特性拆分为 `patches/<feature>/` 系列（2026-11-21）；
+  旧 6.6.118 系列与 6.6.143 整树 squash 归档，不再参与构建。
 
 ## 3. 验证缺口
 

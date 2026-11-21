@@ -1,0 +1,31 @@
+diff --git a/include/linux/threads.h b/include/linux/threads.h
+index c34173e6c..db63cd850 100644
+--- a/include/linux/threads.h
++++ b/include/linux/threads.h
+@@ -31,8 +31,11 @@
+  * A maximum of 4 million PIDs should be enough for a while.
+  * [NOTE: PID/TIDs are limited to 2^30 ~= 1 billion, see FUTEX_TID_MASK.]
+  */
+-#define PID_MAX_LIMIT (CONFIG_BASE_SMALL ? PAGE_SIZE * 8 : \
+-	(sizeof(long) > 4 ? 4 * 1024 * 1024 : PID_MAX_DEFAULT))
++/*
++ * dash maintenance: clamp the allocatable PID space inside 0x8000 to avoid
++ * the 0x8000 pid-mask bug class reachable with the stock 4M limit.
++ */
++#define PID_MAX_LIMIT PID_MAX_DEFAULT
+ 
+ /*
+  * Define a minimum number of pids per cpu.  Heuristically based
+diff --git a/kernel/pid.c b/kernel/pid.c
+index 0244ae2e1..983498d41 100644
+--- a/kernel/pid.c
++++ b/kernel/pid.c
+@@ -64,7 +64,7 @@ int pid_max = PID_MAX_DEFAULT;
+ #define RESERVED_PIDS		300
+ 
+ int pid_max_min = RESERVED_PIDS + 1;
+-int pid_max_max = PID_MAX_LIMIT;
++int pid_max_max = PID_MAX_DEFAULT; /* dash: hard clamp, see threads.h */
+ 
+ /*
+  * PID-map pages start out as NULL, they get allocated upon

@@ -632,3 +632,36 @@ QoS sysfs 与 stock 行为一致：
   `6486910e6427b7ccd9a4e702feaa8d600f788881ed392368fa8f836a04670ace`，
   已替换模块 `bin/mihomo` 并重启；模块 `mihomo_alpha` r4-pgo，
   TUN、TFO、IPv6 回归正常。
+
+## 20. 补丁系列按特性重拆分（2026-11-21，离线）
+
+把 6.6.143 整树 squash `0000-6.6.143-dash-integration.patch`（84 个文件）
+重拆为按功能特性分目录的补丁系列（11 个补丁、8 个特性目录），并给维护
+流程加了机器校验。**纯仓库重组，不改任何内核代码，无需重新编译验证。**
+
+- 拆分是文件级的：逐 hunk 分析确认每个文件只被一个特性触碰；BakaSU 与
+  SUSFS 的 hook 调用点在 VFS/security/core 文件内交错（`fs/namei.c`、
+  `block/ioprio.c`、`security/selinux/*` 等），整体归入
+  `010-bakasu-susfs`，不做 hunk 级拆分。`fs/erofs/decompressor.c` 的改动
+  是 LZ4 trace 事件打点，归 `050-lz4kd-zram/0002`；`mm/filemap.c`、
+  `mm/vmscan.c` 相对上游只有 vendor hook 调用点后的空行，归
+  `030-vendor-hooks-os4`。
+- 新结构：`patches/<NNN-feature>/*.patch` + `patches/series`（每行一个
+  特性目录）。归属唯一记录在 `dash/scripts/split-patches.py` 的 `SERIES`
+  映射表；`check` 子命令校验 series/映射/补丁内容一致，`write` 从 squash
+  再生成，树 diff 出现映射外文件会报错。`scripts/apply-patches.sh` 改为
+  按 series 逐目录逐补丁 `git apply --index` 并打印每步进度；
+  `scripts/gen-patches.sh`（`make gen-patches`）= src 树 diff → squash →
+  拆分 → 校验。
+- 验证 1（拆分保真）：`split-patches.py check --squash` 对比原 squash——
+  11 个补丁的每个文件 diff 块与 squash 逐字节一致，84 文件全覆盖。
+- 验证 2（应用结果）：在干净 `bf768be0` worktree（`git worktree add`）上
+  用新 `apply-patches.sh` 完整应用：11 个补丁全部 `git apply --index`
+  成功、无 warning；变更文件集（85 个，含 NoMount 的 `fs/Kconfig`）+
+  3 个 SUSFS 安装文件与当时构建工作树 sha256 逐一相同；`drivers/kernelsu`
+  与 `fs/nomount` 符号链接解析到相同真实目标。
+- 验证 3（维护闭环）：`make gen-patches` 从 src 树重新生成，`check`
+  （含与新生成 squash 的逐字节比对）通过，产出与现存补丁一致。
+- 局限：本次只做离线校验，未重新编译；CI `patch-series` job 的
+  `make source patches` 重放是后续每次构建的常设门禁。旧的 6.6.118 系列
+  与 6.6.143 squash 从仓库删除，git 历史保留。

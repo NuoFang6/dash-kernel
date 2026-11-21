@@ -19,10 +19,11 @@
 |---|---|---|---|---|
 | [BakaSU](../../BakaSU) | https://github.com/Baka-SU/BakaSU.git | main | `d5e9e025b8b4` | BakaSU/KSU 内核源码（`BakaSU/kernel`），当前内建 + SUSFS |
 | [third_party/sukisu-patch](../../third_party/sukisu-patch) | https://github.com/SukiSU-Ultra/SukiSU_patch.git | main | `eec45788c9a1` | SukiSU 补丁集合；`other/zram` 下有 lz4k/lz4k_oplus/lz4kd 参考 |
-| [third_party/susfs4ksu](../../third_party/susfs4ksu) | https://gitlab.com/simonpunk/susfs4ksu.git | gki-android15-6.6 | `0606e19afae9` | SUSFS kernel patches；`dash/patches/legacy-6.6.118/0003` 的来源（当前 6.6.143 已并入 `0000-6.6.143-dash-integration.patch`） |
+| [third_party/susfs4ksu](../../third_party/susfs4ksu) | https://gitlab.com/simonpunk/susfs4ksu.git | gki-android15-6.6 | `0606e19afae9` | SUSFS kernel patches；内核侧 SUSFS hook 调用点在 `dash/patches/010-bakasu-susfs/`，susfs.c/h 由本子模块安装 |
 | [third_party/dash-droidspaces](../../third_party/dash-droidspaces) | https://github.com/lakitu12/kernel_dash_droidspaces.git | main | `6039943a9c15` | dash 的 DroidSpaces/SukiSU 参考项目；`patches/os4-vendor-hooks` 在这里；实验性，README 已报告 call site bootloop |
 | [third_party/hyperos-lz4kd](../../third_party/hyperos-lz4kd) | https://github.com/2108282/hyperos-lz4kd.git | main | `e58761a19874` | 小米 14 的 LZ4KD/自动切换参考；非 delta zram 实现 |
 | [third_party/tcp-brutal](../../third_party/tcp-brutal) | https://github.com/HyNetworks/tcp-brutal.git | master | `d2397ff8bca0` | TCP Brutal v2.0.1 外部内核模块；`make brutal` 构建，GPL-3.0，按需 insmod |
+| [third_party/nomount](../../third_party/nomount) | https://github.com/maxsteeel/nomount.git | v2.3.1 | `dcd77d03e991` | NoMount VFS 路径重定向子系统；apply 时符号链接进 `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（编译级验证，未实机验证） |
 | [third_party/cc-dash-build](../../third_party/cc-dash-build) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_build.git | dash-w-oss | `627ef9ba0d31` | CC dash 的 repo manifest / Kleaf 构建脚本 |
 | [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_device_modules.git | dash-w-oss | `94914f6bc83f` | dash DTS、`kernel/configs/dash*.config`、重实现的触摸/热管理/millet/mi_memory/UFS 模块源码 |
 | [third_party/cc-dash-mtk-modules](../../third_party/cc-dash-mtk-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules.git | dash-w-oss | `d3e32dcf9f67` | MediaTek camera/connectivity/GPU/等模块源码 |
@@ -90,7 +91,7 @@ git clone --depth=1 --filter=blob:none --no-checkout \
 | [dash/versions.env](../../dash/versions.env) | AOSP / BakaSU / SUSFS / clang 版本锁定 |
 | [dash/Makefile](../../dash/Makefile) | `deps/toolchain/source/patches/config/build` 入口 |
 | [dash/scripts](../../dash/scripts) | 源码同步、补丁、配置、构建脚本 |
-| [dash/patches/series](../../dash/patches/series) | 当前唯一补丁 `0000-6.6.143-dash-integration.patch`（整树 squash；含 vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、OS4 vendor hooks）；SUSFS 文件 apply 时从 `third_party/susfs4ksu` 安装，仓库不存副本 |
+| [dash/patches](../../dash/patches) | 按特性分目录的补丁系列（`series` 是唯一应用顺序；bakasu-susfs / vendor-ko-compat / vendor-hooks-os4 / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc）；SUSFS 文件 apply 时从 `third_party/susfs4ksu` 安装，仓库不存副本 |
 | [dash/out/artifacts](../../dash/out/artifacts) | 当前 6.6.143 构建产物：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS` |
 
 当前产物版本、哈希和验证结论见 [docs/STATUS.md](../STATUS.md)；证据见
@@ -102,7 +103,7 @@ git clone --depth=1 --filter=blob:none --no-checkout \
 - 想构建/更新内核：从 [docs/kernel/README.md](../kernel/README.md) 开始，版本改 [dash/versions.env](../../dash/versions.env)。
 - 想恢复原厂 boot/kernel：用 [phone-dump](../../dash/out/device-audit/phone-dump) 里的 `boot_b.img` 等；不要碰 `lk`。
 - 想改 BakaSU/KSU：看 [BakaSU/kernel](../../BakaSU/kernel)；6.6.118 时代的拆分补丁已删（git 历史保留）。
-- 想改 SUSFS：看 [third_party/susfs4ksu](../../third_party/susfs4ksu)（`kernel_patches/`，apply 时直接安装）；BakaSU 三参数 `ksu_handle_sys_read` 的适配在 `0000-6.6.143-dash-integration.patch`。
+- 想改 SUSFS：看 [third_party/susfs4ksu](../../third_party/susfs4ksu)（`kernel_patches/`，apply 时直接安装）；BakaSU 三参数 `ksu_handle_sys_read` 的适配在 `dash/patches/010-bakasu-susfs/`。
 - 想研究 lz4kd/zram：看 [third_party/sukisu-patch/other/zram](../../third_party/sukisu-patch/other/zram)、[third_party/hyperos-lz4kd](../../third_party/hyperos-lz4kd)；当前结论是 delta 未真正接入 zram。
 - 想找 dash DTS / 原厂模块接口：看 [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules)，尤其是 `arch/arm64/boot/dts/mediatek/dash*`、`kernel/configs/dash*.config`、`drivers/ufs/`、`drivers/input/touchscreen/`、`drivers/misc/xiaomi/`。这些是逆向重实现，不是 stock 源码。
 - 想找 OS4 vendor hooks：看 [third_party/dash-droidspaces/patches/os4-vendor-hooks](../../third_party/dash-droidspaces/patches/os4-vendor-hooks)；上游 README 报告过 full call site bootloop，但本仓库完整 13-hook + 全调用点镜像已实机启动，冲突时以 [docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md) 为准。

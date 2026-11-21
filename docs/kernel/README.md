@@ -13,7 +13,7 @@ GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编
 configs/stock.config          设备 stock 配置，构建起点
 configs/abi_symbollist.raw    stock 导出白名单，保持 TRIM_UNUSED_KSYMS
 configs/features.fragment     本次新增配置摘要
-patches/                      有序补丁系列；series 是唯一应用顺序
+patches/                      按特性分目录的补丁；series 是唯一应用顺序
 scripts/                      同步、打补丁、配置、构建、boot 打包和静态检查
 src/aosp/common/              clean AOSP 浅克隆，可随时重置
 toolchains/                   clang r614150（clang 23.0.1）
@@ -40,11 +40,15 @@ bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
 make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.md（给 LLM 的避坑包）
 ```
 
-> **6.6.143 补丁序列（2026-10-30 已重生成）**：`patches/series` 现在是
-> `0000-6.6.143-dash-integration.patch`（整树 squash）；旧 6.6.118 拆分系列
-> 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 apply 后
-> 84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致，无 warning。
-> `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动。
+> **6.6.143 补丁序列（2026-11-21 起按特性拆分）**：`patches/` 下是按功能
+> 特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat / vendor-hooks-os4
+> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc），`series` 是唯一
+> 应用顺序；文件级拆分（每文件只属于一个补丁），归属表在
+> `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
+> squash 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 11 个
+> 补丁 apply 后与构建工作树逐字节一致，无 warning。
+> `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
+> 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
 产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
 
@@ -113,6 +117,10 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   `brutal.ko`；ABI 白名单保留 `tcp_prot`、`tcpv6_prot` 及注册函数。
 - mihomo Alpha 子模块 `third_party/mihomo`；`dash/scripts/build-mihomo.sh`
   支持 PGO，profile 在 `dash/profiles/mihomo-alpha-cpu.pgo`。
+- NoMount v2.3.1：`third_party/nomount` 子模块，apply 时符号链接进
+  `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（上游 Kconfig `default y` +
+  `select KEYS`）。仅编译级验证（FAST 构建通过），未实机验证；规则与
+  配置由其 KSU metamodule 管理，本仓库不含用户态部分。
 - `TRIM_UNUSED_KSYMS=y`，使用 stock 导出表作为 ABI 白名单。
 
 详细差异、验证分层和未覆盖项见：
@@ -150,8 +158,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 ## 更新规则
 
 - 更新 AOSP：改 `versions.env` 的 `AOSP_TAG`/`AOSP_COMMIT`，运行
-  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后重新生成整树
-  `0000-6.6.143-dash-integration.patch`，不要手改补丁文件。流程见
+  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后运行
+  `make gen-patches` 重新生成特性补丁，不要手改补丁文件。流程见
   [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
 - 更新 SUSFS：更新 `SUSFS_COMMIT` 并 bump `third_party/susfs4ksu` 子模块即可；

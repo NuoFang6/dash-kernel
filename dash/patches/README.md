@@ -2,54 +2,81 @@
 
 ## 当前：6.6.143（AOSP `android15-6.6-2026-10_r2`）
 
-`series` 只包含一个补丁：
+补丁按**功能特性**分目录存放，`series` 是唯一应用顺序（每行一个特性目录，
+目录内补丁按文件名排序逐个应用）：
 
 ```text
-0000-6.6.143-dash-integration.patch
+010-bakasu-susfs/       BakaSU 内建 + SUSFS inline hook（VFS/security/core
+                        交错文件不可再拆，含 KSU 构建 hook）
+020-vendor-ko-compat/   厂商 .ko 加载兼容（签名/vermagic/CRC/namespace）
+030-vendor-hooks-os4/   dash OS4 android_vh_* vendor hooks
+040-memfd-ashmem-shim/  MEMFD_ASHMEM shim 配置接入
+050-lz4kd-zram/         lz4kd crypto 模块、LZ4 trace 事件、zram 后端
+060-f2fs-xiaomi/        Xiaomi F2FS 增强（iostat/VIP/hybrid/lock priority）
+070-erofs-xiaomi/       Xiaomi EROFS iostat sysfs
+080-dash-misc/          dash 维护性独立修复（pid_max clamp）
 ```
 
-这是**有意 squash** 的集成补丁，也是本仓库唯一保存的自有补丁：BakaSU 接入、
-F2FS/EROFS、vendor-hooks 的改动在 VFS/security/core 文件里交错，按 6.6.118
-的方式拆分会得到无法独立应用的 hunk，因此当前以整树 diff 保证可复现。
+拆分是**文件级**的：每个文件只属于一个补丁（归属唯一记录在
+`scripts/split-patches.py` 的 `SERIES` 映射表），补丁之间互不触碰同一文件，
+因此应用顺序稳定、不会出现无法应用的 hunk。文件内的多特性交错（BakaSU 与
+SUSFS 的 hook 调用点）整体归入 `010-bakasu-susfs`。
 
 其余上游内容不存副本：
 
 - **KSU 源码**：`BakaSU` 子模块，apply 时以符号链接接入（`drivers/kernelsu`）；
 - **SUSFS 内核文件**：`third_party/susfs4ksu` 子模块（`kernel_patches/`），
-  apply 时直接安装。曾经 vendored 在 `patches/susfs/` 的副本与 pinned 上游
-  逐字节一致，已删除；bump 子模块 pin 即可带上游更新，无需重生成补丁；
+  apply 时直接安装。bump 子模块 pin 即可带上游更新，无需重生成补丁；
+- **NoMount**：`third_party/nomount` 子模块（pin `$NOMOUNT_TAG`），apply 时
+  符号链接到 `fs/nomount` 并挂入 `fs/Makefile`/`fs/Kconfig`（镜像上游
+  `kernel/setup.sh`），`CONFIG_NOMOUNT=y` 内建；
 - **参考用补丁/文档**：全部在 `third_party/` 子模块里（susfs4ksu、
   dash-droidspaces `patches/os4-vendor-hooks`、hyperos-lz4kd 等）；
-- 旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）基于 AOSP 6.6.118，不能
-  应用到 6.6.143，2026-11-21 起从仓库删除，需要时看 git 历史
-  （commit `1e5c8f4` 之前）。
+- 旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）和 6.6.143 整树 squash
+  `0000-6.6.143-dash-integration.patch` 已从仓库删除，需要时看 git 历史。
 
-应用流程（`scripts/apply-patches.sh`）：
+## 应用与再生成
+
+应用（`scripts/apply-patches.sh`，编译时逐目录逐补丁汇总）：
 
 1. `git reset --hard $AOSP_COMMIT` + `git clean -fdx`（bf768be0，6.6.143）；
-2. 校验 BakaSU / susfs4ksu 子模块在 `versions.env` pin 的 commit；
+2. 校验 BakaSU / susfs4ksu / nomount 子模块在 `versions.env` pin 的 commit；
 3. 建立 `drivers/kernelsu -> BakaSU/kernel` 符号链接；
-4. `git apply --index 0000-6.6.143-dash-integration.patch`；
-5. 安装 `$SUSFS_DIR/kernel_patches/{fs/susfs.c,include/linux/susfs.h,
-   include/linux/susfs_def.h}`。
+4. 按 `series` 逐目录逐补丁 `git apply --index`；
+5. 安装 `$SUSFS_DIR/kernel_patches/` 的 3 个 SUSFS 文件；
+6. 挂接 NoMount（`fs/nomount` 符号链接 + `fs/Makefile`/`fs/Kconfig`）。
 
-验证（2026-10-30，离线）：在一个干净的 bf768 worktree 上应用本补丁并安装
-SUSFS 文件后，补丁涉及的 87 个文件（84 个补丁文件 + 3 个 SUSFS 文件）与
-当前构建工作树逐字节 sha256 一致，`git apply` 无 warning。
+再生成（改了 `src/aosp/common` 之后，永不手改补丁文件）：
+
+```bash
+cd dash && make gen-patches    # src 树 diff -> squash -> 按映射表拆分 -> 校验
+```
+
+`scripts/split-patches.py check`（`gen-patches.sh` 末步自动执行）校验：
+series 与映射表一致、每个补丁触碰的文件与映射表一致、与 squash 重新拼装
+逐字节一致。树 diff 中出现映射表之外的文件会直接报错，不会静默丢内容；
+脚本侧接线（NoMount 的 `fs/Kconfig`、susfs/kernelsu/nomount 符号链接）在
+排除清单里。
+
+验证（2026-11-21，离线）：在干净 `bf768be0` worktree 上用新
+`apply-patches.sh` 完整应用 11 个补丁，变更文件集（85 个）+ 3 个 SUSFS
+文件 + `fs/Kconfig` 与当时构建工作树 sha256 全部一致；`git apply` 无
+warning；`make gen-patches` 从 src 树重新生成的拆分与现存补丁一致。
 
 ## 维护约定
 
-- 修改 `src/aosp/common` 后，重新生成整树补丁，而不是手改 `0000`；
-- 生成时排除 `drivers/kernelsu`（符号链接）和 `fs/susfs*.c/h`（由 susfs
-  子模块安装）；
-- 在 clean worktree 上做一次 `git apply --index` + 文件 hash 对比，再更新
-  `docs/kernel/TEST_REPORT.md`。
+- 修改 `src/aosp/common` 后运行 `make gen-patches`，在 clean worktree 或
+  CI 的 `make source patches` 重放通过后再提交；
+- 新增特性 = 在 `split-patches.py` 的 `SERIES` 加目录与映射，然后
+  `make gen-patches`；
+- 文件内出现新的跨特性交错时，把该文件归入承载主要改动或先后依赖的
+  特性目录，并在映射表注释说明，不要做 hunk 级拆分。
 
 ## 上游更新
 
 子模块 pin 与远端分支头的对比由 `scripts/upstream-check.sh` 完成（本地可跑，
 CI 每周跑一次，漂移时报 issue）。手动/自动 bump 走
 `.github/workflows/bump-submodule.yml`：更新 pin → 重放补丁门禁 → 自动开 PR。
-BakaSU / susfs4ksu 的 bump 不需要重生成 `0000`（kernelsu 是符号链接、SUSFS
-文件是安装的）；AOSP tag 升级和 F2FS/EROFS/vendor-hooks 的适配属于人工决策，
+BakaSU / susfs4ksu / nomount 的 bump 不需要重生成补丁（kernelsu/nomount 是
+符号链接、SUSFS 文件是安装的）；AOSP tag 升级和各特性的适配属于人工决策，
 不在自动范围。

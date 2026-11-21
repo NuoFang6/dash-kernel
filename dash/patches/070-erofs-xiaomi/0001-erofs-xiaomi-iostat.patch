@@ -1,0 +1,522 @@
+diff --git a/fs/erofs/Kconfig b/fs/erofs/Kconfig
+index f6dc961e6..5a3eec26a 100644
+--- a/fs/erofs/Kconfig
++++ b/fs/erofs/Kconfig
+@@ -134,6 +134,15 @@ config EROFS_FS_PCPU_KTHREAD
+ 
+ 	  If unsure, say N.
+ 
++config XIAOMI_EROFS_IOSTAT
++	bool "Xiaomi EROFS I/O latency statistics"
++	depends on EROFS_FS
++	default y
++	help
++	  Expose the stock dash iostat sysfs group for EROFS and measure
++	  completed folio reads.  The vendor per-device percpu layout is not
++	  reproduced; statistics are aggregated per mounted filesystem.
++
+ config EROFS_FS_PCPU_KTHREAD_HIPRI
+ 	bool "EROFS high priority per-CPU kthread workers"
+ 	depends on EROFS_FS_ZIP && EROFS_FS_PCPU_KTHREAD
+diff --git a/fs/erofs/Makefile b/fs/erofs/Makefile
+index 20d1ec422..7409f464a 100644
+--- a/fs/erofs/Makefile
++++ b/fs/erofs/Makefile
+@@ -7,3 +7,4 @@ erofs-$(CONFIG_EROFS_FS_ZIP) += decompressor.o zmap.o zdata.o zutil.o
+ erofs-$(CONFIG_EROFS_FS_ZIP_LZMA) += decompressor_lzma.o
+ erofs-$(CONFIG_EROFS_FS_ZIP_DEFLATE) += decompressor_deflate.o
+ erofs-$(CONFIG_EROFS_FS_ONDEMAND) += fscache.o
++erofs-$(CONFIG_XIAOMI_EROFS_IOSTAT) += iostat.o
+diff --git a/fs/erofs/data.c b/fs/erofs/data.c
+index 51250ac18..6cc34711e 100644
+--- a/fs/erofs/data.c
++++ b/fs/erofs/data.c
+@@ -5,9 +5,11 @@
+  * Copyright (C) 2021, Alibaba Cloud
+  */
+ #include "internal.h"
++#include "iostat.h"
+ #include <linux/prefetch.h>
+ #include <linux/sched/mm.h>
+ #include <linux/dax.h>
++#include <linux/ktime.h>
+ #include <trace/events/erofs.h>
+ 
+ void erofs_unmap_metabuf(struct erofs_buf *buf)
+@@ -358,14 +360,27 @@ int erofs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
+  */
+ static int erofs_read_folio(struct file *file, struct folio *folio)
+ {
+-	trace_erofs_read_folio(folio, true);
++	struct inode *inode = folio->mapping ? folio->mapping->host : NULL;
++	ktime_t start = ktime_get();
++	int ret;
+ 
+-	return iomap_read_folio(folio, &erofs_iomap_ops);
++	trace_erofs_read_folio(folio, true);
++	ret = iomap_read_folio(folio, &erofs_iomap_ops);
++	if (inode)
++		erofs_iostat_record(EROFS_I_SB(inode), folio_size(folio),
++				    ktime_to_ns(ktime_sub(ktime_get(), start)));
++	return ret;
+ }
+ 
+ static void erofs_readahead(struct readahead_control *rac)
+ {
+-	return iomap_readahead(rac, &erofs_iomap_ops);
++	struct inode *inode = rac->mapping->host;
++	unsigned long bytes = readahead_count(rac) << PAGE_SHIFT;
++	ktime_t start = ktime_get();
++
++	iomap_readahead(rac, &erofs_iomap_ops);
++	erofs_iostat_record(EROFS_I_SB(inode), bytes,
++			    ktime_to_ns(ktime_sub(ktime_get(), start)));
+ }
+ 
+ static sector_t erofs_bmap(struct address_space *mapping, sector_t block)
+diff --git a/fs/erofs/internal.h b/fs/erofs/internal.h
+index bd7b71ba5..50f61f99a 100644
+--- a/fs/erofs/internal.h
++++ b/fs/erofs/internal.h
+@@ -176,6 +176,9 @@ struct erofs_sb_info {
+ 	struct erofs_domain *domain;
+ 	char *fsid;
+ 	char *domain_id;
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++	struct erofs_iostat *iostat;
++#endif
+ };
+ 
+ #define EROFS_SB(sb) ((struct erofs_sb_info *)(sb)->s_fs_info)
+@@ -437,6 +440,9 @@ int erofs_register_sysfs(struct super_block *sb);
+ void erofs_unregister_sysfs(struct super_block *sb);
+ int __init erofs_init_sysfs(void);
+ void erofs_exit_sysfs(void);
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++struct erofs_iostat;
++#endif
+ 
+ struct page *__erofs_allocpage(struct page **pagepool, gfp_t gfp, bool tryrsv);
+ static inline struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
+diff --git a/fs/erofs/iostat.c b/fs/erofs/iostat.c
+new file mode 100644
+index 000000000..25d9d5884
+--- /dev/null
++++ b/fs/erofs/iostat.c
+@@ -0,0 +1,258 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Xiaomi EROFS I/O statistics compatibility.
++ *
++ * The stock dash EROFS exposes iostat sysfs entries backed by per-CPU
++ * counters.  This implementation keeps the same per-CPU model and sysfs
++ * names while using a single aggregate bucket per CPU instead of the
++ * vendor's private multi-bucket layout.
++ */
++
++#include <linux/kernel.h>
++#include <linux/ktime.h>
++#include <linux/math64.h>
++#include <linux/percpu.h>
++#include <linux/slab.h>
++#include <linux/string.h>
++#include <linux/sysfs.h>
++
++#include "internal.h"
++#include "iostat.h"
++
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++static void erofs_iostat_clear(struct erofs_iostat_stats *stats)
++{
++	memset(stats, 0, sizeof(*stats));
++}
++
++static void erofs_iostat_reset_window(struct erofs_iostat *iostat, u64 now)
++{
++	int cpu;
++
++	for_each_possible_cpu(cpu) {
++		struct erofs_iostat_cpu *c = per_cpu_ptr(iostat->cpu, cpu);
++
++		erofs_iostat_clear(&c->window);
++		c->window_start_ns = now;
++	}
++}
++
++static void erofs_iostat_reset_daily(struct erofs_iostat *iostat)
++{
++	int cpu;
++
++	for_each_possible_cpu(cpu) {
++		struct erofs_iostat_cpu *c = per_cpu_ptr(iostat->cpu, cpu);
++
++		erofs_iostat_clear(&c->daily);
++	}
++}
++
++int erofs_iostat_init(struct erofs_sb_info *sbi)
++{
++	struct erofs_iostat *iostat;
++	u64 now;
++	int cpu;
++
++	iostat = kzalloc(sizeof(*iostat), GFP_KERNEL);
++	if (!iostat)
++		return -ENOMEM;
++
++	iostat->cpu = alloc_percpu(struct erofs_iostat_cpu);
++	if (!iostat->cpu) {
++		kfree(iostat);
++		return -ENOMEM;
++	}
++
++	spin_lock_init(&iostat->config_lock);
++	iostat->window_period_ns = 5ULL * NSEC_PER_SEC;
++	iostat->latency_threshold_ns = 100ULL * NSEC_PER_MSEC;
++	now = ktime_get_ns();
++	for_each_possible_cpu(cpu) {
++		struct erofs_iostat_cpu *c = per_cpu_ptr(iostat->cpu, cpu);
++
++		c->window_start_ns = now;
++	}
++	sbi->iostat = iostat;
++	return 0;
++}
++
++void erofs_iostat_destroy(struct erofs_sb_info *sbi)
++{
++	struct erofs_iostat *iostat = sbi->iostat;
++
++	if (!iostat)
++		return;
++	free_percpu(iostat->cpu);
++	kfree(iostat);
++	sbi->iostat = NULL;
++}
++
++void erofs_iostat_record(struct erofs_sb_info *sbi, u64 bytes, u64 latency_ns)
++{
++	struct erofs_iostat *iostat = sbi ? sbi->iostat : NULL;
++	struct erofs_iostat_cpu *c;
++	struct erofs_iostat_stats *s;
++	u64 now, period;
++	bool delayed;
++
++	if (!iostat || !READ_ONCE(iostat->enable))
++		return;
++
++	now = ktime_get_ns();
++	period = READ_ONCE(iostat->window_period_ns);
++	delayed = latency_ns >= READ_ONCE(iostat->latency_threshold_ns);
++
++	preempt_disable();
++	c = this_cpu_ptr(iostat->cpu);
++	if (now - c->window_start_ns >= period) {
++		erofs_iostat_clear(&c->window);
++		c->window_start_ns = now;
++	}
++
++	s = &c->window;
++	s->bytes += bytes;
++	s->sum_lat_ns += latency_ns;
++	s->count++;
++	s->delayed += delayed;
++	if (latency_ns > s->peak_lat_ns)
++		s->peak_lat_ns = latency_ns;
++
++	s = &c->daily;
++	s->bytes += bytes;
++	s->sum_lat_ns += latency_ns;
++	s->count++;
++	s->delayed += delayed;
++	if (latency_ns > s->peak_lat_ns)
++		s->peak_lat_ns = latency_ns;
++	preempt_enable();
++}
++
++static void erofs_iostat_accumulate(struct erofs_iostat *iostat, bool window,
++				    struct erofs_iostat_stats *stats)
++{
++	u64 now = ktime_get_ns();
++	u64 period = READ_ONCE(iostat->window_period_ns);
++	int cpu;
++
++	memset(stats, 0, sizeof(*stats));
++	for_each_possible_cpu(cpu) {
++		struct erofs_iostat_cpu *c = per_cpu_ptr(iostat->cpu, cpu);
++		struct erofs_iostat_stats *s =
++			window ? &c->window : &c->daily;
++
++		if (window && now - c->window_start_ns >= period)
++			continue;
++		stats->bytes += s->bytes;
++		stats->sum_lat_ns += s->sum_lat_ns;
++		stats->count += s->count;
++		stats->delayed += s->delayed;
++		if (s->peak_lat_ns > stats->peak_lat_ns)
++			stats->peak_lat_ns = s->peak_lat_ns;
++	}
++}
++
++static ssize_t erofs_iostat_show_one(struct erofs_iostat_stats *stats,
++				     char *buf, const char *title)
++{
++	u64 avg = stats->count ?
++		div64_u64(stats->sum_lat_ns, stats->count) : 0;
++
++	return sysfs_emit(buf,
++		"%s count=%u bytes=%llu avg_ms=%llu peak_ms=%llu "
++		"total_ms=%llu delayed=%u\n",
++		title, stats->count, stats->bytes,
++		div64_u64(avg, NSEC_PER_MSEC),
++		div64_u64(stats->peak_lat_ns, NSEC_PER_MSEC),
++		div64_u64(stats->sum_lat_ns, NSEC_PER_MSEC), stats->delayed);
++}
++
++ssize_t erofs_iostat_attr_show(struct erofs_sb_info *sbi, const char *name,
++			       char *buf)
++{
++	struct erofs_iostat *iostat = sbi->iostat;
++	struct erofs_iostat_stats stats;
++
++	if (!iostat)
++		return -ENODEV;
++
++	if (!strcmp(name, "iostat_enable"))
++		return sysfs_emit(buf, "%u\n", READ_ONCE(iostat->enable));
++	if (!strcmp(name, "iostat_config"))
++		return sysfs_emit(buf, "enabled=%u window_period_s=%llu "
++			"latency_threshold_ms=%llu percpu=1\n",
++			READ_ONCE(iostat->enable),
++			div64_u64(READ_ONCE(iostat->window_period_ns),
++				  NSEC_PER_SEC),
++			div64_u64(READ_ONCE(iostat->latency_threshold_ns),
++				  NSEC_PER_MSEC));
++	if (!strcmp(name, "iostat_window_period_s"))
++		return sysfs_emit(buf, "%llu\n",
++			div64_u64(READ_ONCE(iostat->window_period_ns),
++				  NSEC_PER_SEC));
++	if (!strcmp(name, "iostat_latency_threshold_ms"))
++		return sysfs_emit(buf, "%llu\n",
++			div64_u64(READ_ONCE(iostat->latency_threshold_ns),
++				  NSEC_PER_MSEC));
++
++	if (!strcmp(name, "iostat_daily_latency")) {
++		erofs_iostat_accumulate(iostat, false, &stats);
++		return erofs_iostat_show_one(&stats, buf, "daily");
++	}
++	if (!strcmp(name, "iostat_window_latency")) {
++		erofs_iostat_accumulate(iostat, true, &stats);
++		return erofs_iostat_show_one(&stats, buf, "window");
++	}
++	return -EOPNOTSUPP;
++}
++
++ssize_t erofs_iostat_attr_store(struct erofs_sb_info *sbi, const char *name,
++				const char *buf, size_t len)
++{
++	struct erofs_iostat *iostat = sbi->iostat;
++	unsigned long value;
++	int ret;
++
++	if (!iostat)
++		return -ENODEV;
++	ret = kstrtoul(skip_spaces(buf), 0, &value);
++	if (ret)
++		return ret;
++
++	if (!strcmp(name, "iostat_enable")) {
++		if (value > 1)
++			return -EINVAL;
++		WRITE_ONCE(iostat->enable, value);
++		return len;
++	}
++	if (!strcmp(name, "iostat_window_period_s")) {
++		if (!value || value > 86400)
++			return -EINVAL;
++		spin_lock_bh(&iostat->config_lock);
++		WRITE_ONCE(iostat->window_period_ns, value * NSEC_PER_SEC);
++		erofs_iostat_reset_window(iostat, ktime_get_ns());
++		spin_unlock_bh(&iostat->config_lock);
++		return len;
++	}
++	if (!strcmp(name, "iostat_latency_threshold_ms")) {
++		if (value > 3600000)
++			return -EINVAL;
++		WRITE_ONCE(iostat->latency_threshold_ns,
++			   value * NSEC_PER_MSEC);
++		return len;
++	}
++	if (!strcmp(name, "iostat_daily_latency") ||
++	    !strcmp(name, "iostat_window_latency")) {
++		if (value)
++			return -EINVAL;
++		spin_lock_bh(&iostat->config_lock);
++		if (!strcmp(name, "iostat_daily_latency"))
++			erofs_iostat_reset_daily(iostat);
++		else
++			erofs_iostat_reset_window(iostat, ktime_get_ns());
++		spin_unlock_bh(&iostat->config_lock);
++		return len;
++	}
++	return -EOPNOTSUPP;
++}
++#endif /* CONFIG_XIAOMI_EROFS_IOSTAT */
+diff --git a/fs/erofs/iostat.h b/fs/erofs/iostat.h
+new file mode 100644
+index 000000000..cfc248c3f
+--- /dev/null
++++ b/fs/erofs/iostat.h
+@@ -0,0 +1,58 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __EROFS_XIAOMI_IOSTAT_H
++#define __EROFS_XIAOMI_IOSTAT_H
++
++#include <linux/percpu.h>
++#include <linux/spinlock.h>
++#include <linux/types.h>
++
++struct erofs_sb_info;
++
++struct erofs_iostat_stats {
++	u64 bytes;
++	u64 sum_lat_ns;
++	u64 peak_lat_ns;
++	u32 count;
++	u32 delayed;
++};
++
++struct erofs_iostat_cpu {
++	struct erofs_iostat_stats daily;
++	struct erofs_iostat_stats window;
++	u64 window_start_ns;
++};
++
++struct erofs_iostat {
++	bool enable;
++	u64 window_period_ns;
++	u64 latency_threshold_ns;
++	struct erofs_iostat_cpu __percpu *cpu;
++	spinlock_t config_lock;
++};
++
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++int erofs_iostat_init(struct erofs_sb_info *sbi);
++void erofs_iostat_destroy(struct erofs_sb_info *sbi);
++void erofs_iostat_record(struct erofs_sb_info *sbi, u64 bytes, u64 latency_ns);
++ssize_t erofs_iostat_attr_show(struct erofs_sb_info *sbi, const char *name,
++			       char *buf);
++ssize_t erofs_iostat_attr_store(struct erofs_sb_info *sbi, const char *name,
++				const char *buf, size_t len);
++#else
++static inline int erofs_iostat_init(struct erofs_sb_info *sbi) { return 0; }
++static inline void erofs_iostat_destroy(struct erofs_sb_info *sbi) {}
++static inline void erofs_iostat_record(struct erofs_sb_info *sbi, u64 bytes,
++				       u64 latency_ns) {}
++static inline ssize_t erofs_iostat_attr_show(struct erofs_sb_info *sbi,
++		const char *name, char *buf)
++{
++	return -EOPNOTSUPP;
++}
++static inline ssize_t erofs_iostat_attr_store(struct erofs_sb_info *sbi,
++		const char *name, const char *buf, size_t len)
++{
++	return -EOPNOTSUPP;
++}
++#endif
++
++#endif
+diff --git a/fs/erofs/sysfs.c b/fs/erofs/sysfs.c
+index 435e515c0..c122975e2 100644
+--- a/fs/erofs/sysfs.c
++++ b/fs/erofs/sysfs.c
+@@ -7,11 +7,13 @@
+ #include <linux/kobject.h>
+ 
+ #include "internal.h"
++#include "iostat.h"
+ 
+ enum {
+ 	attr_feature,
+ 	attr_pointer_ui,
+ 	attr_pointer_bool,
++	attr_iostat,
+ };
+ 
+ enum {
+@@ -58,10 +60,27 @@ static struct erofs_attr erofs_attr_##_name = {			\
+ #ifdef CONFIG_EROFS_FS_ZIP
+ EROFS_ATTR_RW_UI(sync_decompress, erofs_mount_opts);
+ #endif
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++#define EROFS_ATTR_IOSTAT(_name, _mode) EROFS_ATTR(_name, _mode, iostat)
++EROFS_ATTR_IOSTAT(iostat_enable, 0644);
++EROFS_ATTR_IOSTAT(iostat_config, 0644);
++EROFS_ATTR_IOSTAT(iostat_window_period_s, 0644);
++EROFS_ATTR_IOSTAT(iostat_latency_threshold_ms, 0644);
++EROFS_ATTR_IOSTAT(iostat_window_latency, 0644);
++EROFS_ATTR_IOSTAT(iostat_daily_latency, 0644);
++#endif
+ 
+ static struct attribute *erofs_attrs[] = {
+ #ifdef CONFIG_EROFS_FS_ZIP
+ 	ATTR_LIST(sync_decompress),
++#endif
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++	ATTR_LIST(iostat_enable),
++	ATTR_LIST(iostat_config),
++	ATTR_LIST(iostat_window_period_s),
++	ATTR_LIST(iostat_latency_threshold_ms),
++	ATTR_LIST(iostat_window_latency),
++	ATTR_LIST(iostat_daily_latency),
+ #endif
+ 	NULL,
+ };
+@@ -123,6 +142,10 @@ static ssize_t erofs_attr_show(struct kobject *kobj,
+ 		if (!ptr)
+ 			return 0;
+ 		return sysfs_emit(buf, "%d\n", *(bool *)ptr);
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++	case attr_iostat:
++		return erofs_iostat_attr_show(sbi, a->attr.name, buf);
++#endif
+ 	}
+ 	return 0;
+ }
+@@ -163,6 +186,10 @@ static ssize_t erofs_attr_store(struct kobject *kobj, struct attribute *attr,
+ 			return -EINVAL;
+ 		*(bool *)ptr = !!t;
+ 		return len;
++#ifdef CONFIG_XIAOMI_EROFS_IOSTAT
++	case attr_iostat:
++		return erofs_iostat_attr_store(sbi, a->attr.name, buf, len);
++#endif
+ 	}
+ 	return 0;
+ }
+@@ -224,6 +251,9 @@ int erofs_register_sysfs(struct super_block *sb)
+ 	}
+ 	sbi->s_kobj.kset = &erofs_root;
+ 	init_completion(&sbi->s_kobj_unregister);
++	err = erofs_iostat_init(sbi);
++	if (err)
++		return err;
+ 	err = kobject_init_and_add(&sbi->s_kobj, &erofs_sb_ktype, NULL, "%s", name);
+ 	kfree(str);
+ 	if (err)
+@@ -231,6 +261,7 @@ int erofs_register_sysfs(struct super_block *sb)
+ 	return 0;
+ 
+ put_sb_kobj:
++	erofs_iostat_destroy(sbi);
+ 	kobject_put(&sbi->s_kobj);
+ 	wait_for_completion(&sbi->s_kobj_unregister);
+ 	return err;
+@@ -245,6 +276,7 @@ void erofs_unregister_sysfs(struct super_block *sb)
+ 		kobject_put(&sbi->s_kobj);
+ 		wait_for_completion(&sbi->s_kobj_unregister);
+ 	}
++	erofs_iostat_destroy(sbi);
+ }
+ 
+ int __init erofs_init_sysfs(void)

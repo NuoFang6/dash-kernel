@@ -1,4 +1,13 @@
-# 6.6.143 squash: BakaSU/SUSFS/F2FS/EROFS/vendor-hook changes interleave in
-# VFS/security/core files, so they are carried as one integration patch.
-# Legacy 6.6.118 split series is kept under legacy-6.6.118/ for reference.
-0000-6.6.143-dash-integration.patch
+# dash patch series: one feature directory per line, applied top to bottom.
+# Patches inside a directory apply in lexical order.  The split is
+# file-level (every file owned by exactly one patch, see
+# scripts/split-patches.py), so patches never overlap.
+# Regenerate after editing src/aosp/common:  make gen-patches
+010-bakasu-susfs
+020-vendor-ko-compat
+030-vendor-hooks-os4
+040-memfd-ashmem-shim
+050-lz4kd-zram
+060-f2fs-xiaomi
+070-erofs-xiaomi
+080-dash-misc
