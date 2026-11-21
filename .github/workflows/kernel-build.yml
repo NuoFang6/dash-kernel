@@ -107,6 +107,24 @@ jobs:
           echo "kernel: ${version:-NOT FOUND}"
           [[ -n "$version" ]]
 
+      # The flashable kernel is the lz4 image repacked into the stock boot.img
+      # (scripts/repack-boot.py): 1 header page + kernel + page-aligned vbmeta
+      # + 64-byte AVBf footer, all within the 64MiB boot partition.  Budget:
+      # 67108864 - 4096 (header page) - 4096 (worst-case alignment) - 2432
+      # (stock vbmeta size, measured on boot_b.img) - 64 (AVBf) = 67098176.
+      # A larger kernel cannot be packed without shrinking the AVB-protected
+      # layout, so fail the workflow here instead of producing an unflashable
+      # artifact.
+      - name: Check flashable size (boot 64MiB limit)
+        run: |
+          max=67098176
+          size="$(stat -c%s dash/out/artifacts/Image.lz4)"
+          echo "Image.lz4: ${size} bytes / flashable limit: ${max} bytes"
+          if [ "${size}" -gt "${max}" ]; then
+            echo "::error::Image.lz4 (${size} B) exceeds the flashable kernel limit (${max} B); a boot.img that fits the 64MiB partition cannot contain it"
+            exit 1
+          fi
+
       - name: Collect artifacts
         run: |
           mkdir -p upload
