@@ -62,11 +62,16 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   DEV_NOTES 的刷新/校验（`make notes`、`collect-notes.py --check`）只在本地
   做，不在 CI 里跑。
 - [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
-  手动 dispatch 全量构建（工具链走 cache），Image 产物上传为 artifact。
+  手动 dispatch 全量构建（工具链 cache 以 `CLANG_VERSION` 为 key）。
   构建前做内存扩展（16G swapfile + 8G zram/zstd + zswap），方案经
   `storage-ram-test` 实测；磁盘清理 action 不采用——runner 基线约 87GB
-  空闲，足够 ThinLTO 构建。boot 打包和 `finalize.sh` 需要 gitignored 的
-  stock `boot_b.img` 与模块 manifest，仍只在本机执行。
+  空闲，足够 ThinLTO 构建。artifact 上传（`if: always()`）包含：内核产物
+  （Image/Image.lz4/System.map/vmlinux）、`build.log.gz`、构建实际生效的
+  `final-config`、补丁系列+configs+versions.env+关键脚本的
+  `build-inputs.tar.gz`、provenance `build-info.txt`；`Image.lz4` 超过
+  64MiB boot 可刷入预算（67098176 B）时 workflow fail 但 artifact 保留。
+  boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
+  manifest，仍只在本机执行。
 - [`.github/workflows/storage-ram-test.yml`](../../../.github/workflows/storage-ram-test.yml)：
   手动 dispatch 的存储/内存方案对比：基线探测、两个磁盘清理 action 实测
   （jlumbroso v2：28GiB/257s；endersonmenezes v4 rmz：26GiB/40s）、
