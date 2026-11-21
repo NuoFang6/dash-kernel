@@ -55,17 +55,23 @@ jobs:
           sudo mkswap /swapfile
           sudo swapon -p 10 /swapfile
           if sudo modprobe zram; then
-            echo zstd | sudo tee /sys/block/zram0/comp_algorithm >/dev/null || true
-            echo 8G | sudo tee /sys/block/zram0/disksize >/dev/null
-            sudo mkswap /dev/zram0 >/dev/null
-            sudo swapon -p 100 /dev/zram0
+            # 2026-11-21: runner images now pre-configure zram0 via
+            # zram-generator; with a disksize set, comp_algorithm/disksize
+            # writes return EBUSY.  Swap off and reset (disksize -> 0)
+            # before reconfiguring.  Best-effort, like the modprobe gate.
+            sudo swapoff /dev/zram0 2>/dev/null || true
+            echo 1 | sudo tee /sys/block/zram0/reset >/dev/null 2>&1 || true
+            echo zstd | sudo tee /sys/block/zram0/comp_algorithm >/dev/null 2>&1 || true
+            echo 8G | sudo tee /sys/block/zram0/disksize >/dev/null 2>&1 || true
+            sudo mkswap /dev/zram0 >/dev/null 2>&1 && \
+              sudo swapon -p 100 /dev/zram0 || true
           fi
           sudo modprobe zsmalloc 2>/dev/null || true
           if sudo modprobe zswap 2>/dev/null || [[ -d /sys/module/zswap ]]; then
             echo zstd | sudo tee /sys/module/zswap/parameters/compressor >/dev/null 2>&1 || true
             [[ -f /sys/module/zswap/parameters/zpool ]] \
               && echo zsmalloc | sudo tee /sys/module/zswap/parameters/zpool >/dev/null 2>&1 || true
-            echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null
+            echo Y | sudo tee /sys/module/zswap/parameters/enabled >/dev/null 2>&1 || true
           fi
           free -h
           swapon --show
