@@ -1,8 +1,8 @@
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index df260dbab..3c2ba63f7 100644
+index df260dbab..bdf1d202a 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -2441,6 +2441,51 @@ source "drivers/cpufreq/Kconfig"
+@@ -2441,6 +2441,52 @@ source "drivers/cpufreq/Kconfig"
  
  endmenu # "CPU Power Management"
  
@@ -38,6 +38,7 @@ index df260dbab..3c2ba63f7 100644
 +	string
 +	default "cortex-a720" if DASH_ARM64_TUNE_A720
 +	default "cortex-a725" if DASH_ARM64_TUNE_A725
++	default "cortex-x925" if DASH_ARM64_TUNE_X925
 +	default "" if DASH_ARM64_TUNE_NONE
 +
 +config DASH_MLGO_REGALLOC
