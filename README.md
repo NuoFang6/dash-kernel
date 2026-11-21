@@ -64,7 +64,7 @@ bash scripts/finalize.sh   # KCFI、stock 模块、boot 校验，写 SHA256SUMS
 
 ## 子模块
 
-`.gitmodules` 固定了 BakaSU、SUSFS、lz4kd、mihomo Alpha、tcp-brutal、droidspaces、SukiSU patch 以及
+`.gitmodules` 固定了 BakaSU、SUSFS、lz4kd、tcp-brutal、droidspaces、SukiSU patch 以及
 Content-Creation-Club 的 dash 构建/模块仓库。克隆后执行：
 
 ```bash

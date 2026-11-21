@@ -27,7 +27,6 @@ on:
           - third_party/cc-dash-bazel-rules
           - third_party/cc-dash-mtk-modules
           - third_party/tcp-brutal
-          - third_party/mihomo
       branch:
         description: "Branch to bump to (empty: tracked branch, else remote HEAD)"
         required: false

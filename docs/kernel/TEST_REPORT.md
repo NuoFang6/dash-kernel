@@ -697,3 +697,62 @@ QoS sysfs 与 stock 行为一致：
 - 结论：vendor `.ko` 依赖的 task_struct 偏移与导出符号 CRC 在构建级均已
   实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
   `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §3）。
+
+## 22. r4 基线 + BakaSU/SUSFS bump + mihomo 模块移除 + 实机稳定性（2026-11-21）
+
+**证据分级：实机运行稳定性为真机实测；r4/bump 为构建级（CI fast 待过）。**
+
+### 实机稳定性（真机实测，6.6.143-4k #8）
+
+- 连续运行 23h51m 后审计：`dmesg`（77k 行）0 条 panic/Oops/OOM/stall、
+  0 条 f2fs/ext4/erofs 错误、0 条 UFS 错误、0 条 KASAN/kfence；
+  `logcat -b crash` 为空。SUSFS 伪装下 `uname` 显示 stock 串
+  `6.6.118-...-gc44b714366cc`，实际为自编 #8（正常）。
+- 模块加载核对：`hma_uidfake`（外部 HMA LKM，vermagic 6.6.127-dirty，经
+  vendor-ko-compat 加载）、`os_cpu_qi/qs/perf_actuator`、`node_cache`、
+  vendor 638 清单均正常；`nomount` LKM 为模块自带旧版行为（手机上的
+  NoMount metamodule 还没更新到检测内建的版本），与本内核 #8 未内建
+  NoMount 一致，非重复 hook。
+
+### 上游同步（构建级）
+
+- AOSP 基线 `2026-10_r2 (bf768be0)` → `2026-10_r4 (e6c23f62)`；SUBLEVEL
+  仍为 143（GKI 分支跟 ASB release，LTS bump 由 Google 管理）。r4 带入
+  新 ANDROID 补丁与符号（如 Zebra 符号清单更新）。
+- BakaSU `d5e9e02` → `7b65bde`；SUSFS `0606e19` → `f98f082`；
+  nomount/tcp-brutal/lz4kd pin 无漂移；clang r614150 (23.0.1) 仍为
+  main-kernel 最新，不动。
+- 12 个特性补丁在 r4 干净树上重放 0 冲突（apply-patches 输出
+  `patch series applied: 12 patches`）。
+- `third_party/sukisu-patch` 子模块不被构建链引用（仅 README 提及），
+  保留观察，暂不删除。
+
+### mihomo_alpha KSU 模块移除（决策记录）
+
+- 手机端已卸载 `mihomo_alpha`；代理客户端统一改用 AsteriskMETA
+  （GUI，自带 mihomo core / asteriskd / bpf2socks / bpfmatcher /
+  AsteriskEnhance）。仓库侧删除：`dash/modules/mihomo_alpha/`、
+  4 个 mihomo 脚本、`dash/profiles/mihomo-alpha-cpu.pgo`、
+  `third_party/mihomo` 子模块、versions.env pin、bump-submodule.yml
+  选项、各 README/STATUS/AGENTS 索引引用。内核 TUN/TPROXY/netfilter
+  能力与 `tcp-brutal` 外部模块保留。
+
+### AsteriskMETA 内核能力核对（静态核对，源码克隆核验）
+
+- bpf2socks：`BPF_PROG_TYPE_CGROUP_SOCK_ADDR`（connect4/6/sendmsg4/6）、
+  `SCHED_CLS`（tc ingress/egress classifier）、`SK_REUSEPORT` +
+  `REUSEPORT_SOCKARRAY`、LPM_TRIE/LRU_HASH/PERCPU_ARRAY/HASH map 类型。
+- bpfmatcher：`SOCKET_FILTER` + LPM_TRIE/HASH。
+- config 核查（out/dash/.config）：`BPF/BPF_SYSCALL/BPF_JIT(ALL_ON/
+  DEFAULT_ON)/CGROUP_BPF/BPF_LSM/XDP_SOCKETS/NET_CLS_BPF/NET_ACT_BPF/
+  NET_SCH_INGRESS/TUN/VETH` 全部 `=y`；TPROXY/REDIRECT/socket/IPRANGE/
+  MULTIPORT/CONNMARK match-target 齐；`addrtype` 由本树启用。
+- 结论：**无需新增内核配置**。
+
+### CPU 特性编译期利用核查（静态核对）
+
+- 已启用：LSE atomics（`ARM64_USE_LSE_ATOMICS`）、PAC（`PTR_AUTH_KERNEL`）、
+  BTI、Kernel-mode NEON、ARM64 crypto 加速全套（AES-CE/CE-BLK、SHA1/SHA2/
+  SHA512-CE、CHACHA20-NEON、POLY1305-NEON、POLYVAL-CE）、
+  `CC_OPTIMIZE_FOR_PERFORMANCE`、ThinLTO。stock KMI 约束下无未利用的
+  硬件 ISA 开关。

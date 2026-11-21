@@ -12,17 +12,17 @@
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
 | 当前内核 | `6.6.143-4k #8` |
-| AOSP 基线 | `android15-6.6-2026-10_r2` / `bf768be0eed008588dc4e0db0b2f76c026a35818` |
+| AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；ThinLTO 已开启，AutoFDO 未启用 |
 | 运行槽位 | `boot_b` |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.3.0（9 项特性） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；实机加载 586 个；KCFI 13/13 |
-| KSU 模块 | `mihomo_alpha` `v1.19.33-alpha-ca8d7c4-r5-pgo` |
+| KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
 | 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
-| 网络代理 | mihomo Alpha：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT；MPTCP 关闭 |
+| 网络代理 | AsteriskMETA（mihomo core）：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT、BPF2SOCKS 能力齐备；MPTCP 关闭 |
 | TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
 
 完整产物哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
@@ -30,6 +30,11 @@
 
 ## 2. 最近验证
 
+- **2026-11-21（实机 + 构建）**：6.6.143 #8 实机运行 23h51m 无
+  panic/OOM/stall/fs 错误，crash buffer 为空；AOSP 基线 bump r2→r4、
+  BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；`mihomo_alpha` KSU 模块
+  移除，代理客户端改用 AsteriskMETA（内核 TUN/TPROXY/BPF 能力核对齐备）。
+  见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §22。
 - **2026-11-21（构建级）**：DroidSpaces 容器支持内建（kABI 补丁 + 官方 GKI
   fragment）；云端 FAST 构建通过，task_struct 偏移与 9106 个导出符号 CRC
   实证零漂移，vendor `.ko` ABI 不变；未实机。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §21。
@@ -61,7 +66,7 @@
 |---|---|
 | 内核版本、AOSP commit、配置哈希 | `dash/out/artifacts/BUILD_INFO` |
 | Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS` |
-| 模块版本 | `dash/modules/mihomo_alpha/module.prop` |
+| 模块版本 | AsteriskMETA 上游 release（自带 mihomo core；本仓库不再维护模块） |
 | 实机证据 | `docs/kernel/TEST_REPORT.md` |
 | 缺口状态 | `docs/kernel/OPEN_ISSUES.md` |
 

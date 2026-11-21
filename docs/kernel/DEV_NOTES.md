@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 14:41:47 +0800  
-> 覆盖 22 个源，277781 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 15:01:58 +0800  
+> 覆盖 22 个源，282756 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -69,20 +69,20 @@
 ```text
 AOSP_REPO=https://android.googlesource.com/kernel/common
 AOSP_BRANCH=android15-6.6
-AOSP_TAG=android15-6.6-2026-10_r2
-AOSP_COMMIT=bf768be0eed008588dc4e0db0b2f76c026a35818
+AOSP_TAG=android15-6.6-2026-10_r4
+AOSP_COMMIT=e6c23f621ca6e839abdeca58957bbc529536cff1
 
 CLANG_PREBUILT_REPO=https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
 CLANG_PREBUILT_BRANCH=main-kernel
 CLANG_VERSION=r614150
 
 BAKASU_DIR=../BakaSU
-BAKASU_COMMIT=d5e9e025b8b49155f8014684d64c91742b465f65
+BAKASU_COMMIT=7b65bde0710b5e7c6f755545cb15a4abd417f3a8
 
 SUSFS_DIR=../third_party/susfs4ksu
 SUSFS_REPO=https://gitlab.com/simonpunk/susfs4ksu.git
 SUSFS_BRANCH=gki-android15-6.6
-SUSFS_COMMIT=0606e19afae93ffc88e53883dbf3cfced62a7b59
+SUSFS_COMMIT=f98f08223bbf469cc0a1542166383d253557fc32
 
 NOMOUNT_DIR=../third_party/nomount
 NOMOUNT_REPO=https://github.com/maxsteeel/nomount.git
@@ -91,9 +91,6 @@ NOMOUNT_COMMIT=dcd77d03e9912f397a586d7da81694d1628f170e
 
 TCP_BRUTAL_DIR=../third_party/tcp-brutal
 TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
-
-MIHOMO_DIR=../third_party/mihomo
-MIHOMO_COMMIT=ca8d7c41bf620dbe41c8d221f35dc5435216def5
 ```
 
 ### 构建信息
@@ -154,17 +151,17 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3700 | `c88199488d66621c` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 11815 | `83a3a93c73c7eac8` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4243 | `ed9c2a73bfa88fbc` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12008 | `698ad70f74f86cfd` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 39589 | `72f7a25da2b6c9c6` | 当前交付（优先相信） |
-| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22473 | `70f203bafc2fa4e7` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 42795 | `1078714b20074ebb` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22768 | `999340f825b5a71f` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10173 | `36c227c44e9410ce` | 当前交付（优先相信） |
 | 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12236 | `9ea863d66a8b6589` | 当前交付（优先相信） |
 | 09 | 当前交付 | UFS/hybrid/fastdiscard 缺口证据与安全边界 | [`docs/kernel/UFS_HYBRID_EVIDENCE.md`](UFS_HYBRID_EVIDENCE.md) | 5569 | `40b17b16dee1d3a2` | 当前交付（优先相信） |
 | 10 | 当前交付 | node_cache 源码评估与 stock 6.6.118 二进制差异 | [`docs/kernel/NODE_CACHE_SOURCE.md`](NODE_CACHE_SOURCE.md) | 17045 | `2afc71c0117a4772` | 用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。 |
-| 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 19744 | `ca14aa9ac879d839` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
+| 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 20482 | `66cf8b49cf3b40a8` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
 | 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 13874 | `653111d39ebd08fb` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
@@ -184,7 +181,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 3700 字节 · SHA256 `c88199488d66621c565b1e2b7059ecfbb5ce03d5a0d4a390275859b6b70e1481`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 4243 字节 · SHA256 `ed9c2a73bfa88fbc34ab63544f3d9d7c7360ee85014d27b7994fe070dc38ce63`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -199,17 +196,17 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
 | 当前内核 | `6.6.143-4k #8` |
-| AOSP 基线 | `android15-6.6-2026-10_r2` / `bf768be0eed008588dc4e0db0b2f76c026a35818` |
+| AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；ThinLTO 已开启，AutoFDO 未启用 |
 | 运行槽位 | `boot_b` |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e` |
 | `init_boot_a/b` | `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0 官方，两槽相同） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.3.0（9 项特性） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；实机加载 586 个；KCFI 13/13 |
-| KSU 模块 | `mihomo_alpha` `v1.19.33-alpha-ca8d7c4-r5-pgo` |
+| KSU 模块 | 无自建模块（`mihomo_alpha` 已移除）；代理客户端为 AsteriskMETA + 增强模块 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
 | 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
-| 网络代理 | mihomo Alpha：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT；MPTCP 关闭 |
+| 网络代理 | AsteriskMETA（mihomo core）：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT、BPF2SOCKS 能力齐备；MPTCP 关闭 |
 | TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
 
 完整产物哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
@@ -217,6 +214,11 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 ### 2. 最近验证
 
+- **2026-11-21（实机 + 构建）**：6.6.143 #8 实机运行 23h51m 无
+  panic/OOM/stall/fs 错误，crash buffer 为空；AOSP 基线 bump r2→r4、
+  BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；`mihomo_alpha` KSU 模块
+  移除，代理客户端改用 AsteriskMETA（内核 TUN/TPROXY/BPF 能力核对齐备）。
+  见 [TEST_REPORT.md](TEST_REPORT.md) §22。
 - **2026-11-21（构建级）**：DroidSpaces 容器支持内建（kABI 补丁 + 官方 GKI
   fragment）；云端 FAST 构建通过，task_struct 偏移与 9106 个导出符号 CRC
   实证零漂移，vendor `.ko` ABI 不变；未实机。见 [TEST_REPORT.md](TEST_REPORT.md) §21。
@@ -248,7 +250,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 |---|---|
 | 内核版本、AOSP commit、配置哈希 | `dash/out/artifacts/BUILD_INFO` |
 | Image / boot / brutal.ko 哈希 | `dash/out/artifacts/SHA256SUMS` |
-| 模块版本 | `dash/modules/mihomo_alpha/module.prop` |
+| 模块版本 | AsteriskMETA 上游 release（自带 mihomo core；本仓库不再维护模块） |
 | 实机证据 | `docs/kernel/TEST_REPORT.md` |
 | 缺口状态 | `docs/kernel/OPEN_ISSUES.md` |
 
@@ -260,7 +262,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 11815 字节 · SHA256 `83a3a93c73c7eac85abcdc874753b2124847934e5c75af78ad1f45325e152fc6`
+> 来源：[`docs/kernel/README.md`](README.md) · 12008 字节 · SHA256 `698ad70f74f86cfdbd3b4551a58d72ae6aec609dae9871515897d46b1471d618`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -378,8 +380,11 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   MPTCP 实测启动失败未启用；详见 [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)。
 - 外部 TCP Brutal v2.0.1：`third_party/tcp-brutal`，`make brutal` 产物
   `brutal.ko`；ABI 白名单保留 `tcp_prot`、`tcpv6_prot` 及注册函数。
-- mihomo Alpha 子模块 `third_party/mihomo`；`dash/scripts/build-mihomo.sh`
-  支持 PGO，profile 在 `dash/profiles/mihomo-alpha-cpu.pgo`。
+
+> mihomo Alpha KSU 模块已于 2026-11-21 移除：代理客户端统一改用
+> [AsteriskMETA](https://github.com/Asterisk4Magisk/AsteriskMETA)（自带 mihomo
+> core）与其增强模块；内核侧 TUN/TPROXY/netfilter/BPF 能力保持不变（上文与
+> `features.fragment`）。
 - NoMount v2.3.1：`third_party/nomount` 子模块，apply 时符号链接进
   `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（上游 Kconfig `default y` +
   `select KEYS`）。仅编译级验证（FAST 构建通过），未实机验证；规则与
@@ -401,8 +406,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - [OPEN_ISSUES.md](OPEN_ISSUES.md)
 - [ZRAM_EXTM.md](ZRAM_EXTM.md)：内存扩展/ExtM 与 lz4kd 的实机结论（stock
   vendor zram + crypto lz4kd，不替换 zram 模块）
-- [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)：mihomo Alpha 实机运行、TUN/TProxy
-  内核能力、tcp-brutal 与 MPTCP 结论
+- [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)：mihomo Android 实机运行、TUN/TProxy
+  内核能力、tcp-brutal 与 MPTCP 结论；KSU 模块已移除，客户端为 AsteriskMETA
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
@@ -617,7 +622,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 39589 字节 · SHA256 `72f7a25da2b6c9c6a1950a5e59cbbfb8551ca2c256ab4b4ea936724621f7201c`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 42795 字节 · SHA256 `1078714b20074ebbcc599a1e087794197b3d015e8edf2a3d8234389b6563c4f5`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1318,12 +1323,71 @@ QoS sysfs 与 stock 行为一致：
   实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
   `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §3）。
 
+### 22. r4 基线 + BakaSU/SUSFS bump + mihomo 模块移除 + 实机稳定性（2026-11-21）
+
+**证据分级：实机运行稳定性为真机实测；r4/bump 为构建级（CI fast 待过）。**
+
+#### 实机稳定性（真机实测，6.6.143-4k #8）
+
+- 连续运行 23h51m 后审计：`dmesg`（77k 行）0 条 panic/Oops/OOM/stall、
+  0 条 f2fs/ext4/erofs 错误、0 条 UFS 错误、0 条 KASAN/kfence；
+  `logcat -b crash` 为空。SUSFS 伪装下 `uname` 显示 stock 串
+  `6.6.118-...-gc44b714366cc`，实际为自编 #8（正常）。
+- 模块加载核对：`hma_uidfake`（外部 HMA LKM，vermagic 6.6.127-dirty，经
+  vendor-ko-compat 加载）、`os_cpu_qi/qs/perf_actuator`、`node_cache`、
+  vendor 638 清单均正常；`nomount` LKM 为模块自带旧版行为（手机上的
+  NoMount metamodule 还没更新到检测内建的版本），与本内核 #8 未内建
+  NoMount 一致，非重复 hook。
+
+#### 上游同步（构建级）
+
+- AOSP 基线 `2026-10_r2 (bf768be0)` → `2026-10_r4 (e6c23f62)`；SUBLEVEL
+  仍为 143（GKI 分支跟 ASB release，LTS bump 由 Google 管理）。r4 带入
+  新 ANDROID 补丁与符号（如 Zebra 符号清单更新）。
+- BakaSU `d5e9e02` → `7b65bde`；SUSFS `0606e19` → `f98f082`；
+  nomount/tcp-brutal/lz4kd pin 无漂移；clang r614150 (23.0.1) 仍为
+  main-kernel 最新，不动。
+- 12 个特性补丁在 r4 干净树上重放 0 冲突（apply-patches 输出
+  `patch series applied: 12 patches`）。
+- `third_party/sukisu-patch` 子模块不被构建链引用（仅 README 提及），
+  保留观察，暂不删除。
+
+#### mihomo_alpha KSU 模块移除（决策记录）
+
+- 手机端已卸载 `mihomo_alpha`；代理客户端统一改用 AsteriskMETA
+  （GUI，自带 mihomo core / asteriskd / bpf2socks / bpfmatcher /
+  AsteriskEnhance）。仓库侧删除：`dash/modules/mihomo_alpha/`、
+  4 个 mihomo 脚本、`dash/profiles/mihomo-alpha-cpu.pgo`、
+  `third_party/mihomo` 子模块、versions.env pin、bump-submodule.yml
+  选项、各 README/STATUS/AGENTS 索引引用。内核 TUN/TPROXY/netfilter
+  能力与 `tcp-brutal` 外部模块保留。
+
+#### AsteriskMETA 内核能力核对（静态核对，源码克隆核验）
+
+- bpf2socks：`BPF_PROG_TYPE_CGROUP_SOCK_ADDR`（connect4/6/sendmsg4/6）、
+  `SCHED_CLS`（tc ingress/egress classifier）、`SK_REUSEPORT` +
+  `REUSEPORT_SOCKARRAY`、LPM_TRIE/LRU_HASH/PERCPU_ARRAY/HASH map 类型。
+- bpfmatcher：`SOCKET_FILTER` + LPM_TRIE/HASH。
+- config 核查（out/dash/.config）：`BPF/BPF_SYSCALL/BPF_JIT(ALL_ON/
+  DEFAULT_ON)/CGROUP_BPF/BPF_LSM/XDP_SOCKETS/NET_CLS_BPF/NET_ACT_BPF/
+  NET_SCH_INGRESS/TUN/VETH` 全部 `=y`；TPROXY/REDIRECT/socket/IPRANGE/
+  MULTIPORT/CONNMARK match-target 齐；`addrtype` 由本树启用。
+- 结论：**无需新增内核配置**。
+
+#### CPU 特性编译期利用核查（静态核对）
+
+- 已启用：LSE atomics（`ARM64_USE_LSE_ATOMICS`）、PAC（`PTR_AUTH_KERNEL`）、
+  BTI、Kernel-mode NEON、ARM64 crypto 加速全套（AES-CE/CE-BLK、SHA1/SHA2/
+  SHA512-CE、CHACHA20-NEON、POLY1305-NEON、POLYVAL-CE）、
+  `CC_OPTIMIZE_FOR_PERFORMANCE`、ThinLTO。stock KMI 约束下无未利用的
+  硬件 ISA 开关。
+
 ---
 
 <a id="src-05"></a>
 ## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 22473 字节 · SHA256 `70f203bafc2fa4e7e81ed7d8250a75f2fde23b318e2dd6426a3c3725a081882d`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 22768 字节 · SHA256 `999340f825b5a71fe1ad63778ad9c61b2598f9b185af0c752592d6f51c0e8fdd`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是缺口/风险/未完成项的**唯一台账**。当前版本与实机状态见
@@ -1560,16 +1624,21 @@ QoS sysfs 与 stock 行为一致：
 
 ### 4. mihomo / TCP Brutal / MPTCP
 
+> 2026-11-21：`mihomo_alpha` KSU 模块已移除，客户端统一改用 AsteriskMETA
+> （自带 mihomo core）；本节的内核网络结论保持有效，模块安装/自启动相关
+> 项不再适用。
+
 - **MPTCP 未启用。** 在 6.6.143 上 `CONFIG_MPTCP=y` +
   `CONFIG_MPTCP_IPV6=y` + `CONFIG_INET_MPTCP_DIAG=y` 实测启动失败（花屏后
-  看门狗复位，无 pstore）；addrtype-only 正常启动。当前 mihomo 配置必须
-  `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6 子项隔离构建，
-  不要把它当默认项。
+  看门狗复位，无 pstore）；addrtype-only 正常启动。mihomo/AsteriskMETA
+  配置必须 `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6
+  子项隔离构建，不要把它当默认项。
 - **Android auto-redirect 仅本机 IPv4 TCP。** mihomo Android 分支明确不用
   nftables，也不做 IPv6/热点转发；`tproxy-port` 的自动 iptables 只在 Linux
   执行，Android 需要手动规则。热点已改由 TUN auto-route + 模块的 FORWARD
   放行覆盖（2026-11-07，见 [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md) §5.6）；
-  REDIRECT/TPROXY 仍不覆盖转发。
+  REDIRECT/TPROXY 仍不覆盖转发。AsteriskMETA 的 TUN(root) 模式走同一
+  sing-tun 路径，该缺口不变。
 - **TCP Brutal 是外部模块。** `tcp-brutal` v2.0.1 已配置为 submodule 和
   `make brutal`，但上游 GPL-3.0、`brutalctl` 的 Android 构建/`ip route
   congctl` 支持未完成；mihomo 的 Hysteria2/ShadowQUIC brutal 是 QUIC 用户态，
@@ -2707,9 +2776,19 @@ llvm-objdump -dr --no-show-raw-insn --disassemble-symbols=node_cache_compress_fo
 <a id="src-11"></a>
 ## 11. mihomo Alpha / TCP Brutal / MPTCP 实机结论
 
-> 来源：[`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) · 19744 字节 · SHA256 `ca14aa9ac879d839fc5e893519d6b52efb9c4199966c6d259b1899d8d2c26e5e`
+> 来源：[`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) · 20482 字节 · SHA256 `66cf8b49cf3b40a83288497ca7453575b94ef5bfd76481fe0a93645dfc992164`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 > 注意：MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。
+
+> **2026-11-21 状态更新**：`mihomo_alpha` KSU 模块已移除，代理客户端统一改用
+> [AsteriskMETA](https://github.com/Asterisk4Magisk/AsteriskMETA)（Android GUI
+> 客户端，自带 mihomo core、asteriskd、bpf2socks/bpfmatcher、AsteriskEnhance）
+> 与其增强模块。本文档的**内核能力结论仍然有效**：AsteriskMETA 的
+> TUN(root)/TPROXY(root)/auto-redirect 走同一套内核路径；其 BPF2SOCKS 需要
+> 的 cgroup_sock_addr/sched_cls/sk_reuseport/socket_filter 程序类型与
+> BPF_JIT/CGROUP_BPF/NET_SCH_INGRESS/CLS_BPF/ACT_BPF/XDP_SOCKETS 均已启用。
+> §1 的 mihomo pin 表、模块构建/PGO 章节（§6-8 及模块安装说明）已随模块
+> 移除而过时，仅作历史参考。
 
 调查日期：2026-10-30。目标不是“能编译”，而是确认 MetaCubeX/mihomo 在
 Android 用户态实际用到的内核能力，并用给定 Clash 配置在 dash 上跑通 TUN

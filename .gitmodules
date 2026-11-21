@@ -36,10 +36,6 @@
 [submodule "third_party/tcp-brutal"]
 	path = third_party/tcp-brutal
 	url = https://github.com/HyNetworks/tcp-brutal.git
-[submodule "third_party/mihomo"]
-	path = third_party/mihomo
-	url = https://github.com/MetaCubeX/mihomo.git
-	branch = Alpha
 [submodule "third_party/nomount"]
 	path = third_party/nomount
 	url = https://github.com/maxsteeel/nomount.git

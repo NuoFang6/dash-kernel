@@ -1,5 +1,15 @@
 # mihomo Alpha 在 dash 的 Android 运行支持
 
+> **2026-11-21 状态更新**：`mihomo_alpha` KSU 模块已移除，代理客户端统一改用
+> [AsteriskMETA](https://github.com/Asterisk4Magisk/AsteriskMETA)（Android GUI
+> 客户端，自带 mihomo core、asteriskd、bpf2socks/bpfmatcher、AsteriskEnhance）
+> 与其增强模块。本文档的**内核能力结论仍然有效**：AsteriskMETA 的
+> TUN(root)/TPROXY(root)/auto-redirect 走同一套内核路径；其 BPF2SOCKS 需要
+> 的 cgroup_sock_addr/sched_cls/sk_reuseport/socket_filter 程序类型与
+> BPF_JIT/CGROUP_BPF/NET_SCH_INGRESS/CLS_BPF/ACT_BPF/XDP_SOCKETS 均已启用。
+> §1 的 mihomo pin 表、模块构建/PGO 章节（§6-8 及模块安装说明）已随模块
+> 移除而过时，仅作历史参考。
+
 调查日期：2026-10-30。目标不是“能编译”，而是确认 MetaCubeX/mihomo 在
 Android 用户态实际用到的内核能力，并用给定 Clash 配置在 dash 上跑通 TUN
 代理链路。

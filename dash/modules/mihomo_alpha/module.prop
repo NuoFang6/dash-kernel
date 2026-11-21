@@ -1,6 +1,0 @@
-id=mihomo_alpha
-name=mihomo Alpha
-version=v1.19.33-alpha-ca8d7c4-r5-pgo
-versionCode=20261107
-author=NuoFang6
-description=Standalone mihomo Alpha KSU module: auto-start from /data/adb/mihomo/config.yaml; TUN/routes follow that config; adds only the FORWARD accepts needed for hotspot/tether clients; persists tcp_fastopen=3.

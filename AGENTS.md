@@ -2,7 +2,7 @@
 
 本文件是 agent/协作者进入仓库的第一入口。目标：**先读 1–2 份文档就开始工作；每类事实只改一个地方。**
 
-最后更新：2026-11-07
+最后更新：2026-11-21
 
 ## 1. 任务 → 最小阅读集
 
@@ -13,7 +13,7 @@
 | 刷机、AVB、boot 封装 | [docs/kernel/BOOT_PACKAGING.md](docs/kernel/BOOT_PACKAGING.md) | [docs/STATUS.md](docs/STATUS.md) |
 | 缺口、风险、下一步 | [docs/kernel/OPEN_ISSUES.md](docs/kernel/OPEN_ISSUES.md) | `STOCK_PARITY_AUDIT.md`、`UFS_HYBRID_EVIDENCE.md`、`GAP_RESEARCH.md` |
 | 改实现、看与 stock 的差异 | [docs/kernel/DESIGN.md](docs/kernel/DESIGN.md) | `TEST_REPORT.md` 对应 § |
-| mihomo / KSU 模块 | [docs/kernel/MIHOMO_ANDROID.md](docs/kernel/MIHOMO_ANDROID.md) | `dash/modules/mihomo_alpha/` |
+| mihomo / 代理内核能力 | [docs/kernel/MIHOMO_ANDROID.md](docs/kernel/MIHOMO_ANDROID.md) | 客户端为 AsteriskMETA（KSU 模块已移除） |
 | zram / lz4kd / ExtM | [docs/kernel/ZRAM_EXTM.md](docs/kernel/ZRAM_EXTM.md) | `TEST_REPORT.md` §14 |
 | node_cache 源码评估 | [docs/kernel/NODE_CACHE_SOURCE.md](docs/kernel/NODE_CACHE_SOURCE.md) | `DEVICE_MODULES.md` |
 | 源码树、子模块 pin、设备资产 | [docs/project/NAVIGATION.md](docs/project/NAVIGATION.md) | `dash/versions.env`、`git submodule status` |
@@ -28,7 +28,7 @@
 | 新实测证据、命令、日志摘要、失败复盘 | `docs/kernel/TEST_REPORT.md`（追加带日期的 §） | STATUS（只留一行结论） |
 | 缺口、风险、未覆盖项、性能排序 | `docs/kernel/OPEN_ISSUES.md` | 其他文档 |
 | 实现方式、hook、与 stock 的差异 | `docs/kernel/DESIGN.md` | STATUS |
-| mihomo / TUN / 模块行为 | `docs/kernel/MIHOMO_ANDROID.md` | OPEN_ISSUES 只留风险 |
+| mihomo / TUN / 内核网络能力 | `docs/kernel/MIHOMO_ANDROID.md` | OPEN_ISSUES 只留风险 |
 | zram / ExtM / lz4kd | `docs/kernel/ZRAM_EXTM.md` | 其他文档 |
 | 构建命令、目录、版本锁定 | `docs/kernel/README.md` + `dash/versions.env` | 状态类文档 |
 | boot / AVB 硬规则 | `docs/kernel/BOOT_PACKAGING.md` | 其他文档 |

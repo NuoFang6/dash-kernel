@@ -234,16 +234,21 @@
 
 ## 4. mihomo / TCP Brutal / MPTCP
 
+> 2026-11-21：`mihomo_alpha` KSU 模块已移除，客户端统一改用 AsteriskMETA
+> （自带 mihomo core）；本节的内核网络结论保持有效，模块安装/自启动相关
+> 项不再适用。
+
 - **MPTCP 未启用。** 在 6.6.143 上 `CONFIG_MPTCP=y` +
   `CONFIG_MPTCP_IPV6=y` + `CONFIG_INET_MPTCP_DIAG=y` 实测启动失败（花屏后
-  看门狗复位，无 pstore）；addrtype-only 正常启动。当前 mihomo 配置必须
-  `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6 子项隔离构建，
-  不要把它当默认项。
+  看门狗复位，无 pstore）；addrtype-only 正常启动。mihomo/AsteriskMETA
+  配置必须 `inbound-mptcp: false`。如要继续，先做 MPTCP-only / 去 IPv6
+  子项隔离构建，不要把它当默认项。
 - **Android auto-redirect 仅本机 IPv4 TCP。** mihomo Android 分支明确不用
   nftables，也不做 IPv6/热点转发；`tproxy-port` 的自动 iptables 只在 Linux
   执行，Android 需要手动规则。热点已改由 TUN auto-route + 模块的 FORWARD
   放行覆盖（2026-11-07，见 [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md) §5.6）；
-  REDIRECT/TPROXY 仍不覆盖转发。
+  REDIRECT/TPROXY 仍不覆盖转发。AsteriskMETA 的 TUN(root) 模式走同一
+  sing-tun 路径，该缺口不变。
 - **TCP Brutal 是外部模块。** `tcp-brutal` v2.0.1 已配置为 submodule 和
   `make brutal`，但上游 GPL-3.0、`brutalctl` 的 Android 构建/`ip route
   congctl` 支持未完成；mihomo 的 Hysteria2/ShadowQUIC brutal 是 QUIC 用户态，

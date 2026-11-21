@@ -115,8 +115,11 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   MPTCP 实测启动失败未启用；详见 [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)。
 - 外部 TCP Brutal v2.0.1：`third_party/tcp-brutal`，`make brutal` 产物
   `brutal.ko`；ABI 白名单保留 `tcp_prot`、`tcpv6_prot` 及注册函数。
-- mihomo Alpha 子模块 `third_party/mihomo`；`dash/scripts/build-mihomo.sh`
-  支持 PGO，profile 在 `dash/profiles/mihomo-alpha-cpu.pgo`。
+
+> mihomo Alpha KSU 模块已于 2026-11-21 移除：代理客户端统一改用
+> [AsteriskMETA](https://github.com/Asterisk4Magisk/AsteriskMETA)（自带 mihomo
+> core）与其增强模块；内核侧 TUN/TPROXY/netfilter/BPF 能力保持不变（上文与
+> `features.fragment`）。
 - NoMount v2.3.1：`third_party/nomount` 子模块，apply 时符号链接进
   `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（上游 Kconfig `default y` +
   `select KEYS`）。仅编译级验证（FAST 构建通过），未实机验证；规则与
@@ -138,8 +141,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 - [OPEN_ISSUES.md](OPEN_ISSUES.md)
 - [ZRAM_EXTM.md](ZRAM_EXTM.md)：内存扩展/ExtM 与 lz4kd 的实机结论（stock
   vendor zram + crypto lz4kd，不替换 zram 模块）
-- [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)：mihomo Alpha 实机运行、TUN/TProxy
-  内核能力、tcp-brutal 与 MPTCP 结论
+- [MIHOMO_ANDROID.md](MIHOMO_ANDROID.md)：mihomo Android 实机运行、TUN/TProxy
+  内核能力、tcp-brutal 与 MPTCP 结论；KSU 模块已移除，客户端为 AsteriskMETA
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由

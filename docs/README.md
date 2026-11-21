@@ -39,7 +39,7 @@
 | [TEST_REPORT.md](kernel/TEST_REPORT.md) | 静态检查、真机证据、AVB 复盘；按日期追加 | **证据日志**，不是当前状态 |
 | [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) | 未完成项总表（按性能影响）、风险、验证缺口 | **缺口唯一台账** |
 | [ZRAM_EXTM.md](kernel/ZRAM_EXTM.md) | 内存扩展 ExtM 与 lz4kd：stock vendor zram、backing_dev、xswapd、回写验证 | 当前 |
-| [MIHOMO_ANDROID.md](kernel/MIHOMO_ANDROID.md) | mihomo Alpha Android 运行、TUN/TProxy 内核能力、tcp-brutal、MPTCP 结论 | 当前 |
+| [MIHOMO_ANDROID.md](kernel/MIHOMO_ANDROID.md) | mihomo Android 运行、TUN/TProxy 内核能力、tcp-brutal、MPTCP 结论；KSU 模块已移除（客户端为 AsteriskMETA） | 内核能力部分当前；模块章节过时 |
 | [NODE_CACHE_SOURCE.md](kernel/NODE_CACHE_SOURCE.md) | node_cache 源码评估、与 stock 6.6.118 二进制差异、6.6.143 适配清单 | 当前；来源是 6.12 API 重实现，不是 stock 原源码 |
 | [LOG_AUDIT_20261030.md](kernel/LOG_AUDIT_20261030.md) | 系统日志审计：kernel WARN、SELinux、crash/ANR、厂商噪声与结论 | 当前 |
 | [BOOT_PACKAGING.md](kernel/BOOT_PACKAGING.md) | boot 封装、AVB、恢复规则 | 当前 |
