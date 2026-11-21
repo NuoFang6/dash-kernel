@@ -32,9 +32,12 @@
 
 - **2026-11-21（实机 + 构建）**：6.6.143 #8 实机运行 23h51m 无
   panic/OOM/stall/fs 错误，crash buffer 为空；AOSP 基线 bump r2→r4、
-  BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；`mihomo_alpha` KSU 模块
+  BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；SUSFS f98f082 优先级
+  uid 过滤门控修复（本地 FAST 构建通过）；`mihomo_alpha` KSU 模块
   移除，代理客户端改用 AsteriskMETA（内核 TUN/TPROXY/BPF 能力核对齐备）。
-  见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §22。
+  CI fast [run 44881172820](https://github.com/NuoFang6/dash-kernel/actions/runs/44881172820)
+  通过（19 分钟，工具链 cache 命中，flashable 尺寸检查通过）。
+  见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §22/§23。
 - **2026-11-21（构建级）**：DroidSpaces 容器支持内建（kABI 补丁 + 官方 GKI
   fragment）；云端 FAST 构建通过，task_struct 偏移与 9106 个导出符号 CRC
   实证零漂移，vendor `.ko` ABI 不变；未实机。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §21。

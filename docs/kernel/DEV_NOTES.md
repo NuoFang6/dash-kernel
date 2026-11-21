@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 15:38:10 +0800  
-> 覆盖 22 个源，285662 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 15:58:45 +0800  
+> 覆盖 22 个源，285925 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -151,7 +151,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4243 | `ed9c2a73bfa88fbc` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 4506 | `c7324021d4efda81` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 12372 | `55825cad60fe04dd` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
 | 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 45337 | `b161398efbfd3914` | 当前交付（优先相信） |
@@ -181,7 +181,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 4243 字节 · SHA256 `ed9c2a73bfa88fbc34ab63544f3d9d7c7360ee85014d27b7994fe070dc38ce63`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 4506 字节 · SHA256 `c7324021d4efda816fa468e6ea50e3d822f1bee3e4659f9a1c65f121d26fc6b7`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -216,9 +216,12 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 - **2026-11-21（实机 + 构建）**：6.6.143 #8 实机运行 23h51m 无
   panic/OOM/stall/fs 错误，crash buffer 为空；AOSP 基线 bump r2→r4、
-  BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；`mihomo_alpha` KSU 模块
+  BakaSU/SUSFS 子模块更新后 12 补丁重放无冲突；SUSFS f98f082 优先级
+  uid 过滤门控修复（本地 FAST 构建通过）；`mihomo_alpha` KSU 模块
   移除，代理客户端改用 AsteriskMETA（内核 TUN/TPROXY/BPF 能力核对齐备）。
-  见 [TEST_REPORT.md](TEST_REPORT.md) §22。
+  CI fast [run 44881172820](https://github.com/NuoFang6/dash-kernel/actions/runs/44881172820)
+  通过（19 分钟，工具链 cache 命中，flashable 尺寸检查通过）。
+  见 [TEST_REPORT.md](TEST_REPORT.md) §22/§23。
 - **2026-11-21（构建级）**：DroidSpaces 容器支持内建（kABI 补丁 + 官方 GKI
   fragment）；云端 FAST 构建通过，task_struct 偏移与 9106 个导出符号 CRC
   实证零漂移，vendor `.ko` ABI 不变；未实机。见 [TEST_REPORT.md](TEST_REPORT.md) §21。
