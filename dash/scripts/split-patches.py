@@ -154,6 +154,11 @@ SERIES = [
             "kernel/pid.c",
         ]),
     ]),
+    ("090-droidspaces", "DroidSpaces 容器支持：SYSVIPC 字段移入 ANDROID_KABI 填充槽（task_struct 偏移不变）", [
+        ("0001-sysvipc-kabi-padding.patch", [
+            "include/linux/sched.h",
+        ]),
+    ]),
 ]
 
 # Files that show up in a src-tree diff but are script-side wiring, not patch

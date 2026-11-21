@@ -61,8 +61,30 @@ CONFIG="$OUT_DIR/.config"
 	-e CONFIG_NETFILTER_XT_MATCH_ADDRTYPE \
 	-e CONFIG_IP6_NF_NAT \
 	-e CONFIG_IP6_NF_TARGET_MASQUERADE \
+	-e CONFIG_SYSVIPC \
+	-e CONFIG_POSIX_MQUEUE \
+	-e CONFIG_IPC_NS \
+	-e CONFIG_PID_NS \
+	-e CONFIG_DEVTMPFS \
+	-d CONFIG_DEVTMPFS_MOUNT \
+	-e CONFIG_USER_NS \
+	-e CONFIG_TMPFS_XATTR \
+	-e CONFIG_TMPFS_POSIX_ACL \
+	-e CONFIG_MACVLAN \
+	-e CONFIG_IP_SET \
+	-e CONFIG_IP_SET_HASH_IP \
+	-e CONFIG_IP_SET_HASH_NET \
+	-e CONFIG_NETFILTER_XT_SET \
+	-e CONFIG_NETFILTER_XT_TARGET_LOG \
+	-e CONFIG_NETFILTER_XT_MATCH_RECENT \
 	-d CONFIG_LOCALVERSION_AUTO \
 	--set-str CONFIG_UNUSED_KSYMS_WHITELIST "$DASH_ROOT/configs/abi_symbollist.raw"
+
+# DroidSpaces container runtime (official GKI fragment, 2026-11-21).  The
+# SYSVIPC/IPC_NS fields land in ANDROID_KABI padding via the 090-droidspaces
+# patch, so task_struct offsets and vendor .ko ABI stay stock.  These two DO
+# resize scheduler/cgroup structs and are excluded on purpose (official docs):
+# CFS_BANDWIDTH / CGROUP_PIDS would break every prebuilt vendor module.
 
 if [[ "$FAST" == "1" ]]; then
 	"$AOSP_DIR/scripts/config" --file "$CONFIG" \
@@ -85,6 +107,11 @@ fi
 		CONFIG_NOMOUNT
 		CONFIG_NETFILTER_XT_MATCH_ADDRTYPE
 		CONFIG_IP6_NF_NAT CONFIG_IP6_NF_TARGET_MASQUERADE
+		CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE CONFIG_IPC_NS CONFIG_PID_NS
+		CONFIG_DEVTMPFS CONFIG_USER_NS
+		CONFIG_TMPFS_XATTR CONFIG_TMPFS_POSIX_ACL CONFIG_MACVLAN
+		CONFIG_IP_SET CONFIG_IP_SET_HASH_IP CONFIG_IP_SET_HASH_NET
+		CONFIG_NETFILTER_XT_SET
 	)
 if [[ "$FAST" == "1" ]]; then
 	required+=(CONFIG_LTO_NONE)
@@ -93,6 +120,9 @@ else
 fi
 for opt in "${required[@]}"; do
 	grep -q "^${opt}=y$" "$CONFIG" || die "$opt was not enabled"
+done
+for opt in CONFIG_CFS_BANDWIDTH CONFIG_CGROUP_PIDS CONFIG_MPTCP; do
+	grep -q "^${opt}=y$" "$CONFIG" && die "$opt must stay off (kABI/vendor breakage)"
 done
 if grep -q '^CONFIG_KSU_TRACEPOINT_HOOK=y$' "$CONFIG"; then
 	die "tracepoint hook must be disabled when SUSFS inline hook is used"

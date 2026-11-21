@@ -217,6 +217,16 @@
   组合。其它设备或更严格 bootloader 不保证可用；不要在没有恢复方案时写 `lk`。
 - **`MEMFD_ASHMEM_SHIM`**：AOSP 6.6.118 自带实现，已启用；没有移植 MiCode
   6.6.89 的重复版本。缺少 Android 上层 `libmemfd`/ashmem 用户态回归测试。
+- **DroidSpaces（2026-11-21）**：kABI 补丁 + 官方 GKI fragment 已接入
+  （`patches/090-droidspaces`、`configs/features.fragment`），本地 `make
+  patches`/`make config` 通过；**未实机验证**。kABI 安全性是静态推理
+  （`_ANDROID_KABI_REPLACE` 在 `__GENKSYMS__` 下取原 RESERVE 文本，CRC 应与
+  stock 一致）+ 官方补丁在同代 6.6 GKI 上的实测背书（参考内核
+  `third_party/dash-droidspaces`），首次刷机后需验证：586 个厂商模块仍全部
+  加载、`droidspaces check` 全绿、genksyms CRC 抽查无漂移。功能限制（永久）：
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭（破坏 kABI 且无填充槽方案），
+  `--cpus`/`--pids-limit` 不可用；`NETFILTER_XT_TARGET_REJECT`（nft 变体）
+  在 6.6 无此符号，REJECT 由 legacy `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
 - **性能/功耗与深度 A/B**：未做 stock vs 自编的 zram/node_cache/QoS/启动时延、
   suspend/resume、fsck/power-loss、长时压力。没有这些数据，不能对任何性能收益
   作声明。下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram

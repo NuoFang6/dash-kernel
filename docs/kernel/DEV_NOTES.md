@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-21 04:24:44 +0800  
-> 覆盖 22 个源，269946 字节；脚本版本 1。  
+> 生成时间（源文件最新 mtime）：2026-11-21 13:57:41 +0800  
+> 覆盖 22 个源，275265 字节；脚本版本 1。  
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。  
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -84,6 +84,11 @@ SUSFS_REPO=https://gitlab.com/simonpunk/susfs4ksu.git
 SUSFS_BRANCH=gki-android15-6.6
 SUSFS_COMMIT=0606e19afae93ffc88e53883dbf3cfced62a7b59
 
+NOMOUNT_DIR=../third_party/nomount
+NOMOUNT_REPO=https://github.com/maxsteeel/nomount.git
+NOMOUNT_TAG=v2.3.1
+NOMOUNT_COMMIT=dcd77d03e9912f397a586d7da81694d1628f170e
+
 TCP_BRUTAL_DIR=../third_party/tcp-brutal
 TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
 
@@ -150,17 +155,17 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 3408 | `d41fb5959c16771c` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 10619 | `c2d24a7230d42d87` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 11815 | `83a3a93c73c7eac8` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 34809 | `ac1348ac62a6a4d1` | 当前交付（优先相信） |
-| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 21757 | `1dcb324bfe85ba22` | 当前交付（优先相信） |
-| 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12283 | `8368f5f92d98530d` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 37189 | `a9f9d2c67440f199` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 22649 | `2736d6dacad9c804` | 当前交付（优先相信） |
+| 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10173 | `36c227c44e9410ce` | 当前交付（优先相信） |
 | 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12236 | `9ea863d66a8b6589` | 当前交付（优先相信） |
 | 09 | 当前交付 | UFS/hybrid/fastdiscard 缺口证据与安全边界 | [`docs/kernel/UFS_HYBRID_EVIDENCE.md`](UFS_HYBRID_EVIDENCE.md) | 5569 | `40b17b16dee1d3a2` | 当前交付（优先相信） |
 | 10 | 当前交付 | node_cache 源码评估与 stock 6.6.118 二进制差异 | [`docs/kernel/NODE_CACHE_SOURCE.md`](NODE_CACHE_SOURCE.md) | 17045 | `2afc71c0117a4772` | 用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。 |
 | 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 19744 | `ca14aa9ac879d839` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
-| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 13616 | `265bed78f71a9d5f` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
+| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 13874 | `653111d39ebd08fb` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
 | 15 | 需求 | 交接任务书与验收标准（历史输入） | [`docs/handoff/TASK_BRIEF.md`](../handoff/TASK_BRIEF.md) | 12697 | `6cc641eb2f82e514` | 任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。 |
@@ -252,7 +257,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 10619 字节 · SHA256 `c2d24a7230d42d875eb841b26c7dbd42092daa57f425fa96d13ecab44f995fb7`
+> 来源：[`docs/kernel/README.md`](README.md) · 11815 字节 · SHA256 `83a3a93c73c7eac85abcdc874753b2124847934e5c75af78ad1f45325e152fc6`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -268,7 +273,7 @@ GKI 分支 `android15-6.6`，KMI 字符串 `android15-8`，4K 页。当前自编
 configs/stock.config          设备 stock 配置，构建起点
 configs/abi_symbollist.raw    stock 导出白名单，保持 TRIM_UNUSED_KSYMS
 configs/features.fragment     本次新增配置摘要
-patches/                      有序补丁系列；series 是唯一应用顺序
+patches/                      按特性分目录的补丁；series 是唯一应用顺序
 scripts/                      同步、打补丁、配置、构建、boot 打包和静态检查
 src/aosp/common/              clean AOSP 浅克隆，可随时重置
 toolchains/                   clang r614150（clang 23.0.1）
@@ -295,11 +300,15 @@ bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
 make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.md（给 LLM 的避坑包）
 ```
 
-> **6.6.143 补丁序列（2026-10-30 已重生成）**：`patches/series` 现在是
-> `0000-6.6.143-dash-integration.patch`（整树 squash）；旧 6.6.118 拆分系列
-> 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 apply 后
-> 84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致，无 warning。
-> `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动。
+> **6.6.143 补丁序列（2026-11-21 起按特性拆分）**：`patches/` 下是按功能
+> 特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat / vendor-hooks-os4
+> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc），`series` 是唯一
+> 应用顺序；文件级拆分（每文件只属于一个补丁），归属表在
+> `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
+> squash 已从仓库删除（git 历史保留）。已在干净 bf768 worktree 验证 11 个
+> 补丁 apply 后与构建工作树逐字节一致，无 warning。
+> `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
+> 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
 产物在 `out/artifacts/`，构建日志在 `out/dash/build.log`。
 
@@ -368,6 +377,17 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   `brutal.ko`；ABI 白名单保留 `tcp_prot`、`tcpv6_prot` 及注册函数。
 - mihomo Alpha 子模块 `third_party/mihomo`；`dash/scripts/build-mihomo.sh`
   支持 PGO，profile 在 `dash/profiles/mihomo-alpha-cpu.pgo`。
+- NoMount v2.3.1：`third_party/nomount` 子模块，apply 时符号链接进
+  `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（上游 Kconfig `default y` +
+  `select KEYS`）。仅编译级验证（FAST 构建通过），未实机验证；规则与
+  配置由其 KSU metamodule 管理，本仓库不含用户态部分。
+- DroidSpaces 容器支持（2026-11-21）：官方 GKI fragment 全套
+  （SYSVIPC/POSIX_MQUEUE/IPC_NS/PID_NS/DEVTMPFS/USER_NS/TMPFS xattr+ACL/
+  MACVLAN/IP_SET 等，`configs/features.fragment`）；SYSVIPC/IPC_NS 的
+  task_struct 字段经 `patches/090-droidspaces` 移入 ANDROID_KABI 填充槽，
+  vendor `.ko` ABI 不变。`CFS_BANDWIDTH`/`CGROUP_PIDS` 按官方文档保持
+  关闭（会破坏 kABI；`--cpus`/`--pids-limit` 不可用）。参考内核
+  `third_party/dash-droidspaces`（同设备，marble 配方 7 轮 CI 实机验证）。
 - `TRIM_UNUSED_KSYMS=y`，使用 stock 导出表作为 ABI 白名单。
 
 详细差异、验证分层和未覆盖项见：
@@ -405,8 +425,8 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 ### 更新规则
 
 - 更新 AOSP：改 `versions.env` 的 `AOSP_TAG`/`AOSP_COMMIT`，运行
-  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后重新生成整树
-  `0000-6.6.143-dash-integration.patch`，不要手改补丁文件。流程见
+  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后运行
+  `make gen-patches` 重新生成特性补丁，不要手改补丁文件。流程见
   [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
 - 更新 SUSFS：更新 `SUSFS_COMMIT` 并 bump `third_party/susfs4ksu` 子模块即可；
@@ -594,7 +614,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 34809 字节 · SHA256 `ac1348ac62a6a4d164ad9646753d36086f2c22c2b52011e4c50c3915ab8536a3`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 37189 字节 · SHA256 `a9f9d2c67440f19943dc427c0d2fa14c604283ac816debaf0bbdd4e80ab18434`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1230,12 +1250,45 @@ QoS sysfs 与 stock 行为一致：
   已替换模块 `bin/mihomo` 并重启；模块 `mihomo_alpha` r4-pgo，
   TUN、TFO、IPv6 回归正常。
 
+### 20. 补丁系列按特性重拆分（2026-11-21，离线）
+
+把 6.6.143 整树 squash `0000-6.6.143-dash-integration.patch`（84 个文件）
+重拆为按功能特性分目录的补丁系列（11 个补丁、8 个特性目录），并给维护
+流程加了机器校验。**纯仓库重组，不改任何内核代码，无需重新编译验证。**
+
+- 拆分是文件级的：逐 hunk 分析确认每个文件只被一个特性触碰；BakaSU 与
+  SUSFS 的 hook 调用点在 VFS/security/core 文件内交错（`fs/namei.c`、
+  `block/ioprio.c`、`security/selinux/*` 等），整体归入
+  `010-bakasu-susfs`，不做 hunk 级拆分。`fs/erofs/decompressor.c` 的改动
+  是 LZ4 trace 事件打点，归 `050-lz4kd-zram/0002`；`mm/filemap.c`、
+  `mm/vmscan.c` 相对上游只有 vendor hook 调用点后的空行，归
+  `030-vendor-hooks-os4`。
+- 新结构：`patches/<NNN-feature>/*.patch` + `patches/series`（每行一个
+  特性目录）。归属唯一记录在 `dash/scripts/split-patches.py` 的 `SERIES`
+  映射表；`check` 子命令校验 series/映射/补丁内容一致，`write` 从 squash
+  再生成，树 diff 出现映射外文件会报错。`scripts/apply-patches.sh` 改为
+  按 series 逐目录逐补丁 `git apply --index` 并打印每步进度；
+  `scripts/gen-patches.sh`（`make gen-patches`）= src 树 diff → squash →
+  拆分 → 校验。
+- 验证 1（拆分保真）：`split-patches.py check --squash` 对比原 squash——
+  11 个补丁的每个文件 diff 块与 squash 逐字节一致，84 文件全覆盖。
+- 验证 2（应用结果）：在干净 `bf768be0` worktree（`git worktree add`）上
+  用新 `apply-patches.sh` 完整应用：11 个补丁全部 `git apply --index`
+  成功、无 warning；变更文件集（85 个，含 NoMount 的 `fs/Kconfig`）+
+  3 个 SUSFS 安装文件与当时构建工作树 sha256 逐一相同；`drivers/kernelsu`
+  与 `fs/nomount` 符号链接解析到相同真实目标。
+- 验证 3（维护闭环）：`make gen-patches` 从 src 树重新生成，`check`
+  （含与新生成 squash 的逐字节比对）通过，产出与现存补丁一致。
+- 局限：本次只做离线校验，未重新编译；CI `patch-series` job 的
+  `make source patches` 重放是后续每次构建的常设门禁。旧的 6.6.118 系列
+  与 6.6.143 squash 从仓库删除，git 历史保留。
+
 ---
 
 <a id="src-05"></a>
 ## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 21757 字节 · SHA256 `1dcb324bfe85ba22eaece9a595e7507f73395c50ecfc1604e32ddcd0ce532d06`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 22649 字节 · SHA256 `2736d6dacad9c80455b87766a72b0508273b04c171fdd270955c82fa606f8948`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是缺口/风险/未完成项的**唯一台账**。当前版本与实机状态见
@@ -1435,8 +1488,8 @@ QoS sysfs 与 stock 行为一致：
 - **AutoFDO**：未启用，需要先采集 profile；按当前约定跳过。
 - **pid_max clamp**：已生效并实机验证，32768 为硬上限；这是有意偏离 stock，
   用于规避 DroidSpaces 的 0x8000 PID 掩码 bug。
-- **补丁序列**：已重生成 `patches/0000-6.6.143-dash-integration.patch`；
-  旧 6.6.118 系列归档，不再参与构建。
+- **补丁序列**：已按特性拆分为 `patches/<feature>/` 系列（2026-11-21）；
+  旧 6.6.118 系列与 6.6.143 整树 squash 归档，不再参与构建。
 
 ### 3. 验证缺口
 
@@ -1455,6 +1508,16 @@ QoS sysfs 与 stock 行为一致：
   组合。其它设备或更严格 bootloader 不保证可用；不要在没有恢复方案时写 `lk`。
 - **`MEMFD_ASHMEM_SHIM`**：AOSP 6.6.118 自带实现，已启用；没有移植 MiCode
   6.6.89 的重复版本。缺少 Android 上层 `libmemfd`/ashmem 用户态回归测试。
+- **DroidSpaces（2026-11-21）**：kABI 补丁 + 官方 GKI fragment 已接入
+  （`patches/090-droidspaces`、`configs/features.fragment`），本地 `make
+  patches`/`make config` 通过；**未实机验证**。kABI 安全性是静态推理
+  （`_ANDROID_KABI_REPLACE` 在 `__GENKSYMS__` 下取原 RESERVE 文本，CRC 应与
+  stock 一致）+ 官方补丁在同代 6.6 GKI 上的实测背书（参考内核
+  `third_party/dash-droidspaces`），首次刷机后需验证：586 个厂商模块仍全部
+  加载、`droidspaces check` 全绿、genksyms CRC 抽查无漂移。功能限制（永久）：
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭（破坏 kABI 且无填充槽方案），
+  `--cpus`/`--pids-limit` 不可用；`NETFILTER_XT_TARGET_REJECT`（nft 变体）
+  在 6.6 无此符号，REJECT 由 legacy `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
 - **性能/功耗与深度 A/B**：未做 stock vs 自编的 zram/node_cache/QoS/启动时延、
   suspend/resume、fsck/power-loss、长时压力。没有这些数据，不能对任何性能收益
   作声明。下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram
@@ -1552,7 +1615,7 @@ QoS sysfs 与 stock 行为一致：
 <a id="src-06"></a>
 ## 6. 实现路径、与 stock 的差异和回退
 
-> 来源：[`docs/kernel/DESIGN.md`](DESIGN.md) · 12283 字节 · SHA256 `8368f5f92d98530d366152d4439fddf23b13ad1992776e322d65a8393f50dbcc`
+> 来源：[`docs/kernel/DESIGN.md`](DESIGN.md) · 12876 字节 · SHA256 `d8457634d960321e51bd59fae390c68994a07cf3fd14aaf041fe49fb246a12bb`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 ### 1. 基线与交付边界
@@ -1572,20 +1635,29 @@ QoS sysfs 与 stock 行为一致：
 
 ### 2. 补丁系列
 
-[patches/series](../../dash/patches/series) 是唯一应用顺序。当前 6.6.143 只有
-一个整树集成补丁；详细原因、生成和应用流程见
+[patches/series](../../dash/patches/series) 是唯一应用顺序。补丁按功能特性
+分目录存放，拆分是文件级的（每个文件只属于一个补丁，归属唯一记录在
+`dash/scripts/split-patches.py` 的 `SERIES` 映射表），生成和应用流程见
 [patches/README.md](../../dash/patches/README.md)。
 
-| 补丁/目录 | 内容 |
+| 特性目录 | 内容 |
 |---|---|
-| `0000-6.6.143-dash-integration.patch` | 整树 squash：vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、stock parity hooks、OS4 vendor hooks |
+| `010-bakasu-susfs` | BakaSU 内建 + SUSFS inline hook（VFS/security/core 交错文件不可再拆） |
+| `020-vendor-ko-compat` | 厂商 .ko 兼容（签名/vermagic/CRC/namespace/GKI 保护导出） |
+| `030-vendor-hooks-os4` | dash OS4 `android_vh_*` vendor hooks |
+| `040-memfd-ashmem-shim` | MEMFD_ASHMEM shim 配置接入 |
+| `050-lz4kd-zram` | lz4kd crypto 模块、LZ4 trace 事件、zram 后端 |
+| `060-f2fs-xiaomi` | Xiaomi F2FS 增强（iostat/VIP/hybrid/lock priority） |
+| `070-erofs-xiaomi` | Xiaomi EROFS iostat sysfs |
+| `080-dash-misc` | dash 维护性独立修复（pid_max clamp） |
 | `third_party/susfs4ksu`（子模块） | `kernel_patches/` 下的 SUSFS 内核文件，由 `scripts/apply-patches.sh` 安装，仓库不存副本 |
 
-旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）已于 2026-11-21 从仓库删除，
-仅存 git 历史（commit `1e5c8f4` 之前）。
+旧 6.6.118 拆分系列（0000–0009 + vendor-hooks）与 6.6.143 整树 squash
+`0000-6.6.143-dash-integration.patch` 已于 2026-11-21 从仓库删除，
+仅存 git 历史。
 
-BakaSU 以固定提交的本地符号链接接入，不复制上游历史。集成补丁在干净
-`bf768be0` 上 apply 后，84 个补丁文件 + 3 个 SUSFS 文件与当前工作树逐字节一致。
+BakaSU 以固定提交的本地符号链接接入，不复制上游历史。特性系列在干净
+`bf768be0` 上 apply 后，与构建工作树逐字节一致（见 TEST_REPORT §20）。
 
 ### 3. 厂商模块与 trace hooks
 
@@ -2972,7 +3044,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 <a id="src-12"></a>
 ## 12. 仓库导航、子模块 pin 与资源索引
 
-> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 13616 字节 · SHA256 `265bed78f71a9d5fe2f641f2636561bc695ffc10bfc1ea2e8b29623c424addea`
+> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 13874 字节 · SHA256 `653111d39ebd08fbcb0c243e598e57b7024719528ef3b032c53d24528384e41f`
 > 类别：仓库上下文 · 状态：仓库上下文（可能有过时状态）
 > 注意：这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。
 
@@ -2995,10 +3067,11 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 |---|---|---|---|---|
 | [BakaSU](../../BakaSU) | https://github.com/Baka-SU/BakaSU.git | main | `d5e9e025b8b4` | BakaSU/KSU 内核源码（`BakaSU/kernel`），当前内建 + SUSFS |
 | [third_party/sukisu-patch](../../third_party/sukisu-patch) | https://github.com/SukiSU-Ultra/SukiSU_patch.git | main | `eec45788c9a1` | SukiSU 补丁集合；`other/zram` 下有 lz4k/lz4k_oplus/lz4kd 参考 |
-| [third_party/susfs4ksu](../../third_party/susfs4ksu) | https://gitlab.com/simonpunk/susfs4ksu.git | gki-android15-6.6 | `0606e19afae9` | SUSFS kernel patches；`dash/patches/legacy-6.6.118/0003` 的来源（当前 6.6.143 已并入 `0000-6.6.143-dash-integration.patch`） |
+| [third_party/susfs4ksu](../../third_party/susfs4ksu) | https://gitlab.com/simonpunk/susfs4ksu.git | gki-android15-6.6 | `0606e19afae9` | SUSFS kernel patches；内核侧 SUSFS hook 调用点在 `dash/patches/010-bakasu-susfs/`，susfs.c/h 由本子模块安装 |
 | [third_party/dash-droidspaces](../../third_party/dash-droidspaces) | https://github.com/lakitu12/kernel_dash_droidspaces.git | main | `6039943a9c15` | dash 的 DroidSpaces/SukiSU 参考项目；`patches/os4-vendor-hooks` 在这里；实验性，README 已报告 call site bootloop |
 | [third_party/hyperos-lz4kd](../../third_party/hyperos-lz4kd) | https://github.com/2108282/hyperos-lz4kd.git | main | `e58761a19874` | 小米 14 的 LZ4KD/自动切换参考；非 delta zram 实现 |
 | [third_party/tcp-brutal](../../third_party/tcp-brutal) | https://github.com/HyNetworks/tcp-brutal.git | master | `d2397ff8bca0` | TCP Brutal v2.0.1 外部内核模块；`make brutal` 构建，GPL-3.0，按需 insmod |
+| [third_party/nomount](../../third_party/nomount) | https://github.com/maxsteeel/nomount.git | v2.3.1 | `dcd77d03e991` | NoMount VFS 路径重定向子系统；apply 时符号链接进 `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（编译级验证，未实机验证） |
 | [third_party/cc-dash-build](../../third_party/cc-dash-build) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_build.git | dash-w-oss | `627ef9ba0d31` | CC dash 的 repo manifest / Kleaf 构建脚本 |
 | [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_device_modules.git | dash-w-oss | `94914f6bc83f` | dash DTS、`kernel/configs/dash*.config`、重实现的触摸/热管理/millet/mi_memory/UFS 模块源码 |
 | [third_party/cc-dash-mtk-modules](../../third_party/cc-dash-mtk-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules.git | dash-w-oss | `d3e32dcf9f67` | MediaTek camera/connectivity/GPU/等模块源码 |
@@ -3066,7 +3139,7 @@ git clone --depth=1 --filter=blob:none --no-checkout \
 | [dash/versions.env](../../dash/versions.env) | AOSP / BakaSU / SUSFS / clang 版本锁定 |
 | [dash/Makefile](../../dash/Makefile) | `deps/toolchain/source/patches/config/build` 入口 |
 | [dash/scripts](../../dash/scripts) | 源码同步、补丁、配置、构建脚本 |
-| [dash/patches/series](../../dash/patches/series) | 当前唯一补丁 `0000-6.6.143-dash-integration.patch`（整树 squash；含 vendor-ko 兼容、BakaSU、SUSFS、Xiaomi F2FS/EROFS、OS4 vendor hooks）；SUSFS 文件 apply 时从 `third_party/susfs4ksu` 安装，仓库不存副本 |
+| [dash/patches](../../dash/patches) | 按特性分目录的补丁系列（`series` 是唯一应用顺序；bakasu-susfs / vendor-ko-compat / vendor-hooks-os4 / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc）；SUSFS 文件 apply 时从 `third_party/susfs4ksu` 安装，仓库不存副本 |
 | [dash/out/artifacts](../../dash/out/artifacts) | 当前 6.6.143 构建产物：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS` |
 
 当前产物版本、哈希和验证结论见 [docs/STATUS.md](../STATUS.md)；证据见
@@ -3078,7 +3151,7 @@ git clone --depth=1 --filter=blob:none --no-checkout \
 - 想构建/更新内核：从 [docs/kernel/README.md](README.md) 开始，版本改 [dash/versions.env](../../dash/versions.env)。
 - 想恢复原厂 boot/kernel：用 [phone-dump](../../dash/out/device-audit/phone-dump) 里的 `boot_b.img` 等；不要碰 `lk`。
 - 想改 BakaSU/KSU：看 [BakaSU/kernel](../../BakaSU/kernel)；6.6.118 时代的拆分补丁已删（git 历史保留）。
-- 想改 SUSFS：看 [third_party/susfs4ksu](../../third_party/susfs4ksu)（`kernel_patches/`，apply 时直接安装）；BakaSU 三参数 `ksu_handle_sys_read` 的适配在 `0000-6.6.143-dash-integration.patch`。
+- 想改 SUSFS：看 [third_party/susfs4ksu](../../third_party/susfs4ksu)（`kernel_patches/`，apply 时直接安装）；BakaSU 三参数 `ksu_handle_sys_read` 的适配在 `dash/patches/010-bakasu-susfs/`。
 - 想研究 lz4kd/zram：看 [third_party/sukisu-patch/other/zram](../../third_party/sukisu-patch/other/zram)、[third_party/hyperos-lz4kd](../../third_party/hyperos-lz4kd)；当前结论是 delta 未真正接入 zram。
 - 想找 dash DTS / 原厂模块接口：看 [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules)，尤其是 `arch/arm64/boot/dts/mediatek/dash*`、`kernel/configs/dash*.config`、`drivers/ufs/`、`drivers/input/touchscreen/`、`drivers/misc/xiaomi/`。这些是逆向重实现，不是 stock 源码。
 - 想找 OS4 vendor hooks：看 [third_party/dash-droidspaces/patches/os4-vendor-hooks](../../third_party/dash-droidspaces/patches/os4-vendor-hooks)；上游 README 报告过 full call site bootloop，但本仓库完整 13-hook + 全调用点镜像已实机启动，冲突时以 [docs/kernel/TEST_REPORT.md](TEST_REPORT.md) 为准。

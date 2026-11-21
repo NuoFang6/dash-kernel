@@ -29,3 +29,31 @@ CONFIG_IP6_NF_TARGET_MASQUERADE=y
 # CONFIG_MPTCP is intentionally left disabled: enabling MPTCP (v6.6.143,
 # IPv6+diag) made dash hang before Android userspace started. mihomo runs with
 # "inbound-mptcp: false"; see docs/kernel/MIHOMO_ANDROID.md.
+
+# DroidSpaces container runtime support (2026-11-21, official GKI fragment).
+# SYSVIPC/IPC_NS fields land in ANDROID_KABI padding via patches/090-droidspaces
+# (sysvsem -> slot 6, sysvshm -> slots 7+8), so task_struct offsets and the
+# vendor .ko ABI stay stock.  DEVTMPFS_MOUNT stays off: Android init mounts
+# /dev itself.
+CONFIG_SYSVIPC=y
+CONFIG_POSIX_MQUEUE=y
+CONFIG_IPC_NS=y
+CONFIG_PID_NS=y
+CONFIG_DEVTMPFS=y
+# CONFIG_DEVTMPFS_MOUNT is not set
+CONFIG_USER_NS=y
+CONFIG_TMPFS_XATTR=y
+CONFIG_TMPFS_POSIX_ACL=y
+CONFIG_MACVLAN=y
+# UFW / Fail2ban inside containers.  REJECT is covered by the legacy
+# IP_NF_TARGET_REJECT / IP6_NF_TARGET_REJECT (stock y); the nft variant
+# NETFILTER_XT_TARGET_REJECT does not exist on 6.6.
+CONFIG_IP_SET=y
+CONFIG_IP_SET_HASH_IP=y
+CONFIG_IP_SET_HASH_NET=y
+CONFIG_NETFILTER_XT_SET=y
+CONFIG_NETFILTER_XT_TARGET_LOG=y
+CONFIG_NETFILTER_XT_MATCH_RECENT=y
+# CONFIG_CFS_BANDWIDTH / CONFIG_CGROUP_PIDS stay off on purpose: they resize
+# scheduler/cgroup structs and would break every prebuilt vendor module
+# (--cpus / --pids-limit are skipped with a warning by droidspaces).

@@ -15,6 +15,9 @@
 060-f2fs-xiaomi/        Xiaomi F2FS 增强（iostat/VIP/hybrid/lock priority）
 070-erofs-xiaomi/       Xiaomi EROFS iostat sysfs
 080-dash-misc/          dash 维护性独立修复（pid_max clamp）
+090-droidspaces/        DroidSpaces 容器支持：SYSVIPC 字段移入 ANDROID_KABI
+                        填充槽（官方 below-6.12 kABI 补丁的 6.6.143 适配；
+                        本树槽 1-2 已被 AOSP 使用，sysvsem→6、sysvshm→7+8）
 ```
 
 拆分是**文件级**的：每个文件只属于一个补丁（归属唯一记录在

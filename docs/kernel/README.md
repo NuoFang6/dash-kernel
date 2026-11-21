@@ -121,6 +121,13 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
   `fs/nomount`，`CONFIG_NOMOUNT=y` 内建（上游 Kconfig `default y` +
   `select KEYS`）。仅编译级验证（FAST 构建通过），未实机验证；规则与
   配置由其 KSU metamodule 管理，本仓库不含用户态部分。
+- DroidSpaces 容器支持（2026-11-21）：官方 GKI fragment 全套
+  （SYSVIPC/POSIX_MQUEUE/IPC_NS/PID_NS/DEVTMPFS/USER_NS/TMPFS xattr+ACL/
+  MACVLAN/IP_SET 等，`configs/features.fragment`）；SYSVIPC/IPC_NS 的
+  task_struct 字段经 `patches/090-droidspaces` 移入 ANDROID_KABI 填充槽，
+  vendor `.ko` ABI 不变。`CFS_BANDWIDTH`/`CGROUP_PIDS` 按官方文档保持
+  关闭（会破坏 kABI；`--cpus`/`--pids-limit` 不可用）。参考内核
+  `third_party/dash-droidspaces`（同设备，marble 配方 7 轮 CI 实机验证）。
 - `TRIM_UNUSED_KSYMS=y`，使用 stock 导出表作为 ABI 白名单。
 
 详细差异、验证分层和未覆盖项见：
