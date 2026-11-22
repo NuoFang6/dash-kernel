@@ -1682,4 +1682,54 @@ Release 的安装包统一写全称 `AnyKernel3`（例如
 
 - `dash_art_tune-AnyKernel3-v1.4.zip`（sha256 `f25b24fc…`）。
 - `dash_art_tune-v1.4.zip` 内 `module.prop`：`name=内核附加模块`，说明为简体中文。
-- 本轮 `release=false`，未发布。
+- 本轮 CI `release=false`；随后手动发布为 `dash-6.6.143-prod`，见 §39。
+
+## 39. 实验收尾：生产发布、NoMount 重置与教训（2026-11-22，真机）
+
+### 生产发布
+
+- `dash-6.6.143-prod` tag 已移到 `ebfc285`；Release 标题改为
+  「dash 6.6.143 生产版」，正文写明 AnyKernel3/fastboot 两种刷入方法。
+- 资产：`Image` 45,857,280 B、`Image.lz4` 22,288,250 B
+  （sha256 `53120fd3…`）、`dash_art_tune-AnyKernel3-v1.4.zip`
+  （`f25b24fc…`）、`dash_art_tune-v1.4.zip`（`2f5ad5e6…`）、`SHA256SUMS`。
+- 旧的 `dash_art_tune-ak3-v1.2.zip` / `dash_art_tune-v1.2.zip` 已从生产
+  Release 移除，避免继续下载到会 abort 的旧安装包。
+
+### NoMount 旧状态重置
+
+- 设备上的 NoMount 模块曾显示 `description=[🚨 Bootloop Prevented] ...`，且
+  `/data/adb/nomount/disable` 存在。原因是实验内核阶段的非正常重启触发了
+  NoMount 自带的 `bootloop_check()`。
+- 已恢复 upstream 描述
+  `A metamodule that replaces OverlayFS/MagicMount with VFS path redirection.`，
+  删除 `/data/adb/nomount/disable`，未动其 `boot-completed.sh`/LKM 逻辑。
+- 重启后 dmesg 显示 `nomount: Injection completed` 与
+  `nomount: boot completed safely.`，模块 API 工作正常，未再次 disable。
+
+### 设备与模块收尾
+
+- 用 `ksud module install` 安装新 `dash_art_tune-v1.4.zip`；重启后
+  `/data/adb/modules/dash_art_tune/module.prop` 显示
+  `name=内核附加模块`，`modules_update` 已清空。
+- 当前设备：生产 DASH_PERF 标准 Full LTO 内核，585 模块，`bpfloader`
+  正常，无 Oops/panic；bbr3/ADIOS/lz4kd 正常；KSU root 正常。
+
+### 教训
+
+1. **AnyKernel3 不能直接用于 ramdisk-less boot**：`dump_boot()` 会无条件
+   `unpack_ramdisk()` 并 abort。必须先 `split_boot`，按
+   `split_img/ramdisk.cpio` 是否存在分支；没有 ramdisk 时直接 `flash_boot`。
+2. **不要覆盖内核的 `-fno-omit-frame-pointer` / `-fno-optimize-sibling-calls`**：
+   厂商模块（`mtk_mbraink`）会用 x29 帧链取返回地址，核心函数省略帧指针会
+   让模块 NULL deref。
+3. **自定义 LTO flags 会破坏 Full LTO 的 BPF 加载**：`--lto-O3`/ext-TSP/MFS/
+   mergeicmps 组合下 `schedcls_tether_downstream6_ether` 返回 EINVAL；标准
+   Full LTO 正常。
+4. **NoLTO + AutoFDO 存在编译器病态**：clang r614150 的
+   `llvm::applyFlowInference` 在 `mm/swap.c` 上长时间不收敛；用 kbuild 的
+   per-file `AUTOFDO_PROFILE_swap.o=n` 只关闭该文件。
+5. **分支与命名**：实验结果及时合回 `main`，不长期保留多分支；发布包写
+   `AnyKernel3` 全称，模块显示名与说明使用简体中文。
+6. **第三方 bootloop 保护会留下状态**：实验内核非正常重启会让 NoMount 自行
+   disable 并改描述；恢复稳定后要清理 `disable` 标记并还原描述。

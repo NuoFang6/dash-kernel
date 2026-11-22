@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 16:26:44 +0800
-> 覆盖 22 个源，349996 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 16:38:09 +0800
+> 覆盖 22 个源，353020 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 9486 | `3181e5f9b150da55` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 9649 | `5a86b586e93d31ae` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 93250 | `fa4726e096ebde6a` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 96111 | `d4206abb5217f962` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 9486 字节 · SHA256 `3181e5f9b150da5528f376a3636ac419ef98366707d5c76d03856b750ada71cd`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 9649 字节 · SHA256 `5a86b586e93d31ae8549d29407cc20e100100c8d17e09ba98fcc2a5cb754e96a`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -196,12 +196,12 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 |---|---|
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.143-4k #1`（实验 DASH_PERF 标准 Full LTO，2026-11-22 08:18 UTC，CI run 45000486463；未发布）；生产 Full LTO `#1`（2026-11-21 16:44，run 44923883114）镜像已备份。`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
+| 当前内核 | `6.6.143-4k #1`（生产 DASH_PERF 标准 Full LTO，2026-11-22 08:18 UTC，CI run 45000486463）；生产 Full LTO `#1`（2026-11-21 16:44，run 44923883114）镜像已备份。`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
-| 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
+| 发布 | Release `dash-6.6.143-prod`（2026-11-22 更新，tag `ebfc285`）：Image 45,857,280 B / Image.lz4 22,288,250 B / SHA256SUMS + `dash_art_tune-AnyKernel3-v1.4.zip` + `dash_art_tune-v1.4.zip`（显示名「内核附加模块」）；发布页含 AnyKernel3/fastboot 刷入说明 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
-| `boot_a` SHA256 | `221cad2d8ca79e60a1b2649e0e37b5a9a40eb3e0d93cc54ffced609a41c80030`（实验标准 Full LTO perf，2026-11-22）；生产 `d0cdd6ad…` 备份在 `dash/out/device-backup/20261122-154445-pre-nolto-perf-fp-slot_a/`；NoLTO perf `7db11d8f…` 备份在 `20261122-162106-pre-full-lto-perf-slot_a/` |
+| `boot_a` SHA256 | `221cad2d8ca79e60a1b2649e0e37b5a9a40eb3e0d93cc54ffced609a41c80030`（生产标准 Full LTO perf，2026-11-22）；生产 `d0cdd6ad…` 备份在 `dash/out/device-backup/20261122-154445-pre-nolto-perf-fp-slot_a/`；NoLTO perf `7db11d8f…` 备份在 `20261122-162106-pre-full-lto-perf-slot_a/` |
 | `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
@@ -221,12 +221,13 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
 
 ### 2. 最近验证
 
-- **2026-11-22（实验，未发布）**：DASH_PERF 改为标准 Full LTO（移除
-  `--lto-O3`/ext-TSP/MFS/mergeicmps）。NoLTO 与 Full LTO 两版均实机启动：
-  BPF loader 正常（此前 Full LTO 的 `schedcls_tether_downstream6_ether` EINVAL
-  不再出现），mtk_mbraink 帧链回溯不再崩溃，585 模块，3 分钟以上无
-  Oops/panic/SError。模块显示名改为「内核附加模块」，AnyKernel3 包名全称。
-  见 [TEST_REPORT.md](TEST_REPORT.md) §38。
+- **2026-11-22（实验收尾，已作为生产版发布）**：DASH_PERF 改为标准 Full LTO
+  （移除 `--lto-O3`/ext-TSP/MFS/mergeicmps）。NoLTO 与 Full LTO 两版均实机
+  启动：BPF loader 正常（此前 Full LTO 的 `schedcls_tether_downstream6_ether`
+  EINVAL 不再出现），mtk_mbraink 帧链回溯不再崩溃，585 模块，无
+  Oops/panic/SError。模块显示名改为「内核附加模块」，AnyKernel3 包名全称；
+  NoMount 的 “Bootloop Prevented” 旧状态已重置。Release `dash-6.6.143-prod`
+  已更新并写明刷入方法。见 [TEST_REPORT.md](TEST_REPORT.md) §39。
 - **2026-11-22（生产内核首刷，真机）**：Full LTO 生产内核 `#1` 写入 `boot_a`
   （镜像 `d0cdd6ad…`，设备端回读一致），一次启动成功。真实版本行 6.6.143-4k
   与 CI 构建时间吻合；`LTO_CLANG_FULL`/`CFI_CLANG`/`AUTOFDO_CLANG`/MLGO/A720
@@ -778,7 +779,7 @@ vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 93250 字节 · SHA256 `fa4726e096ebde6abdd9c74dbf39db743fce34b4a43fd50d975f947aeb6b0586`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 96111 字节 · SHA256 `d4206abb5217f9621017549d4441fe859220488faa84adbd5396c29483b9d682`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2463,7 +2464,57 @@ Release 的安装包统一写全称 `AnyKernel3`（例如
 
 - `dash_art_tune-AnyKernel3-v1.4.zip`（sha256 `f25b24fc…`）。
 - `dash_art_tune-v1.4.zip` 内 `module.prop`：`name=内核附加模块`，说明为简体中文。
-- 本轮 `release=false`，未发布。
+- 本轮 CI `release=false`；随后手动发布为 `dash-6.6.143-prod`，见 §39。
+
+### 39. 实验收尾：生产发布、NoMount 重置与教训（2026-11-22，真机）
+
+#### 生产发布
+
+- `dash-6.6.143-prod` tag 已移到 `ebfc285`；Release 标题改为
+  「dash 6.6.143 生产版」，正文写明 AnyKernel3/fastboot 两种刷入方法。
+- 资产：`Image` 45,857,280 B、`Image.lz4` 22,288,250 B
+  （sha256 `53120fd3…`）、`dash_art_tune-AnyKernel3-v1.4.zip`
+  （`f25b24fc…`）、`dash_art_tune-v1.4.zip`（`2f5ad5e6…`）、`SHA256SUMS`。
+- 旧的 `dash_art_tune-ak3-v1.2.zip` / `dash_art_tune-v1.2.zip` 已从生产
+  Release 移除，避免继续下载到会 abort 的旧安装包。
+
+#### NoMount 旧状态重置
+
+- 设备上的 NoMount 模块曾显示 `description=[🚨 Bootloop Prevented] ...`，且
+  `/data/adb/nomount/disable` 存在。原因是实验内核阶段的非正常重启触发了
+  NoMount 自带的 `bootloop_check()`。
+- 已恢复 upstream 描述
+  `A metamodule that replaces OverlayFS/MagicMount with VFS path redirection.`，
+  删除 `/data/adb/nomount/disable`，未动其 `boot-completed.sh`/LKM 逻辑。
+- 重启后 dmesg 显示 `nomount: Injection completed` 与
+  `nomount: boot completed safely.`，模块 API 工作正常，未再次 disable。
+
+#### 设备与模块收尾
+
+- 用 `ksud module install` 安装新 `dash_art_tune-v1.4.zip`；重启后
+  `/data/adb/modules/dash_art_tune/module.prop` 显示
+  `name=内核附加模块`，`modules_update` 已清空。
+- 当前设备：生产 DASH_PERF 标准 Full LTO 内核，585 模块，`bpfloader`
+  正常，无 Oops/panic；bbr3/ADIOS/lz4kd 正常；KSU root 正常。
+
+#### 教训
+
+1. **AnyKernel3 不能直接用于 ramdisk-less boot**：`dump_boot()` 会无条件
+   `unpack_ramdisk()` 并 abort。必须先 `split_boot`，按
+   `split_img/ramdisk.cpio` 是否存在分支；没有 ramdisk 时直接 `flash_boot`。
+2. **不要覆盖内核的 `-fno-omit-frame-pointer` / `-fno-optimize-sibling-calls`**：
+   厂商模块（`mtk_mbraink`）会用 x29 帧链取返回地址，核心函数省略帧指针会
+   让模块 NULL deref。
+3. **自定义 LTO flags 会破坏 Full LTO 的 BPF 加载**：`--lto-O3`/ext-TSP/MFS/
+   mergeicmps 组合下 `schedcls_tether_downstream6_ether` 返回 EINVAL；标准
+   Full LTO 正常。
+4. **NoLTO + AutoFDO 存在编译器病态**：clang r614150 的
+   `llvm::applyFlowInference` 在 `mm/swap.c` 上长时间不收敛；用 kbuild 的
+   per-file `AUTOFDO_PROFILE_swap.o=n` 只关闭该文件。
+5. **分支与命名**：实验结果及时合回 `main`，不长期保留多分支；发布包写
+   `AnyKernel3` 全称，模块显示名与说明使用简体中文。
+6. **第三方 bootloop 保护会留下状态**：实验内核非正常重启会让 NoMount 自行
+   disable 并改描述；恢复稳定后要清理 `disable` 标记并还原描述。
 
 ---
 
