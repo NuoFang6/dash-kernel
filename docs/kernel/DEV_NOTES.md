@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 15:56:17 +0800
-> 覆盖 22 个源，346778 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 16:26:44 +0800
+> 覆盖 22 个源，349996 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8808 | `143dffd387eb18ce` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 9486 | `3181e5f9b150da55` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 90710 | `1efd1079c016df85` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 93250 | `fa4726e096ebde6a` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 8808 字节 · SHA256 `143dffd387eb18cefc1f23de0d6ac81cfe1328d4250e46bbc4c9909c24729d14`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 9486 字节 · SHA256 `3181e5f9b150da5528f376a3636ac419ef98366707d5c76d03856b750ada71cd`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -196,12 +196,12 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 |---|---|
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.143-4k #1`（Full LTO 生产构建，2026-11-21 16:44 UTC，CI run 44923883114）；`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
+| 当前内核 | `6.6.143-4k #1`（实验 DASH_PERF 标准 Full LTO，2026-11-22 08:18 UTC，CI run 45000486463；未发布）；生产 Full LTO `#1`（2026-11-21 16:44，run 44923883114）镜像已备份。`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
 | AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
 | 发布 | GitHub Actions `kernel-build`（默认 Full LTO，手动 dispatch，timeout 360min）→ Release `dash-6.6.143-prod`（2026-11-22）：Image 47,684,096 B / Image.lz4 22,808,794 B/SHA256SUMS + AnyKernel3 + `dash_art_tune` KSU 模块 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
-| `boot_a` SHA256 | `d0cdd6adb2dbed3569b04a4fc25429eaecc7eb75488cf5e3fe7b83c8d79b6be2`（生产 `#1`；刷前 NoLTO `#2` 备份 `3d0d4245…` 在 `dash/out/device-backup/20261122-004847-pre-prod-slot_a/`，更早备份同目录） |
+| `boot_a` SHA256 | `221cad2d8ca79e60a1b2649e0e37b5a9a40eb3e0d93cc54ffced609a41c80030`（实验标准 Full LTO perf，2026-11-22）；生产 `d0cdd6ad…` 备份在 `dash/out/device-backup/20261122-154445-pre-nolto-perf-fp-slot_a/`；NoLTO perf `7db11d8f…` 备份在 `20261122-162106-pre-full-lto-perf-slot_a/` |
 | `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
@@ -221,6 +221,12 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
 
 ### 2. 最近验证
 
+- **2026-11-22（实验，未发布）**：DASH_PERF 改为标准 Full LTO（移除
+  `--lto-O3`/ext-TSP/MFS/mergeicmps）。NoLTO 与 Full LTO 两版均实机启动：
+  BPF loader 正常（此前 Full LTO 的 `schedcls_tether_downstream6_ether` EINVAL
+  不再出现），mtk_mbraink 帧链回溯不再崩溃，585 模块，3 分钟以上无
+  Oops/panic/SError。模块显示名改为「内核附加模块」，AnyKernel3 包名全称。
+  见 [TEST_REPORT.md](TEST_REPORT.md) §38。
 - **2026-11-22（生产内核首刷，真机）**：Full LTO 生产内核 `#1` 写入 `boot_a`
   （镜像 `d0cdd6ad…`，设备端回读一致），一次启动成功。真实版本行 6.6.143-4k
   与 CI 构建时间吻合；`LTO_CLANG_FULL`/`CFI_CLANG`/`AUTOFDO_CLANG`/MLGO/A720
@@ -772,7 +778,7 @@ vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 90710 字节 · SHA256 `1efd1079c016df85cd93414640366b20a199607256ce2383dbf67d33c86f8d09`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 93250 字节 · SHA256 `fa4726e096ebde6abdd9c74dbf39db743fce34b4a43fd50d975f947aeb6b0586`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2407,6 +2413,57 @@ dash 实机验证过的 AnyKernel3 模板一致。
 
 Release 的安装包统一写全称 `AnyKernel3`（例如
 `dash_art_tune-AnyKernel3-<ver>.zip`），不再缩写为 AK3。
+
+### 38. DASH_PERF 改标准 Full LTO：NoLTO/Full LTO 双双实机启动（2026-11-22，真机）
+
+**结论：移除 `--lto-O3`/ext-TSP/MFS/mergeicmps 后，标准 Full LTO 的 DASH_PERF
+内核可以正常启动；此前 Full LTO 的 BPF 加载失败和 mtk_mbraink 崩溃都不再出现。**
+
+#### 构建与产物
+
+- CI run `45000486463`（commit `ebfc285`，`fast=false, perf=true,
+  release=false`），23m14s。
+- `arch/arm64/Makefile` 的 perf LDFLAGS 已全部移除；`build-inputs.tar.gz`
+  内补丁对 `lto-O3|ext-tsp|split-machine|mergeicmps` 的匹配数为 0。
+- `final-config`：`CONFIG_LTO_CLANG_FULL=y`、`CONFIG_DASH_PERF_EXPERIMENT=y`。
+- `Image` 45,857,280 B；`Image.lz4` 22,288,250 B（sha256 `53120fd3…`），
+  远低于 67,098,176 B 上限。
+- 封装 boot：以生产 `boot_a` 备份（`d0cdd6ad…`）为底，kernel 字节与
+  `Image.lz4` 一致，vbmeta 字节不变，footer 仍为
+  `original_image_size=vbmeta_offset=0x15c2000`；boot 镜像 sha256
+  `221cad2d…`。
+
+#### 实机启动
+
+- adb 18s 上线，`sys.boot_completed=1`（14s），`bootanim=stopped`。
+- `bpfloader` 正常结束（`init.svc.bpfloader=stopped`），logcat 只有良性的
+  `taskRename.bpf` 不存在提示，**没有**之前的
+  `schedcls_tether_downstream6_ether` EINVAL / CRITICAL FAILURE。
+- `mtk_mbraink` 在 23.15s 正常打印 feature enable，未再触发
+  `freq_qos_min_notifier_call+0x114` 的 NULL deref（帧指针修复在标准 Full
+  LTO 下同样有效）。
+- 585 个模块加载；218s 后仍稳定；严格匹配
+  `Unable to handle kernel|Internal error:|Kernel panic|Oops:` 无结果；
+  KASAN/KFENCE 无运行期输出。
+
+#### 新启用特性复核
+
+- 同配置下 `/proc/crypto` 已注册并优先使用 CE 实现：`sm3-ce`(400)、
+  `sm4-ce`(300) 及 ecb/cbc/ctr/cfb/cts/xts/cmac 系列(400)、
+  `ccm(sm4)`/`gcm(sm4)`(400)、`sha3-*`(200，generic 0)、
+  `nhpoly1305-neon`(200，generic 100)、`ccm(aes)`/`gcm(aes)`(300)、
+  `aes-ce`(250，generic 100)。
+- `# CONFIG_UBSAN is not set`、`# CONFIG_KFENCE is not set`、
+  `# CONFIG_INIT_ON_ALLOC_DEFAULT_ON is not set`、
+  `# CONFIG_SLAB_FREELIST_HARDENED is not set`、`CONFIG_INIT_STACK_NONE=y`；
+  厂商模块依赖的 KASAN/FORTIFY/USERCOPY/LIST/STACKPROTECTOR/SCS/CFI 仍为 y；
+  `CONFIG_FRAME_POINTER=y`。
+
+#### 发布包命名
+
+- `dash_art_tune-AnyKernel3-v1.4.zip`（sha256 `f25b24fc…`）。
+- `dash_art_tune-v1.4.zip` 内 `module.prop`：`name=内核附加模块`，说明为简体中文。
+- 本轮 `release=false`，未发布。
 
 ---
 

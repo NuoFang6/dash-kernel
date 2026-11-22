@@ -1632,3 +1632,54 @@ dash 实机验证过的 AnyKernel3 模板一致。
 
 Release 的安装包统一写全称 `AnyKernel3`（例如
 `dash_art_tune-AnyKernel3-<ver>.zip`），不再缩写为 AK3。
+
+## 38. DASH_PERF 改标准 Full LTO：NoLTO/Full LTO 双双实机启动（2026-11-22，真机）
+
+**结论：移除 `--lto-O3`/ext-TSP/MFS/mergeicmps 后，标准 Full LTO 的 DASH_PERF
+内核可以正常启动；此前 Full LTO 的 BPF 加载失败和 mtk_mbraink 崩溃都不再出现。**
+
+### 构建与产物
+
+- CI run `45000486463`（commit `ebfc285`，`fast=false, perf=true,
+  release=false`），23m14s。
+- `arch/arm64/Makefile` 的 perf LDFLAGS 已全部移除；`build-inputs.tar.gz`
+  内补丁对 `lto-O3|ext-tsp|split-machine|mergeicmps` 的匹配数为 0。
+- `final-config`：`CONFIG_LTO_CLANG_FULL=y`、`CONFIG_DASH_PERF_EXPERIMENT=y`。
+- `Image` 45,857,280 B；`Image.lz4` 22,288,250 B（sha256 `53120fd3…`），
+  远低于 67,098,176 B 上限。
+- 封装 boot：以生产 `boot_a` 备份（`d0cdd6ad…`）为底，kernel 字节与
+  `Image.lz4` 一致，vbmeta 字节不变，footer 仍为
+  `original_image_size=vbmeta_offset=0x15c2000`；boot 镜像 sha256
+  `221cad2d…`。
+
+### 实机启动
+
+- adb 18s 上线，`sys.boot_completed=1`（14s），`bootanim=stopped`。
+- `bpfloader` 正常结束（`init.svc.bpfloader=stopped`），logcat 只有良性的
+  `taskRename.bpf` 不存在提示，**没有**之前的
+  `schedcls_tether_downstream6_ether` EINVAL / CRITICAL FAILURE。
+- `mtk_mbraink` 在 23.15s 正常打印 feature enable，未再触发
+  `freq_qos_min_notifier_call+0x114` 的 NULL deref（帧指针修复在标准 Full
+  LTO 下同样有效）。
+- 585 个模块加载；218s 后仍稳定；严格匹配
+  `Unable to handle kernel|Internal error:|Kernel panic|Oops:` 无结果；
+  KASAN/KFENCE 无运行期输出。
+
+### 新启用特性复核
+
+- 同配置下 `/proc/crypto` 已注册并优先使用 CE 实现：`sm3-ce`(400)、
+  `sm4-ce`(300) 及 ecb/cbc/ctr/cfb/cts/xts/cmac 系列(400)、
+  `ccm(sm4)`/`gcm(sm4)`(400)、`sha3-*`(200，generic 0)、
+  `nhpoly1305-neon`(200，generic 100)、`ccm(aes)`/`gcm(aes)`(300)、
+  `aes-ce`(250，generic 100)。
+- `# CONFIG_UBSAN is not set`、`# CONFIG_KFENCE is not set`、
+  `# CONFIG_INIT_ON_ALLOC_DEFAULT_ON is not set`、
+  `# CONFIG_SLAB_FREELIST_HARDENED is not set`、`CONFIG_INIT_STACK_NONE=y`；
+  厂商模块依赖的 KASAN/FORTIFY/USERCOPY/LIST/STACKPROTECTOR/SCS/CFI 仍为 y；
+  `CONFIG_FRAME_POINTER=y`。
+
+### 发布包命名
+
+- `dash_art_tune-AnyKernel3-v1.4.zip`（sha256 `f25b24fc…`）。
+- `dash_art_tune-v1.4.zip` 内 `module.prop`：`name=内核附加模块`，说明为简体中文。
+- 本轮 `release=false`，未发布。
