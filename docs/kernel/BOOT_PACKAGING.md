@@ -146,3 +146,24 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 3. 失败后 `fastboot flash boot_b <backup>`，不要写 `lk`/`super`/用户数据；
 4. 需要临时进入 bootloader 时，按键 **音量下 + 电源**，或从系统
    `adb reboot bootloader`。
+
+## 8. AnyKernel3 安装器：无 ramdisk 时必须走 kernel-only（2026-11-22）
+
+dash 的 `boot` 是 header v4、`ramdisk_size=0` 的 kernel-only 镜像（generic
+ramdisk 在 `init_boot`，KSU 内置在内核里）。标准 AnyKernel3 的
+`dump_boot()` 会无条件调用 `unpack_ramdisk()`，没有 ramdisk 时直接
+`abort "No ramdisk found to unpack"`，不会执行 `write_boot`，因此不会写分区。
+
+`dash/ak3/anykernel.sh` 必须先 `split_boot`，再按
+`$SPLITIMG/ramdisk.cpio` 是否存在分支：
+
+- 存在：`unpack_ramdisk` + `write_boot`（标准 AnyKernel3 流程）；
+- 不存在：`flash_boot` 只替换 kernel。magiskboot 会把新 `Image` 重新压成
+  原镜像的 `lz4_legacy`，保留原厂 vbmeta 字节，并把 footer 的
+  `original_image_size` 迁到新位置。
+
+2026-11-22 只读验证（未写分区）：在设备上对原厂 boot + 自编 `Image` 执行同一
+repack，输出 64MiB，`KERNEL_SZ=17,905,953` 且与 `Image.lz4` 字节一致；
+vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
+`original_image_size == vbmeta_offset`，与 `repack-boot.py` 产物布局一致。
+

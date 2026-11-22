@@ -50,7 +50,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
   `arch/arm64/mm/idmap_cfi.c` 单一取址。`Image` 47,684,096 B、
   `Image.lz4` 22,808,794 B（限 67,098,176 B），BTF/kallsyms/最终链接全部
   通过；Release `dash-6.6.143-prod` 已发布 Image/Image.lz4/SHA256SUMS/
-  AK3/KSU 模块。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §28。
+  AnyKernel3/KSU 模块。见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §28。
 - **2026-11-21（构建级，未刷机）**：FEATURES_SURVEY 落地批次完成；固定 r4
   干净树重放 28 补丁/142 文件 + SUSFS override，零 warning/error；NoLTO
   全量构建通过。对实机 #8 历史 `vmlinux` 比较 9102 个公共导出符号，CRC

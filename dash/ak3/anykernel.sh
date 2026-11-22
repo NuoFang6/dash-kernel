@@ -45,8 +45,21 @@ $ksu_supported || abort "  -> Non-GKI device, abort."
 
 # Only patch boot. init_boot carries the official ramdisk and must stay
 # untouched; this kernel is a boot-only replacement.
-dump_boot
-write_boot
+#
+# dash boot is a header v4 image with ramdisk_size=0 (KSU is built into the
+# kernel), while AnyKernel3's dump_boot() always calls unpack_ramdisk() and
+# aborts with "No ramdisk found to unpack" on such an image.  split_boot() +
+# flash_boot() still replaces the kernel: magiskboot recompresses the new
+# Image to the original lz4_legacy format and keeps the stock vbmeta/footer
+# layout.  Boot images that do contain a ramdisk keep the full AK3 flow.
+split_boot
+if [ -f "$SPLITIMG/ramdisk.cpio" ]; then
+    unpack_ramdisk
+    write_boot
+else
+    ui_print " " "  -> boot has no ramdisk; replacing kernel only"
+    flash_boot
+fi
 ## end boot install
 
 # Optional: install the companion KSU module if /data is mounted.

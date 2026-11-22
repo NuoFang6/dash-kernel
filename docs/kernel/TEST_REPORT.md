@@ -1390,3 +1390,59 @@ KSU + SUSFS 全套。与生产配置一致。
 - 仅见两条良性日志：`vold: open /sys/block/zram0/idle error:-1`（idle 为
   只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
   （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
+
+## 34. AnyKernel3 v1.2 刷入中止排查与 kernel-only 修复（2026-11-22，真机只读）
+
+**结论：用户设备没有被写入；AnyKernel3 在 `unpack_ramdisk()` 就 abort 了，
+`write_boot()` 从未执行。根因是 dash boot 为 `ramdisk_size=0`，而标准
+AnyKernel3 要求 boot 内有 ramdisk。**
+
+### 现场日志
+
+第三方用户用 Release 的 `dash_art_tune-ak3-v1.2.zip` 刷入，AnyKernel3 输出：
+
+```text
+Parsing boot image: [/data/user/0/.../AnyKernel3/boot.img]
+HEADER_VER      [4]
+KERNEL_SZ       [17317780]
+RAMDISK_SZ      [0]
+KERNEL_FMT      [lz4_legacy]
+No ramdisk found to unpack. Aborting...
+```
+
+- `64+0 records` 是把 `boot_a` 读出 64MiB 的只读 dd；`split_boot` 成功。
+- abort 在 `ak3-core.sh:160`（`unpack_ramdisk`），位于 `dump_boot()` 内；
+  `write_boot()`（repack + `cat boot-new.img /dev/zero > $BLOCK`）未执行，
+  KSU 模块安装也在 `write_boot()` 之后，同样未执行。
+- `KERNEL_SZ=17,317,780` 与原厂 boot 的 kernel 大小完全一致（本机
+  `device-backup/boot_b.img`），说明该设备仍是原厂 boot，这是首次安装。
+- `unexpected ASN.1 DER tag` 与 `VBMETA` 是 magiskboot 解析 AVB 的正常输出，
+  不是失败原因。
+
+### 修复
+
+`dash/ak3/anykernel.sh` 改为先 `split_boot`，再按 `$SPLITIMG/ramdisk.cpio`
+是否存在分支：有 ramdisk 走 `unpack_ramdisk` + `write_boot`；没有则直接
+`flash_boot` 只替换 kernel。该写法与 `third_party/dash-droidspaces` 中已在
+dash 实机验证过的 AnyKernel3 模板一致。
+
+### 只读验证（未写分区）
+
+在设备上用 Release 包内同源的
+`third_party/sukisu-patch/AnyKernel3/tools/magiskboot`（770,632 B；用户日志里的
+`unexpected ASN.1 DER tag` 即该版本输出）对原厂 boot 执行 `unpack`，把
+`kernel` 换成自编 `Image` 后 `repack`：
+
+- 输出 64MiB，`HEADER_VER 4` / `KERNEL_SZ 17,905,953` / `RAMDISK_SZ 0`；
+  kernel 与 `out/artifacts/Image.lz4` 字节完全一致。
+- 原厂 vbmeta 字节不变（sha256 `67fc0027…`），footer
+  `original_image_size == vbmeta_offset == 0x1115000`，与 `repack-boot.py`
+  生成的生产 boot 布局（`0x15c2000`、同一 vbmeta）一致。
+- 因此 `split_boot` + `flash_boot` 的产物与本机可开机的生产 boot 结构等价；
+  仍需一次真机刷入确认才可称为启动验证。
+
+### 发布命名
+
+Release 的安装包统一写全称 `AnyKernel3`（例如
+`dash_art_tune-AnyKernel3-<ver>.zip`），不再缩写为 AK3。
+

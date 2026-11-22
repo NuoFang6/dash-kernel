@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 04:45:33 +0800
-> 覆盖 22 个源，331620 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 14:20:52 +0800
+> 覆盖 22 个源，335255 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -152,10 +152,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8772 | `b6b0f845bda4c597` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
-| 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 76730 | `5dca0bccce9e7476` | 当前交付（优先相信） |
+| 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 79223 | `8ad3c91484cb446d` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -182,7 +182,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 8765 字节 · SHA256 `300591888eb9079ee1024906bfd296bb5a115e933fd13ee92036d538647d5340`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 8772 字节 · SHA256 `b6b0f845bda4c597b4f9780c8279e394e163a122fba7f5a0826715e720c5f1c2`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -235,7 +235,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
   `arch/arm64/mm/idmap_cfi.c` 单一取址。`Image` 47,684,096 B、
   `Image.lz4` 22,808,794 B（限 67,098,176 B），BTF/kallsyms/最终链接全部
   通过；Release `dash-6.6.143-prod` 已发布 Image/Image.lz4/SHA256SUMS/
-  AK3/KSU 模块。见 [TEST_REPORT.md](TEST_REPORT.md) §28。
+  AnyKernel3/KSU 模块。见 [TEST_REPORT.md](TEST_REPORT.md) §28。
 - **2026-11-21（构建级，未刷机）**：FEATURES_SURVEY 落地批次完成；固定 r4
   干净树重放 28 补丁/142 文件 + SUSFS override，零 warning/error；NoLTO
   全量构建通过。对实机 #8 历史 `vmlinux` 比较 9102 个公共导出符号，CRC
@@ -597,7 +597,7 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 <a id="src-03"></a>
 ## 3. boot / AVB 封装踩坑与硬规则
 
-> 来源：[`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) · 8132 字节 · SHA256 `5d915db8442c3dda9a4a1d901e6ebbc8106fcb887625b14ad9ce53098f884c8f`
+> 来源：[`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) · 9267 字节 · SHA256 `6dd251690dda24017ff26f8a1672be218c9618ba3e15172c18e15edd959d58bd`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 日期：2026-10-29；2026-10-30 更新到构建 #29。适用范围：dash / REDMI Turbo 5 Max
@@ -747,12 +747,32 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 4. 需要临时进入 bootloader 时，按键 **音量下 + 电源**，或从系统
    `adb reboot bootloader`。
 
+### 8. AnyKernel3 安装器：无 ramdisk 时必须走 kernel-only（2026-11-22）
+
+dash 的 `boot` 是 header v4、`ramdisk_size=0` 的 kernel-only 镜像（generic
+ramdisk 在 `init_boot`，KSU 内置在内核里）。标准 AnyKernel3 的
+`dump_boot()` 会无条件调用 `unpack_ramdisk()`，没有 ramdisk 时直接
+`abort "No ramdisk found to unpack"`，不会执行 `write_boot`，因此不会写分区。
+
+`dash/ak3/anykernel.sh` 必须先 `split_boot`，再按
+`$SPLITIMG/ramdisk.cpio` 是否存在分支：
+
+- 存在：`unpack_ramdisk` + `write_boot`（标准 AnyKernel3 流程）；
+- 不存在：`flash_boot` 只替换 kernel。magiskboot 会把新 `Image` 重新压成
+  原镜像的 `lz4_legacy`，保留原厂 vbmeta 字节，并把 footer 的
+  `original_image_size` 迁到新位置。
+
+2026-11-22 只读验证（未写分区）：在设备上对原厂 boot + 自编 `Image` 执行同一
+repack，输出 64MiB，`KERNEL_SZ=17,905,953` 且与 `Image.lz4` 字节一致；
+vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
+`original_image_size == vbmeta_offset`，与 `repack-boot.py` 产物布局一致。
+
 ---
 
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 76730 字节 · SHA256 `5dca0bccce9e7476522b8891cb242c4c78b11b2d95e6eb1ef1faa1688333455b`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 79223 字节 · SHA256 `8ad3c91484cb446df072b0625caacdedbde50fb9dd1ad5c6affe0989a7626095`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2145,6 +2165,61 @@ KSU + SUSFS 全套。与生产配置一致。
 - 仅见两条良性日志：`vold: open /sys/block/zram0/idle error:-1`（idle 为
   只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
   （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
+
+### 34. AnyKernel3 v1.2 刷入中止排查与 kernel-only 修复（2026-11-22，真机只读）
+
+**结论：用户设备没有被写入；AnyKernel3 在 `unpack_ramdisk()` 就 abort 了，
+`write_boot()` 从未执行。根因是 dash boot 为 `ramdisk_size=0`，而标准
+AnyKernel3 要求 boot 内有 ramdisk。**
+
+#### 现场日志
+
+第三方用户用 Release 的 `dash_art_tune-ak3-v1.2.zip` 刷入，AnyKernel3 输出：
+
+```text
+Parsing boot image: [/data/user/0/.../AnyKernel3/boot.img]
+HEADER_VER      [4]
+KERNEL_SZ       [17317780]
+RAMDISK_SZ      [0]
+KERNEL_FMT      [lz4_legacy]
+No ramdisk found to unpack. Aborting...
+```
+
+- `64+0 records` 是把 `boot_a` 读出 64MiB 的只读 dd；`split_boot` 成功。
+- abort 在 `ak3-core.sh:160`（`unpack_ramdisk`），位于 `dump_boot()` 内；
+  `write_boot()`（repack + `cat boot-new.img /dev/zero > $BLOCK`）未执行，
+  KSU 模块安装也在 `write_boot()` 之后，同样未执行。
+- `KERNEL_SZ=17,317,780` 与原厂 boot 的 kernel 大小完全一致（本机
+  `device-backup/boot_b.img`），说明该设备仍是原厂 boot，这是首次安装。
+- `unexpected ASN.1 DER tag` 与 `VBMETA` 是 magiskboot 解析 AVB 的正常输出，
+  不是失败原因。
+
+#### 修复
+
+`dash/ak3/anykernel.sh` 改为先 `split_boot`，再按 `$SPLITIMG/ramdisk.cpio`
+是否存在分支：有 ramdisk 走 `unpack_ramdisk` + `write_boot`；没有则直接
+`flash_boot` 只替换 kernel。该写法与 `third_party/dash-droidspaces` 中已在
+dash 实机验证过的 AnyKernel3 模板一致。
+
+#### 只读验证（未写分区）
+
+在设备上用 Release 包内同源的
+`third_party/sukisu-patch/AnyKernel3/tools/magiskboot`（770,632 B；用户日志里的
+`unexpected ASN.1 DER tag` 即该版本输出）对原厂 boot 执行 `unpack`，把
+`kernel` 换成自编 `Image` 后 `repack`：
+
+- 输出 64MiB，`HEADER_VER 4` / `KERNEL_SZ 17,905,953` / `RAMDISK_SZ 0`；
+  kernel 与 `out/artifacts/Image.lz4` 字节完全一致。
+- 原厂 vbmeta 字节不变（sha256 `67fc0027…`），footer
+  `original_image_size == vbmeta_offset == 0x1115000`，与 `repack-boot.py`
+  生成的生产 boot 布局（`0x15c2000`、同一 vbmeta）一致。
+- 因此 `split_boot` + `flash_boot` 的产物与本机可开机的生产 boot 结构等价；
+  仍需一次真机刷入确认才可称为启动验证。
+
+#### 发布命名
+
+Release 的安装包统一写全称 `AnyKernel3`（例如
+`dash_art_tune-AnyKernel3-<ver>.zip`），不再缩写为 AK3。
 
 ---
 

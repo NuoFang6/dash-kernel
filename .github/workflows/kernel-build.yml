@@ -14,7 +14,7 @@ on:
         default: false
         type: boolean
       release:
-        description: "Create/update a GitHub Release with the AK3 and KSU module"
+        description: "Create/update a GitHub Release with the AnyKernel3 package and KSU module"
         required: false
         default: true
         type: boolean
@@ -174,7 +174,7 @@ jobs:
             exit 1
           fi
 
-      - name: Package KSU module and AK3
+      - name: Package KSU module and AnyKernel3
         if: success()
         run: |
           set -euo pipefail
@@ -183,12 +183,12 @@ jobs:
           test -n "$ver"
           mkdir -p upload/release
           (cd "$mod" && zip -r -X "$GITHUB_WORKSPACE/upload/release/dash_art_tune-${ver}.zip" . -x '*.DS_Store')
-          ak3="$(mktemp -d)"
-          cp -a third_party/sukisu-patch/AnyKernel3/. "$ak3"/
-          cp dash/ak3/anykernel.sh "$ak3/anykernel.sh"
-          cp dash/out/artifacts/Image "$ak3/Image"
-          cp -a "$mod" "$ak3/module"
-          (cd "$ak3" && zip -r -X "$GITHUB_WORKSPACE/upload/release/dash_art_tune-ak3-${ver}.zip" . -x '*.DS_Store')
+          anykernel3="$(mktemp -d)"
+          cp -a third_party/sukisu-patch/AnyKernel3/. "$anykernel3"/
+          cp dash/ak3/anykernel.sh "$anykernel3/anykernel.sh"
+          cp dash/out/artifacts/Image "$anykernel3/Image"
+          cp -a "$mod" "$anykernel3/module"
+          (cd "$anykernel3" && zip -r -X "$GITHUB_WORKSPACE/upload/release/dash_art_tune-AnyKernel3-${ver}.zip" . -x '*.DS_Store')
           cp dash/out/artifacts/Image dash/out/artifacts/Image.lz4 upload/release/
           (cd upload/release && rm -f SHA256SUMS && sha256sum * > SHA256SUMS)
           ls -lh upload/release
@@ -207,6 +207,11 @@ jobs:
         with:
           tag_name: ${{ inputs.tag }}
           name: ${{ inputs.tag }}
+          body: |
+            内核刷入包为 AnyKernel3：`dash_art_tune-AnyKernel3-*.zip`。
+            dash 的 boot 是 kernel-only 镜像（ramdisk_size=0），安装器只替换内核，
+            不写 init_boot / vendor_boot；调优模块见 `dash_art_tune-*.zip`。
+            镜像文件：`Image`、`Image.lz4`；校验见 `SHA256SUMS`。
           files: upload/release/*
           generate_release_notes: true
           make_latest: true
