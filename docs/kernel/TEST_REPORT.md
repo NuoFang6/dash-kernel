@@ -1390,3 +1390,51 @@ KSU + SUSFS 全套。与生产配置一致。
 - 仅见两条良性日志：`vold: open /sys/block/zram0/idle error:-1`（idle 为
   只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
   （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
+
+## 34. 实验性 perf 构建（DASH_PERF=1）：本地编译器行为验证（2026-11-22，构建级）
+
+目标：在不破坏 584 个已加载厂商模块的前提下，做一版可选的全量性能构建。
+CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
+`configs/perf.fragment`，默认路径不受影响。
+
+### 配置取舍
+
+- 关闭仅影响内核自身 instrumentation、且没有 stock `.ko` 导入的项：
+  `UBSAN`、`KFENCE`、`INIT_ON_ALLOC_DEFAULT_ON`、`INIT_STACK_ALL_ZERO`、
+  `SLAB_FREELIST_HARDENED`。
+- 保留（模块依赖其导出符号/ABI）：`KASAN`（34 个模块导入
+  `kasan_flag_enabled`）、`FORTIFY_SOURCE`（217）、`HARDENED_USERCOPY`
+  （156）、`LIST_HARDENED`（298）、`STACKPROTECTOR`（523）、
+  `SHADOW_CALL_STACK`（x18）、`CFI_CLANG`（KCFI typeid）。
+- KASAN 运行时默认改为 `KASAN_ARG_OFF`（保留 runtime 与导出符号），
+  需要时仍可用命令行 `kasan=on` 覆盖；list.h 的内联检查在实验配置下
+  直接返回 true，`lib/list_debug.c` 的导出函数保留。
+- 打开未启用的 arm64 Crypto Extensions：SHA3、SM3/SM4 CE（含 BLK/CCM/GCM）、
+  NH Poly1305 NEON、AES CCM。
+
+### 编译器/链接器
+
+- `KCFLAGS`（最后追加，覆盖内核通用 hardening flag）：
+  `-march=armv9.2-a+nosve2+nosve+aes+sha2+sha3+sm4+fp16fml`、
+  `-mbranch-protection=none`、`-fno-stack-protector`、
+  `-fomit-frame-pointer -foptimize-sibling-calls`；无全局 `-O3`。
+- `KBUILD_LDFLAGS`（仅 Full LTO）：`--lto-O3`、
+  `-enable-ext-tsp-block-placement`、`-enable-split-machine-functions`、
+  `-enable-mergeicmps`。
+
+### 本地验证（非全编）
+
+- `FAST=1 DASH_PERF=1` 实际 kbuild 编译 `mm/slub.o`、`kernel/fork.o`、
+  `net/core/dev.o`、`fs/read_write.o`、`drivers/block/zram/zram_drv.o`、
+  `crypto/lz4kd/lz4kd_encode.o`、`kernel/panic.o`、`lib/list_debug.o`、
+  `lib/string_helpers.o`、`mm/usercopy.o`、`mm/kasan/hw_tags.o`：
+  `ubsan=0`、`__stack_chk_fail` 引用=0、`paciasp=0`、`v/z/p` 寄存器=0、
+  `__list_*_valid_or_report` 引用=0。
+- 模块符号存在：`panic.o` 定义并导出 `__stack_chk_fail`；
+  `list_debug.o` 导出两个 report 函数；`string_helpers.o` 导出
+  `fortify_panic`；`usercopy.o` 导出 `__check_object_size`；
+  `hw_tags.o` 仍导出 `kasan_flag_enabled`，`.data` 中 `kasan_arg=1`
+  （`KASAN_ARG_OFF`）。
+- `FAST=0 DASH_PERF=1` 配置确认 `CONFIG_LTO_CLANG_FULL=y`；
+  `make -n vmlinux` 的命令行包含 `--lto-O3`、ext-TSP、MFS；
+  独立 LTO 小样例验证 `ld.lld` 接受这些参数。CI 结果待补。

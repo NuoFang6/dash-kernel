@@ -1,8 +1,8 @@
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index df260dbab..bdf1d202a 100644
+index df260dbab..0df1ba07b 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -2441,6 +2441,52 @@ source "drivers/cpufreq/Kconfig"
+@@ -2441,6 +2441,72 @@ source "drivers/cpufreq/Kconfig"
  
  endmenu # "CPU Power Management"
  
@@ -49,6 +49,26 @@ index df260dbab..bdf1d202a 100644
 +	  Android Clang toolchain. This affects code generation only; it
 +	  needs no runtime profile and has no ABI or genksyms effect.
 +
++config DASH_PERF_EXPERIMENT
++	bool "dash experimental performance build (security-reduced)"
++	default n
++	help
++	  Experimental, device-specific performance tuning: LTO -O3,
++	  profile-guided block placement/machine-function splitting,
++	  armv9.2-A codegen (SVE/SVE2 explicitly disabled because kernel
++	  mode does not preserve SVE state), and removal of kernel-side
++	  sanitizer/hardening instrumentation.
++
++	  Vendor-module ABI is preserved: CONFIG_KASAN, CONFIG_FORTIFY_SOURCE,
++	  CONFIG_HARDENED_USERCOPY, CONFIG_LIST_HARDENED,
++	  CONFIG_STACKPROTECTOR, CONFIG_SHADOW_CALL_STACK and CONFIG_CFI_CLANG
++	  stay enabled so their exported runtime symbols and x18/typeid
++	  conventions remain available to prebuilt .ko files.  Only the
++	  expensive kernel-side instrumentation is elided where that can be
++	  done without removing those symbols.
++
++	  Do not enable this in a production build.
++
 +endmenu # "dash device tuning"
 +
 +
@@ -56,10 +76,10 @@ index df260dbab..bdf1d202a 100644
  
  source "arch/arm64/kvm/Kconfig"
 diff --git a/arch/arm64/Makefile b/arch/arm64/Makefile
-index 2614ea63b..390d93d4d 100644
+index 2614ea63b..3bfaa3b3b 100644
 --- a/arch/arm64/Makefile
 +++ b/arch/arm64/Makefile
-@@ -42,6 +42,18 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
+@@ -42,6 +42,31 @@ KBUILD_CFLAGS	+= $(call cc-disable-warning, psabi)
  KBUILD_AFLAGS	+= $(compat_vdso)
  
  KBUILD_CFLAGS	+= $(call cc-option,-mabi=lp64)
@@ -73,6 +93,19 @@ index 2614ea63b..390d93d4d 100644
 +ifeq ($(CONFIG_DASH_MLGO_REGALLOC),y)
 +KBUILD_CFLAGS	+= -mllvm -regalloc-enable-advisor=release
 +KBUILD_LDFLAGS	+= --mllvm=-regalloc-enable-advisor=release
++endif
++
++# dash experimental performance build: LTO codegen level and profile-guided
++# block placement.  C-side flags (armv9.2-A, PAC/SCS/stack-protector/frame
++# pointer overrides) are appended through KCFLAGS in scripts/build.sh, after
++# the generic hardening flags in the top-level Makefile.
++ifdef CONFIG_DASH_PERF_EXPERIMENT
++ifdef CONFIG_LTO_CLANG_FULL
++KBUILD_LDFLAGS	+= --lto-O3
++KBUILD_LDFLAGS	+= -mllvm -enable-ext-tsp-block-placement=true
++KBUILD_LDFLAGS	+= -mllvm -enable-split-machine-functions=true
++KBUILD_LDFLAGS	+= -mllvm -enable-mergeicmps=true
++endif
 +endif
 +
  KBUILD_AFLAGS	+= $(call cc-option,-mabi=lp64)

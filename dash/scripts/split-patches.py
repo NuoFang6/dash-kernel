@@ -193,7 +193,7 @@ SERIES = [
             "net/unix/af_unix.c",
         ]),
     ]),
-    ("120-arm64-perf", "arm64/库性能：copy_template prfm、ARM optimized-routines memcmp、clear_page 16B 对齐、int_sqrt、this_cpu_write/and 修复、idmap KCFI typeid、DASH_ARM64_TUNE", [
+    ("120-arm64-perf", "arm64/库性能：copy_template prfm、ARM optimized-routines memcmp、clear_page 16B 对齐、int_sqrt、this_cpu_write/and 修复、idmap KCFI typeid、DASH_ARM64_TUNE、实验性 perf 开关", [
         ("0001-arm64-lib-perf.patch", [
             "arch/arm64/lib/clear_page.S",
             "arch/arm64/lib/copy_template.S",
@@ -209,6 +209,10 @@ SERIES = [
         ("0003-arm64-dash-tune.patch", [
             "arch/arm64/Kconfig",
             "arch/arm64/Makefile",
+        ]),
+        ("0004-dash-perf-experiment.patch", [
+            "include/linux/list.h",
+            "mm/kasan/hw_tags.c",
         ]),
     ]),
     ("130-f2fs-perf", "F2FS 三件套：GC urgent sleep 50ms / congestion wait 6ms / min_fsync_blocks 20（f2fs.h 的 6ms 落在 060-f2fs-xiaomi；file.c move-range 修复同样在 060）", [

@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 04:45:33 +0800
-> 覆盖 22 个源，331620 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 12:33:31 +0800
+> 覆盖 22 个源，334236 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -155,7 +155,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 76730 | `5dca0bccce9e7476` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 79346 | `da7a3cddd1847acf` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 76730 字节 · SHA256 `5dca0bccce9e7476522b8891cb242c4c78b11b2d95e6eb1ef1faa1688333455b`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 79346 字节 · SHA256 `da7a3cddd1847acf4f3951201f239ffcf8fadc5d5f25a24a4dd316cb98a33b34`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2145,6 +2145,54 @@ KSU + SUSFS 全套。与生产配置一致。
 - 仅见两条良性日志：`vold: open /sys/block/zram0/idle error:-1`（idle 为
   只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
   （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
+
+### 34. 实验性 perf 构建（DASH_PERF=1）：本地编译器行为验证（2026-11-22，构建级）
+
+目标：在不破坏 584 个已加载厂商模块的前提下，做一版可选的全量性能构建。
+CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
+`configs/perf.fragment`，默认路径不受影响。
+
+#### 配置取舍
+
+- 关闭仅影响内核自身 instrumentation、且没有 stock `.ko` 导入的项：
+  `UBSAN`、`KFENCE`、`INIT_ON_ALLOC_DEFAULT_ON`、`INIT_STACK_ALL_ZERO`、
+  `SLAB_FREELIST_HARDENED`。
+- 保留（模块依赖其导出符号/ABI）：`KASAN`（34 个模块导入
+  `kasan_flag_enabled`）、`FORTIFY_SOURCE`（217）、`HARDENED_USERCOPY`
+  （156）、`LIST_HARDENED`（298）、`STACKPROTECTOR`（523）、
+  `SHADOW_CALL_STACK`（x18）、`CFI_CLANG`（KCFI typeid）。
+- KASAN 运行时默认改为 `KASAN_ARG_OFF`（保留 runtime 与导出符号），
+  需要时仍可用命令行 `kasan=on` 覆盖；list.h 的内联检查在实验配置下
+  直接返回 true，`lib/list_debug.c` 的导出函数保留。
+- 打开未启用的 arm64 Crypto Extensions：SHA3、SM3/SM4 CE（含 BLK/CCM/GCM）、
+  NH Poly1305 NEON、AES CCM。
+
+#### 编译器/链接器
+
+- `KCFLAGS`（最后追加，覆盖内核通用 hardening flag）：
+  `-march=armv9.2-a+nosve2+nosve+aes+sha2+sha3+sm4+fp16fml`、
+  `-mbranch-protection=none`、`-fno-stack-protector`、
+  `-fomit-frame-pointer -foptimize-sibling-calls`；无全局 `-O3`。
+- `KBUILD_LDFLAGS`（仅 Full LTO）：`--lto-O3`、
+  `-enable-ext-tsp-block-placement`、`-enable-split-machine-functions`、
+  `-enable-mergeicmps`。
+
+#### 本地验证（非全编）
+
+- `FAST=1 DASH_PERF=1` 实际 kbuild 编译 `mm/slub.o`、`kernel/fork.o`、
+  `net/core/dev.o`、`fs/read_write.o`、`drivers/block/zram/zram_drv.o`、
+  `crypto/lz4kd/lz4kd_encode.o`、`kernel/panic.o`、`lib/list_debug.o`、
+  `lib/string_helpers.o`、`mm/usercopy.o`、`mm/kasan/hw_tags.o`：
+  `ubsan=0`、`__stack_chk_fail` 引用=0、`paciasp=0`、`v/z/p` 寄存器=0、
+  `__list_*_valid_or_report` 引用=0。
+- 模块符号存在：`panic.o` 定义并导出 `__stack_chk_fail`；
+  `list_debug.o` 导出两个 report 函数；`string_helpers.o` 导出
+  `fortify_panic`；`usercopy.o` 导出 `__check_object_size`；
+  `hw_tags.o` 仍导出 `kasan_flag_enabled`，`.data` 中 `kasan_arg=1`
+  （`KASAN_ARG_OFF`）。
+- `FAST=0 DASH_PERF=1` 配置确认 `CONFIG_LTO_CLANG_FULL=y`；
+  `make -n vmlinux` 的命令行包含 `--lto-O3`、ext-TSP、MFS；
+  独立 LTO 小样例验证 `ld.lld` 接受这些参数。CI 结果待补。
 
 ---
 

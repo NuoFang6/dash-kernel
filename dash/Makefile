@@ -19,7 +19,7 @@ gen-patches:
 	bash scripts/gen-patches.sh
 
 config: toolchain patches
-	FAST="$(FAST)" bash scripts/configure.sh
+	FAST="$(FAST)" DASH_PERF="$(DASH_PERF)" bash scripts/configure.sh
 
 build: config
 	bash scripts/build.sh
