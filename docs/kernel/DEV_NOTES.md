@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 12:33:31 +0800
-> 覆盖 22 个源，334236 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 13:02:44 +0800
+> 覆盖 22 个源，335821 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -155,7 +155,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 79346 | `da7a3cddd1847acf` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 80931 | `a3a4f9c6e4ce76b3` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 79346 字节 · SHA256 `da7a3cddd1847acf4f3951201f239ffcf8fadc5d5f25a24a4dd316cb98a33b34`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 80931 字节 · SHA256 `a3a4f9c6e4ce76b3f3fa995cdca820ac0ed5a98b341e920cb87acbff26809eb5`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2192,7 +2192,31 @@ CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
   （`KASAN_ARG_OFF`）。
 - `FAST=0 DASH_PERF=1` 配置确认 `CONFIG_LTO_CLANG_FULL=y`；
   `make -n vmlinux` 的命令行包含 `--lto-O3`、ext-TSP、MFS；
-  独立 LTO 小样例验证 `ld.lld` 接受这些参数。CI 结果待补。
+  独立 LTO 小样例验证 `ld.lld` 接受这些参数。
+
+#### CI Full LTO 结果（run 44985627545，commit `6665b50`）
+
+- 工作流 `kernel-build`：`fast=false`、`perf=true`、`release=false`；
+  成功，23 分 26 秒，未创建/更新 GitHub Release。
+- `Image` 47,036,928 B、`Image.lz4` 23,155,441 B（限 67,098,176 B）；
+  相比生产 `#1`：Image -647,168 B，Image.lz4 +346,647 B。
+- `final-config` 与 `config` 一致：`CONFIG_DASH_PERF_EXPERIMENT=y`、
+  `CONFIG_LTO_CLANG_FULL=y`、`UBSAN/KFENCE/SLAB_FREELIST_HARDENED/
+  INIT_ON_ALLOC/INIT_STACK_ALL_ZERO` 均关；KASAN/FORTIFY/USERCOPY/
+  LIST/STACKPROTECTOR/SCS/CFI 与新增 Crypto CE 均开。
+- `check-vendor-modules.py`：`modules=638 kernel_exports=9111
+  hard_missing=0 weak_missing=0`。
+- `verify-os4-kcfi.py`：13/13 vendor-hook KCFI hash 与 stock 一致。
+- vmlinux 符号：`__ubsan_*` 0 个；`__stack_chk_fail` 仍定义并导出，但
+  `.text` 中无调用点；`kasan_flag_enabled`、`kasan_mode`、`fortify_panic`、
+  `__check_object_size`、两个 list report 函数均导出。KASAN 初始化函数在
+  vmlinux 中直接返回（默认 off）。
+- 反汇编函数代码无 SVE/SME；`z/p` 正则在 `__kvm_nvhe_$d`/`__pi_$d`
+  局部数据符号（literal pool）上命中，属数据误判。`paciasp` 仅 1 处，
+  位于 `poly1305_blocks_neon` 汇编（`SYM_FUNC_START` 宏），C 代码已无 PAC。
+- MFS pass 已被 LLD 调度（小样例可见 Machine Function Splitter），但
+  最终 vmlinux 没有 `.text.unlikely`，本次 profile 未产生实际冷块拆分。
+- 构建日志 0 error；2 条 host 工具 `sorttable.c` 未使用变量 warning。
 
 ---
 
