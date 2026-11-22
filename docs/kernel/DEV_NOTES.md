@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 13:02:44 +0800
-> 覆盖 22 个源，335821 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 13:16:31 +0800
+> 覆盖 22 个源，340316 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -155,7 +155,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 80931 | `a3a4f9c6e4ce76b3` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 85426 | `f15be059025fb9f2` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 80931 字节 · SHA256 `a3a4f9c6e4ce76b3f3fa995cdca820ac0ed5a98b341e920cb87acbff26809eb5`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 85426 字节 · SHA256 `f15be059025fb9f222a14d784bf6dc5ceefebe69ce5e0f67e7f55146e5094baa`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2217,6 +2217,80 @@ CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
 - MFS pass 已被 LLD 调度（小样例可见 Machine Function Splitter），但
   最终 vmlinux 没有 `.text.unlikely`，本次 profile 未产生实际冷块拆分。
 - 构建日志 0 error；2 条 host 工具 `sorttable.c` 未使用变量 warning。
+
+### 35. 非 CPU 硬件加速实机调查（2026-11-22，生产内核 + adb root）
+
+当前实机仍运行生产内核 `6.6.143-4k #1`（SUSFS 伪装 6.6.118），不是本轮实验
+内核。调查来源：`/sys/firmware/fdt`、`/proc/config.gz`、`/proc/modules`、
+`/proc/crypto`、`/proc/devices`、`/sys/class/*`、`/dev`、`dmesg`。
+
+#### 已启用的非 CPU 加速器
+
+- GPU：`mali_kbase_mt6991_r49`、`mali_mgm`、`mali_prot_alloc`、
+  `mtk_gpufreq_wrapper`/`mtk_gpueb`；`/dev/mali0`；
+  `devfreq/48000000.mali` 最高 1.612 GHz（空闲 26 MHz）。
+- NPU/APU：`apusys`、`apu_top`、`apu_aov`、`sapu`；`/dev/apusys`、
+  `/dev/apusys_sapu`；dmesg 有 APU power/IPI 活动。
+- Camera/ISP：`mtk_cam_isp8`、`mtk_imgsys_isp8`、`imgsensor_isp8`、
+  `seninf`、`camsv`、`mraw`；dmesg 有 ISP/CSI 活动。
+- Video：`mtk_vcodec_dec_v2`、`mtk_vcodec_enc_v2`、`vdec_fmt`、
+  `mtk_jpeg`/`jpeg_driver`；`/dev/video*`，dmesg 有 VDEC 解码活动。
+- Display：`mediatek_drm`、`mtk_disp_sec`、`mdp_drv_mt6991`、
+  `mtk_vdisp_v2`、`mtk_disp_notify`；`/dev/dri/card0`，DSI-1 connected，
+  DP-1 connector 存在（当前 disconnected），`usb-dp-selector` 已加载。
+- Audio DSP：`adsp`、`adsp_v2`、`audio_ipi`、`mtk_afe_external`、
+  `snd_soc_mtk_scp_ultra`；`/dev/adsp`、`/dev/snd`。
+- SCP/SSPM/MCUPM：`scp`、`sspm_v3`、`mcupm`、`mtk_scp_ultra`、
+  `mtk_tinysys_ipi`。
+- TEE/虚拟化：`mitee`、`gz_*`、`gzvm`；`/sys/class/tee/tee0`、
+  `teepriv0`；`ro.vendor.mtk_svp_on_mtee_support=1`。
+- UFS：`phy_mtk_ufs`、`ufs_mediatek_mod_ise`、`ufs_mediatek_dbg`、
+  `rpmb`；`queue/crypto/max_dun_bits=64`、`num_keyslots=32`
+  （inline encryption 已启用）；`devfreq/16810000.ufshci` 273/499.2 MHz。
+- Crypto：`/proc/crypto` 显示 `aes-ce`、`sha1/256/512-ce`、
+  `gcm-aes-ce`、`polyval-ce`、`poly1305-neon`、`chacha20-neon`。
+- RNG：`/dev/hw_random`（prng_seeder）、`cctrng`、
+  `CONFIG_HW_RANDOM_ARM_SMCCC_TRNG=y`。
+- PMU：`armv8_pmuv3`、`armv9_cortex_a720`、`armv9_cortex_x4`、
+  `arm_dsu_0`，以及 SMMU MPAM/PMCG event sources。
+- DMA/IOMMU：4 个 SMMU、12 个 APDMA 通道、CMDQ 模块。
+- 连接/外设：`wlan_drv_gen4m_6991_6639_new9gen2`、`bluetooth`、
+  `btmtk_uart_unify`、`conninfra`、`connscp`、`gps_scp`/`gps_pwr`、
+  `nfc`（`nfc.initialized=true`）、`ccci_*` 调制解调器通道。
+- 安全视频：`mtee-svp`/`SecureVideoPath`、`mm-smmu-svp-disp` 均 okay；
+  `/dev/dma_heap` 有 `mtk_svp_page-uncached`、`mtk_prot_region`、
+  `mtk_tui_region` 等。
+
+#### 未启用/受限项
+
+- **SHA3/SM3/SM4/NH Poly1305/AES-CCM**：生产 `/proc/crypto` 只有
+  `sha3-*-generic`（priority 0）、`nhpoly1305-generic`，没有 SM3/SM4；
+  实验配置已启用对应 ARM64 CE/NEON 实现。
+- **Coresight/ETM/STM**：DT 有 `funnel@d041000`、`etf@d044000`、
+  `etr@d07d000` 与 dummy source，但 `CONFIG_CORESIGHT=n`、`CONFIG_STM=n`；
+  且没有 CPU ETM4x/STM 节点，开启只能覆盖 TMC/funnel/dummy，profiling
+  价值低，未启用。
+- **SPE**：`/proc/cpuinfo` 无 `spe`，`CONFIG_ARM_SPE_PMU=n`，硬件/固件
+  不暴露，无法启用。
+- **MTE**：`/proc/cpuinfo` 无 `mte`，KASAN HW_TAGS 在这台机器上不会激活；
+  实验配置保留 KASAN runtime 符号但没有实际 MTE 开销。
+- **UFS WriteBooster/HPB**：`/sys/block/sda/device` 未暴露 `wb_*`/`hpb_*`，
+  `cdl_supported=0`、`dyn_cap_needed_attribute=0`；属设备/固件/vendor 驱动
+  范畴，内核侧没有可切换开关。
+- **pKVM**：DT `/pkvm` 为 disable；GenieZone `/hypervisor` okay，
+  `gzvm`/`mitee` 已加载，因此不是缺失，只是换了 hypervisor 方案。
+- **DT 明确关闭的接口**：USB1/2、外部 PCIe、MMC、Ethernet、
+  eDP/DSI1/2、camfe、fan-cooler、IVI、UFCS、`vhost-*`。这些是硬件未
+  布线/未使用或虚拟化用途，不建议仅凭 DT 打开。
+- **可选但无消费者**：`CRCT10DIF_ARM64_CE`（T10 DIF 未启用）、
+  `AEGIS128_SIMD`（AEGIS 未启用）；未加入实验配置。
+- **硬件压缩**：未发现内核可见的压缩加速器节点；zram 仍为软件
+  `lz4kd`，没有可打开的硬件压缩开关。
+
+结论：GPU/NPU/ISP/VPU/JPEG/VDEC/VENC/ADSP/SCP/TEE/UFS inline crypto
+等主要加速器都由 MediaTek 厂商模块提供并已加载；没有发现因内核配置缺失
+而整体不可用的高价值加速器。实验内核相对生产内核新增的硬件加速主要是
+SHA3/SM3/SM4/NH Poly1305/AES-CCM CE。
 
 ---
 
