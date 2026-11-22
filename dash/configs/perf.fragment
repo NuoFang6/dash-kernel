@@ -1,0 +1,43 @@
+# dash experimental performance fragment (DASH_PERF=1 only).
+#
+# This fragment is merged after features.fragment and is intentionally NOT
+# part of the production config.  It reduces debug/sanitizer instrumentation
+# that an ordinary personal user does not need, while keeping every runtime
+# symbol and calling convention imported by the prebuilt vendor modules.
+
+CONFIG_DASH_PERF_EXPERIMENT=y
+
+# Sanitizer/debug instrumentation: no stock vendor .ko imports these.
+# CONFIG_UBSAN is not set
+# CONFIG_INIT_STACK_ALL_PATTERN is not set
+# CONFIG_INIT_STACK_ALL_ZERO is not set
+CONFIG_INIT_STACK_NONE=y
+# CONFIG_INIT_ON_ALLOC_DEFAULT_ON is not set
+# CONFIG_KFENCE is not set
+# CONFIG_SLAB_FREELIST_HARDENED is not set
+
+# Deliberately left enabled because prebuilt vendor .ko files depend on
+# their exported runtime symbols / ABI conventions:
+#   CONFIG_KASAN            -> kasan_flag_enabled (34 modules)
+#   CONFIG_FORTIFY_SOURCE   -> fortify_panic / __write_overflow_field (219)
+#   CONFIG_HARDENED_USERCOPY-> __check_object_size (156)
+#   CONFIG_LIST_HARDENED    -> __list_*_valid_or_report (298)
+#   CONFIG_STACKPROTECTOR   -> __stack_chk_fail (523)
+#   CONFIG_SHADOW_CALL_STACK-> x18 shadow-call-stack convention
+#   CONFIG_CFI_CLANG        -> KCFI typeids expected by module call sites
+#
+# The kernel-side codegen for stack protector and PAC is removed with
+# KCFLAGS in scripts/build.sh; the configs (and their symbols) stay.  arm64
+# selects CONFIG_DYNAMIC_SCS, so SCS is patched in assembly, not emitted by
+# the C compiler; there is no compiler flag to drop.
+
+# Hardware crypto acceleration present on MT6991 (ARMv8.2+ crypto extensions).
+# CE implementations are preferred over the generic/NEON fallbacks at runtime.
+CONFIG_CRYPTO_SHA3_ARM64=y
+CONFIG_CRYPTO_SM3_ARM64_CE=y
+CONFIG_CRYPTO_SM4_ARM64_CE=y
+CONFIG_CRYPTO_SM4_ARM64_CE_BLK=y
+CONFIG_CRYPTO_SM4_ARM64_CE_CCM=y
+CONFIG_CRYPTO_SM4_ARM64_CE_GCM=y
+CONFIG_CRYPTO_NHPOLY1305_NEON=y
+CONFIG_CRYPTO_AES_ARM64_CE_CCM=y

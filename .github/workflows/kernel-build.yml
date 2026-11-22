@@ -13,6 +13,11 @@ on:
         required: false
         default: false
         type: boolean
+      perf:
+        description: "Experimental performance build (DASH_PERF=1); never publishes a release"
+        required: false
+        default: false
+        type: boolean
       release:
         description: "Create/update a GitHub Release with the AnyKernel3 package and KSU module"
         required: false
@@ -108,6 +113,7 @@ jobs:
       - name: Build Image (source → patches → config → build)
         env:
           FAST: ${{ inputs.fast == true && '1' || '0' }}
+          DASH_PERF: ${{ inputs.perf == true && '1' || '0' }}
         run: make -C dash build
 
       - name: Smoke-check kernel image
@@ -130,6 +136,7 @@ jobs:
              dash/out/artifacts/System.map dash/out/artifacts/config \
              upload/ || true
           cp dash/out/dash/vmlinux upload/ || true
+          cp dash/out/dash/vmlinux.symvers upload/vmlinux.symvers || true
           # Config actually in force after patches + configure + kbuild fixes
           cp dash/out/dash/.config upload/final-config || true
           gzip -9 -c dash/out/dash/build.log > upload/build.log.gz || true
@@ -196,13 +203,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: dash-kernel-${{ inputs.fast == true && 'fast-' || '' }}${{ github.sha }}
+          name: dash-kernel-${{ inputs.fast == true && 'fast-' || '' }}${{ inputs.perf == true && 'perf-' || '' }}${{ github.sha }}
           path: upload/
           retention-days: 14
           if-no-files-found: error
 
       - name: Publish production release
-        if: success() && inputs.release && inputs.fast != true
+        if: success() && inputs.release && inputs.fast != true && inputs.perf != true
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}

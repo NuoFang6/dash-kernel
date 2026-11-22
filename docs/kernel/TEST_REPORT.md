@@ -1391,7 +1391,194 @@ KSU + SUSFS 全套。与生产配置一致。
   只写节点）、Scene 对 dm-71 `mkswap: xwrite: No such file or directory`
   （dm-swapfile 不接受该格式化，ExtM flush 不受影响）。
 
-## 34. AnyKernel3 v1.2 刷入中止排查与 kernel-only 修复（2026-11-22，真机只读）
+## 34. 实验性 perf 构建（DASH_PERF=1）：本地编译器行为验证（2026-11-22，构建级）
+
+目标：在不破坏 584 个已加载厂商模块的前提下，做一版可选的全量性能构建。
+CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
+`configs/perf.fragment`，默认路径不受影响。
+
+### 配置取舍
+
+- 关闭仅影响内核自身 instrumentation、且没有 stock `.ko` 导入的项：
+  `UBSAN`、`KFENCE`、`INIT_ON_ALLOC_DEFAULT_ON`、`INIT_STACK_ALL_ZERO`、
+  `SLAB_FREELIST_HARDENED`。
+- 保留（模块依赖其导出符号/ABI）：`KASAN`（34 个模块导入
+  `kasan_flag_enabled`）、`FORTIFY_SOURCE`（217）、`HARDENED_USERCOPY`
+  （156）、`LIST_HARDENED`（298）、`STACKPROTECTOR`（523）、
+  `SHADOW_CALL_STACK`（x18）、`CFI_CLANG`（KCFI typeid）。
+- KASAN 运行时默认改为 `KASAN_ARG_OFF`（保留 runtime 与导出符号），
+  需要时仍可用命令行 `kasan=on` 覆盖；list.h 的内联检查在实验配置下
+  直接返回 true，`lib/list_debug.c` 的导出函数保留。
+- 打开未启用的 arm64 Crypto Extensions：SHA3、SM3/SM4 CE（含 BLK/CCM/GCM）、
+  NH Poly1305 NEON、AES CCM。
+
+### 编译器/链接器
+
+- `KCFLAGS`（最后追加，覆盖内核通用 hardening flag）：
+  `-march=armv9.2-a+nosve2+nosve+aes+sha2+sha3+sm4+fp16fml`、
+  `-mbranch-protection=none`、`-fno-stack-protector`、
+  `-fomit-frame-pointer -foptimize-sibling-calls`；无全局 `-O3`。
+- `KBUILD_LDFLAGS`（仅 Full LTO）：`--lto-O3`、
+  `-enable-ext-tsp-block-placement`、`-enable-split-machine-functions`、
+  `-enable-mergeicmps`。
+
+### 本地验证（非全编）
+
+- `FAST=1 DASH_PERF=1` 实际 kbuild 编译 `mm/slub.o`、`kernel/fork.o`、
+  `net/core/dev.o`、`fs/read_write.o`、`drivers/block/zram/zram_drv.o`、
+  `crypto/lz4kd/lz4kd_encode.o`、`kernel/panic.o`、`lib/list_debug.o`、
+  `lib/string_helpers.o`、`mm/usercopy.o`、`mm/kasan/hw_tags.o`：
+  `ubsan=0`、`__stack_chk_fail` 引用=0、`paciasp=0`、`v/z/p` 寄存器=0、
+  `__list_*_valid_or_report` 引用=0。
+- 模块符号存在：`panic.o` 定义并导出 `__stack_chk_fail`；
+  `list_debug.o` 导出两个 report 函数；`string_helpers.o` 导出
+  `fortify_panic`；`usercopy.o` 导出 `__check_object_size`；
+  `hw_tags.o` 仍导出 `kasan_flag_enabled`，`.data` 中 `kasan_arg=1`
+  （`KASAN_ARG_OFF`）。
+- `FAST=0 DASH_PERF=1` 配置确认 `CONFIG_LTO_CLANG_FULL=y`；
+  `make -n vmlinux` 的命令行包含 `--lto-O3`、ext-TSP、MFS；
+  独立 LTO 小样例验证 `ld.lld` 接受这些参数。
+
+### CI Full LTO 结果（run 44985627545，commit `6665b50`）
+
+- 工作流 `kernel-build`：`fast=false`、`perf=true`、`release=false`；
+  成功，23 分 26 秒，未创建/更新 GitHub Release。
+- `Image` 47,036,928 B、`Image.lz4` 23,155,441 B（限 67,098,176 B）；
+  相比生产 `#1`：Image -647,168 B，Image.lz4 +346,647 B。
+- `final-config` 与 `config` 一致：`CONFIG_DASH_PERF_EXPERIMENT=y`、
+  `CONFIG_LTO_CLANG_FULL=y`、`UBSAN/KFENCE/SLAB_FREELIST_HARDENED/
+  INIT_ON_ALLOC/INIT_STACK_ALL_ZERO` 均关；KASAN/FORTIFY/USERCOPY/
+  LIST/STACKPROTECTOR/SCS/CFI 与新增 Crypto CE 均开。
+- `check-vendor-modules.py`：`modules=638 kernel_exports=9111
+  hard_missing=0 weak_missing=0`。
+- `verify-os4-kcfi.py`：13/13 vendor-hook KCFI hash 与 stock 一致。
+- vmlinux 符号：`__ubsan_*` 0 个；`__stack_chk_fail` 仍定义并导出，但
+  `.text` 中无调用点；`kasan_flag_enabled`、`kasan_mode`、`fortify_panic`、
+  `__check_object_size`、两个 list report 函数均导出。KASAN 初始化函数在
+  vmlinux 中直接返回（默认 off）。
+- 反汇编函数代码无 SVE/SME；`z/p` 正则在 `__kvm_nvhe_$d`/`__pi_$d`
+  局部数据符号（literal pool）上命中，属数据误判。`paciasp` 仅 1 处，
+  位于 `poly1305_blocks_neon` 汇编（`SYM_FUNC_START` 宏），C 代码已无 PAC。
+- MFS pass 已被 LLD 调度（小样例可见 Machine Function Splitter），但
+  最终 vmlinux 没有 `.text.unlikely`，本次 profile 未产生实际冷块拆分。
+- 构建日志 0 error；2 条 host 工具 `sorttable.c` 未使用变量 warning。
+
+## 35. 非 CPU 硬件加速实机调查（2026-11-22，生产内核 + adb root）
+
+当前实机仍运行生产内核 `6.6.143-4k #1`（SUSFS 伪装 6.6.118），不是本轮实验
+内核。调查来源：`/sys/firmware/fdt`、`/proc/config.gz`、`/proc/modules`、
+`/proc/crypto`、`/proc/devices`、`/sys/class/*`、`/dev`、`dmesg`。
+
+### 已启用的非 CPU 加速器
+
+- GPU：`mali_kbase_mt6991_r49`、`mali_mgm`、`mali_prot_alloc`、
+  `mtk_gpufreq_wrapper`/`mtk_gpueb`；`/dev/mali0`；
+  `devfreq/48000000.mali` 最高 1.612 GHz（空闲 26 MHz）。
+- NPU/APU：`apusys`、`apu_top`、`apu_aov`、`sapu`；`/dev/apusys`、
+  `/dev/apusys_sapu`；dmesg 有 APU power/IPI 活动。
+- Camera/ISP：`mtk_cam_isp8`、`mtk_imgsys_isp8`、`imgsensor_isp8`、
+  `seninf`、`camsv`、`mraw`；dmesg 有 ISP/CSI 活动。
+- Video：`mtk_vcodec_dec_v2`、`mtk_vcodec_enc_v2`、`vdec_fmt`、
+  `mtk_jpeg`/`jpeg_driver`；`/dev/video*`，dmesg 有 VDEC 解码活动。
+- Display：`mediatek_drm`、`mtk_disp_sec`、`mdp_drv_mt6991`、
+  `mtk_vdisp_v2`、`mtk_disp_notify`；`/dev/dri/card0`，DSI-1 connected，
+  DP-1 connector 存在（当前 disconnected），`usb-dp-selector` 已加载。
+- Audio DSP：`adsp`、`adsp_v2`、`audio_ipi`、`mtk_afe_external`、
+  `snd_soc_mtk_scp_ultra`；`/dev/adsp`、`/dev/snd`。
+- SCP/SSPM/MCUPM：`scp`、`sspm_v3`、`mcupm`、`mtk_scp_ultra`、
+  `mtk_tinysys_ipi`。
+- TEE/虚拟化：`mitee`、`gz_*`、`gzvm`；`/sys/class/tee/tee0`、
+  `teepriv0`；`ro.vendor.mtk_svp_on_mtee_support=1`。
+- UFS：`phy_mtk_ufs`、`ufs_mediatek_mod_ise`、`ufs_mediatek_dbg`、
+  `rpmb`；`queue/crypto/max_dun_bits=64`、`num_keyslots=32`
+  （inline encryption 已启用）；`devfreq/16810000.ufshci` 273/499.2 MHz。
+- Crypto：`/proc/crypto` 显示 `aes-ce`、`sha1/256/512-ce`、
+  `gcm-aes-ce`、`polyval-ce`、`poly1305-neon`、`chacha20-neon`。
+- RNG：`/dev/hw_random`（prng_seeder）、`cctrng`、
+  `CONFIG_HW_RANDOM_ARM_SMCCC_TRNG=y`。
+- PMU：`armv8_pmuv3`、`armv9_cortex_a720`、`armv9_cortex_x4`、
+  `arm_dsu_0`，以及 SMMU MPAM/PMCG event sources。
+- DMA/IOMMU：4 个 SMMU、12 个 APDMA 通道、CMDQ 模块。
+- 连接/外设：`wlan_drv_gen4m_6991_6639_new9gen2`、`bluetooth`、
+  `btmtk_uart_unify`、`conninfra`、`connscp`、`gps_scp`/`gps_pwr`、
+  `nfc`（`nfc.initialized=true`）、`ccci_*` 调制解调器通道。
+- 安全视频：`mtee-svp`/`SecureVideoPath`、`mm-smmu-svp-disp` 均 okay；
+  `/dev/dma_heap` 有 `mtk_svp_page-uncached`、`mtk_prot_region`、
+  `mtk_tui_region` 等。
+
+### 未启用/受限项
+
+- **SHA3/SM3/SM4/NH Poly1305/AES-CCM**：生产 `/proc/crypto` 只有
+  `sha3-*-generic`（priority 0）、`nhpoly1305-generic`，没有 SM3/SM4；
+  实验配置已启用对应 ARM64 CE/NEON 实现。
+- **Coresight/ETM/STM**：DT 有 `funnel@d041000`、`etf@d044000`、
+  `etr@d07d000` 与 dummy source，但 `CONFIG_CORESIGHT=n`、`CONFIG_STM=n`；
+  且没有 CPU ETM4x/STM 节点，开启只能覆盖 TMC/funnel/dummy，profiling
+  价值低，未启用。
+- **SPE**：`/proc/cpuinfo` 无 `spe`，`CONFIG_ARM_SPE_PMU=n`，硬件/固件
+  不暴露，无法启用。
+- **MTE**：`/proc/cpuinfo` 无 `mte`，KASAN HW_TAGS 在这台机器上不会激活；
+  实验配置保留 KASAN runtime 符号但没有实际 MTE 开销。
+- **UFS WriteBooster/HPB**：`/sys/block/sda/device` 未暴露 `wb_*`/`hpb_*`，
+  `cdl_supported=0`、`dyn_cap_needed_attribute=0`；属设备/固件/vendor 驱动
+  范畴，内核侧没有可切换开关。
+- **pKVM**：DT `/pkvm` 为 disable；GenieZone `/hypervisor` okay，
+  `gzvm`/`mitee` 已加载，因此不是缺失，只是换了 hypervisor 方案。
+- **DT 明确关闭的接口**：USB1/2、外部 PCIe、MMC、Ethernet、
+  eDP/DSI1/2、camfe、fan-cooler、IVI、UFCS、`vhost-*`。这些是硬件未
+  布线/未使用或虚拟化用途，不建议仅凭 DT 打开。
+- **可选但无消费者**：`CRCT10DIF_ARM64_CE`（T10 DIF 未启用）、
+  `AEGIS128_SIMD`（AEGIS 未启用）；未加入实验配置。
+- **硬件压缩**：未发现内核可见的压缩加速器节点；zram 仍为软件
+  `lz4kd`，没有可打开的硬件压缩开关。
+
+结论：GPU/NPU/ISP/VPU/JPEG/VDEC/VENC/ADSP/SCP/TEE/UFS inline crypto
+等主要加速器都由 MediaTek 厂商模块提供并已加载；没有发现因内核配置缺失
+而整体不可用的高价值加速器。实验内核相对生产内核新增的硬件加速主要是
+SHA3/SM3/SM4/NH Poly1305/AES-CCM CE。
+
+## 36. CPU 特性与 HWCAP 实机核对（2026-11-22，生产内核）
+
+- 8 个核的 Features 完全相同；MIDR part 为 4×`0xd81`、3×`0xd82`、
+  1×`0xd85`，不存在异构特性差异，`-march=armv9.2-a` 对全部核心一致。
+- userspace HWCAP：`0xefffffff`；HWCAP2：`0x801af3ff`。
+- HWCAP 已置位：FP/ASIMD/EVTSTRM/AES/PMULL/SHA1/SHA2/CRC32/ATOMICS/
+  FPHP/ASIMDHP/CPUID/ASIMDRDM/JSCVT/FCMA/LRCPC/DCPOP/SHA3/SM3/SM4/
+  ASIMDDP/SHA512/SVE/ASIMDFHM/DIT/USCAT/ILRCPC/FLAGM/SB/PACA/PACG；
+  仅 **SSBS** 未置位（硬件 Features 同样没有 ssbs）。
+- HWCAP2 已置位：DCPODP/SVE2/SVEAES/SVEPMULL/SVEBITPERM/SVESHA3/
+  SVESM4/FLAGM2/FRINT/SVEI8MM/SVEBF16/I8MM/BF16/DGH/BTI/ECV/AFP/WFXT。
+- HWCAP2 未置位：RNG、MTE、SME/SME2 系列、CSSC、RPRFM、SVE2P1、
+  MOPS、HBC、EBF16/SVE_EBF16 等。这些与 `/proc/cpuinfo` 的缺失一致，
+  属于硬件不提供，不是内核隐藏。
+- 内核配置：`ARM64_SVE=y`、`ARM64_MTE=y`、`ARM64_PTR_AUTH(_KERNEL)=y`、
+  `ARM64_BTI=y`、`ARM64_USE_LSE_ATOMICS=y`、`ARM64_AMU_EXTN=y`、
+  `ARM64_RAS_EXTN=y`、`ARM_PMUV3=y`、`HW_PERF_EVENTS=y`。
+- 注意：`CONFIG_ARM64_MTE=y` 但 HWCAP2_MTE 未置位，KASAN HW_TAGS 在
+  本机不会激活；`CONFIG_ARM64_BTI_KERNEL` 未开，userspace BTI 可用但内核
+  自身没有 BTI；生产内核有 kernel PAC，实验内核用 `-mbranch-protection=none`
+  主动关闭了 C 代码 PAC（userspace PACA/PACG 不受影响）。
+- 实验内核的 `-march=...+nosve2+nosve` 只影响内核 C codegen；SVE/SVE2
+  对 userspace 仍由 HWCAP 暴露，内核本来也不使用 SVE。
+- 加速/监控：cpufreq `sugov_ext` 活跃；available 最高
+  CPU0 2.4 GHz / CPU4 3.3 GHz / CPU7 3.73 GHz，但当前 policy 上限为
+  1.4/1.9/2.0 GHz（厂商 thermal/power 策略，当前电量 34%），不是内核
+  未启用；cpuidle 6 个状态；PMU event sources 有 `armv8_pmuv3`、
+  `armv9_cortex_a720`、`armv9_cortex_x4`、`arm_dsu_0` 和 SMMU
+  MPAM/PMCG。主线的 `ARM_DSU_PMU`/`ARM_SMMU_V3_PMU` 配置虽为 n，但
+  厂商模块已注册对应 event source，不算缺失。
+- 未启用/不可用：`ARM_SPE_PMU=n` 且硬件无 `spe`；Coresight 只有
+  funnel/TMC/dummy、无 CPU ETM/STM 且 `CONFIG_CORESIGHT=n`；CPU MPAM
+  未见；RNDR 指令未暴露（硬件 RNG 由 CCTRNG/SMCCC TRNG 提供）。
+- 安全侧提示：`spectre_v2` 当前为 “Vulnerable: Unprivileged eBPF enabled”，
+  属内核安全配置，不是性能加速缺失。
+
+结论：**userspace 可见的 CPU 特性与硬件一致，没有发现被内核配置隐藏的
+CPU 加速能力**；内核侧 LSE/CRC/Crypto CE/PMU 均已启用。剩余差异是硬件
+本身没有的 SPE/MTE/SME/CSSC 等，以及有意取舍的 kernel BTI、实验内核
+kernel PAC 和 Coresight。
+
+## 37. AnyKernel3 v1.2 刷入中止排查与 kernel-only 修复（2026-11-22，真机只读）
 
 **结论：用户设备没有被写入；AnyKernel3 在 `unpack_ramdisk()` 就 abort 了，
 `write_boot()` 从未执行。根因是 dash boot 为 `ramdisk_size=0`，而标准
@@ -1445,4 +1632,3 @@ dash 实机验证过的 AnyKernel3 模板一致。
 
 Release 的安装包统一写全称 `AnyKernel3`（例如
 `dash_art_tune-AnyKernel3-<ver>.zip`），不再缩写为 AK3。
-

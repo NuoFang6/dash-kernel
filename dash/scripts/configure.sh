@@ -75,38 +75,49 @@ CONFIG="$OUT_DIR/.config"
 # features.fragment 是功能开关的唯一权威输入(此前它与本脚本重复维护,
 # 曾被误当作纯文档)。此处将其合并进 .config(fragment 覆盖上面任何默认),
 # 再由 olddefconfig 解析依赖;required 断言清单负责防静默丢开关。
-# 本脚本只保留环境分支逻辑(FAST 的 LTO 取舍)与白名单接线。
-fragment="$DASH_ROOT/configs/features.fragment"
-require_file "$fragment"
-while IFS= read -r line; do
-	case "$line" in
-		"#"*" is not set")
-			opt="${line#\# }"
-			opt="${opt% is not set}"
-			"$AOSP_DIR/scripts/config" --file "$CONFIG" -d "$opt"
-			;;
-		""|\#*) continue ;;
-		CONFIG_*=*)
-			opt="${line%%=*}"
-			val="${line#*=}"
-			case "$val" in
-				y|n|m)
-					"$AOSP_DIR/scripts/config" --file "$CONFIG" --set-val "$opt" "$val"
-					;;
-				\"*\")
-					val="${val%\"}"
-					val="${val#\"}"
-					"$AOSP_DIR/scripts/config" --file "$CONFIG" --set-str "$opt" "$val"
-					;;
-				*)
-					# Integers/hex values must remain Kconfig scalar values.  Treating
-					# 1024 as a string makes olddefconfig silently use its default.
-					"$AOSP_DIR/scripts/config" --file "$CONFIG" --set-val "$opt" "$val"
-					;;
-			esac
-			;;
-	esac
-done < "$fragment"
+# 本脚本只保留环境分支逻辑(FAST 的 LTO 取舍、DASH_PERF 的实验 fragment)
+# 与白名单接线。
+apply_fragment() {
+	local fragment="$1" line opt val
+
+	require_file "$fragment"
+	while IFS= read -r line; do
+		case "$line" in
+			"#"*" is not set")
+				opt="${line#\# }"
+				opt="${opt% is not set}"
+				"$AOSP_DIR/scripts/config" --file "$CONFIG" -d "$opt"
+				;;
+			""|\#*) continue ;;
+			CONFIG_*=*)
+				opt="${line%%=*}"
+				val="${line#*=}"
+				case "$val" in
+					y|n|m)
+						"$AOSP_DIR/scripts/config" --file "$CONFIG" --set-val "$opt" "$val"
+						;;
+					\"*\")
+						val="${val%\"}"
+						val="${val#\"}"
+						"$AOSP_DIR/scripts/config" --file "$CONFIG" --set-str "$opt" "$val"
+						;;
+					*)
+						# Integers/hex values must remain Kconfig scalar values.  Treating
+						# 1024 as a string makes olddefconfig silently use its default.
+						"$AOSP_DIR/scripts/config" --file "$CONFIG" --set-val "$opt" "$val"
+						;;
+				esac
+				;;
+		esac
+	done < "$fragment"
+}
+
+apply_fragment "$DASH_ROOT/configs/features.fragment"
+
+DASH_PERF="${DASH_PERF:-0}"
+if [[ "$DASH_PERF" == "1" ]]; then
+	apply_fragment "$DASH_ROOT/configs/perf.fragment"
+fi
 
 # DroidSpaces container runtime (official GKI fragment, 2026-11-21).  The
 # SYSVIPC/IPC_NS fields land in ANDROID_KABI padding via the 090-droidspaces
@@ -151,10 +162,25 @@ required=(
 	CONFIG_IP_SET_HASH_IPPORTIP CONFIG_IP_SET_HASH_IPPORTNET CONFIG_IP_SET_HASH_MAC
 	CONFIG_IP_SET_HASH_NETIFACE CONFIG_IP_SET_HASH_NETNET CONFIG_IP_SET_HASH_NETPORT
 	CONFIG_IP_SET_HASH_NETPORTNET CONFIG_IP_SET_LIST_SET
-	CONFIG_RCU_LAZY CONFIG_WQ_POWER_EFFICIENT_DEFAULT CONFIG_KFENCE_DEFERRABLE
+	CONFIG_RCU_LAZY CONFIG_WQ_POWER_EFFICIENT_DEFAULT
 	CONFIG_NTSYNC CONFIG_MQ_IOSCHED_ADIOS
 	CONFIG_BBG CONFIG_AUTOFDO_CLANG CONFIG_DASH_MLGO_REGALLOC CONFIG_DASH_ARM64_TUNE_A720
 )
+if [[ "$DASH_PERF" != "1" ]]; then
+	required+=(CONFIG_KFENCE_DEFERRABLE)
+else
+	required+=(
+		CONFIG_DASH_PERF_EXPERIMENT
+		CONFIG_CRYPTO_SHA3_ARM64 CONFIG_CRYPTO_SM3_ARM64_CE
+		CONFIG_CRYPTO_SM4_ARM64_CE CONFIG_CRYPTO_SM4_ARM64_CE_BLK
+		CONFIG_CRYPTO_SM4_ARM64_CE_CCM CONFIG_CRYPTO_SM4_ARM64_CE_GCM
+		CONFIG_CRYPTO_NHPOLY1305_NEON CONFIG_CRYPTO_AES_ARM64_CE_CCM
+		# Runtime symbols / ABI imported by the stock vendor modules.
+		CONFIG_KASAN CONFIG_KASAN_HW_TAGS
+		CONFIG_FORTIFY_SOURCE CONFIG_HARDENED_USERCOPY CONFIG_LIST_HARDENED
+		CONFIG_STACKPROTECTOR CONFIG_SHADOW_CALL_STACK CONFIG_CFI_CLANG
+	)
+fi
 if [[ "$FAST" == "1" ]]; then
 	required+=(CONFIG_LTO_NONE)
 else
@@ -170,6 +196,16 @@ grep -q '^CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX=1024$' "$CONFIG" || \
 	die "CONFIG_GKI_TASK_STRUCT_VENDOR_SIZE_MAX must remain 1024"
 if grep -q '^CONFIG_KSU_TRACEPOINT_HOOK=y$' "$CONFIG"; then
 	die "tracepoint hook must be disabled when SUSFS inline hook is used"
+fi
+
+if [[ "$DASH_PERF" == "1" ]]; then
+	for opt in CONFIG_UBSAN CONFIG_INIT_ON_ALLOC_DEFAULT_ON \
+		   CONFIG_KFENCE CONFIG_SLAB_FREELIST_HARDENED; do
+		grep -q "^${opt}=y$" "$CONFIG" && \
+			die "$opt must stay off in the perf experiment"
+	done
+	grep -q '^CONFIG_INIT_STACK_NONE=y$' "$CONFIG" || \
+		die "CONFIG_INIT_STACK_NONE was not enabled"
 fi
 
 echo "configured: $CONFIG"

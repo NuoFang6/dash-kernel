@@ -15,6 +15,26 @@ export KBUILD_BUILD_HOST="${KBUILD_BUILD_HOST:-mikernel}"
 # empty LOCALVERSION suppresses scripts/setlocalversion's "-dirty"/"+" suffix.
 export LOCALVERSION=
 
+# KCFLAGS is appended last in the top-level Makefile, after the generic
+# stack-protector/frame-pointer/branch-protection flags and after the
+# arch/arm64 CFLAGS.  That makes it the safe place for the experiment's
+# negative overrides: the configs stay enabled (vendor modules import their
+# runtime symbols and rely on the x18/KCFI conventions), but kernel code no
+# longer pays for the instrumentation.  Frame pointers and sibling-call
+# optimization must keep the kernel defaults: prebuilt vendor modules such as
+# mtk_mbraink use __builtin_return_address() and walk the x29 chain across
+# core functions, so -fomit-frame-pointer makes them NULL-deref (observed on
+# the first NoLTO perf boot, 2026-11-22).
+kcflags="-D__ANDROID_COMMON_KERNEL__"
+if grep -q '^CONFIG_DASH_PERF_EXPERIMENT=y$' "$OUT_DIR/.config"; then
+	# v9.2-A plus every codegen-relevant optional extension this SoC has.
+	# SVE/SVE2 stay disabled: kernel mode does not preserve SVE state.
+	# Optional features the SoC does NOT have (cssc/mops/lse128/rcpc3/
+	# ls64/gcs/pauth-lr) are deliberately not enabled.
+	kcflags+=" -march=armv9.2-a+nosve2+nosve+aes+sha2+sha3+sm4+fp16fml"
+	kcflags+=" -mbranch-protection=none -fno-stack-protector"
+fi
+
 MAKE=(
 	make -C "$AOSP_DIR" O="$OUT_DIR"
 	ARCH=arm64
@@ -33,8 +53,19 @@ MAKE=(
 	HOSTCXX=clang++
 	HOSTLD=ld.lld
 	CLANG_AUTOFDO_PROFILE="$AUTOFDO_PROFILE"
-	KCFLAGS=-D__ANDROID_COMMON_KERNEL__
+	KCFLAGS="$kcflags"
 )
+
+# clang r614150 does not finish AutoFDO profile loading for mm/swap.c in NoLTO
+# perf builds: llvm::applyFlowInference (MIRProfileLoader) burns 100% CPU for
+# tens of minutes, make waits on that one TU, and the log stops on an unrelated
+# parallel AR line.  Use kbuild's per-file AutoFDO opt-out for this single
+# file; the rest of the kernel keeps the profile.  target-stem for mm/swap.o
+# is "swap" (scripts/Makefile.lib strips $(obj)/ and the .o suffix).
+if grep -q '^CONFIG_DASH_PERF_EXPERIMENT=y$' "$OUT_DIR/.config" &&
+   grep -q '^CONFIG_LTO_NONE=y$' "$OUT_DIR/.config"; then
+	MAKE+=(AUTOFDO_PROFILE_swap.o=n)
+fi
 
 mkdir -p "$OUT_DIR"
 "${MAKE[@]}" -j"$JOBS" Image 2>&1 | tee "$OUT_DIR/build.log"

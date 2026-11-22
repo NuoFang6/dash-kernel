@@ -1,0 +1,68 @@
+diff --git a/include/linux/list.h b/include/linux/list.h
+index 164b4d0e9..e7d5a4f3f 100644
+--- a/include/linux/list.h
++++ b/include/linux/list.h
+@@ -66,6 +66,13 @@ static __always_inline bool __list_add_valid(struct list_head *new,
+ 					     struct list_head *prev,
+ 					     struct list_head *next)
+ {
++#ifdef CONFIG_DASH_PERF_EXPERIMENT
++	/*
++	 * Keep the exported report functions for prebuilt vendor modules, but
++	 * skip the per-operation inline checks in kernel hot paths.
++	 */
++	return true;
++#else
+ 	bool ret = true;
+ 
+ 	if (!IS_ENABLED(CONFIG_DEBUG_LIST)) {
+@@ -87,6 +94,7 @@ static __always_inline bool __list_add_valid(struct list_head *new,
+ 
+ 	ret &= __list_add_valid_or_report(new, prev, next);
+ 	return ret;
++#endif
+ }
+ 
+ /*
+@@ -105,6 +113,9 @@ extern bool __list_valid_slowpath __list_del_entry_valid_or_report(struct list_h
+  */
+ static __always_inline bool __list_del_entry_valid(struct list_head *entry)
+ {
++#ifdef CONFIG_DASH_PERF_EXPERIMENT
++	return true;
++#else
+ 	bool ret = true;
+ 
+ 	if (!IS_ENABLED(CONFIG_DEBUG_LIST)) {
+@@ -123,6 +134,7 @@ static __always_inline bool __list_del_entry_valid(struct list_head *entry)
+ 
+ 	ret &= __list_del_entry_valid_or_report(entry);
+ 	return ret;
++#endif
+ }
+ #else
+ static inline bool __list_add_valid(struct list_head *new,
+diff --git a/mm/kasan/hw_tags.c b/mm/kasan/hw_tags.c
+index fd280e175..6a5c6e4a8 100644
+--- a/mm/kasan/hw_tags.c
++++ b/mm/kasan/hw_tags.c
+@@ -38,7 +38,18 @@ enum kasan_arg_vmalloc {
+ 	KASAN_ARG_VMALLOC_ON,
+ };
+ 
+-static enum kasan_arg kasan_arg __ro_after_init;
++/*
++ * dash perf experiment: keep the KASAN runtime and the exported
++ * kasan_flag_enabled symbol (34 stock vendor .ko files import it), but do not
++ * enable MTE tag checks by default.  An explicit kasan=on on the kernel
++ * command line still overrides this default.
++ */
++static enum kasan_arg kasan_arg __ro_after_init =
++#ifdef CONFIG_DASH_PERF_EXPERIMENT
++	KASAN_ARG_OFF;
++#else
++	KASAN_ARG_DEFAULT;
++#endif
+ static enum kasan_arg_mode kasan_arg_mode __ro_after_init;
+ static enum kasan_arg_vmalloc kasan_arg_vmalloc __initdata;
+ 
