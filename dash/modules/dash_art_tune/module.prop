@@ -1,6 +1,6 @@
 id=dash_art_tune
-name=Dash ART + BBRv3 + ADIOS + WLAN Log Tune
+name=内核附加模块
 version=v1.4
 versionCode=5
 author=NuoFang6
-description=Default BBRv3 + fq_codel, ADIOS, ART/CPU/dex2oat tuning, zram lz4kd restore, and vendor WLAN logging off: persist wlan_logs/cnss_diag/tcpdump switches, cnss_diag.conf LOG_PATH_FLAG=0 via bind mount, and wlan_logs cleanup with tcpdump.pcap0 as a directory.
+description=默认启用 BBRv3 + fq_codel、ADIOS、ART/CPU/dex2oat 调优；恢复 zram 的 lz4kd 压缩；关闭厂商 WLAN 日志（persist 的 wlan_logs/cnss_diag/tcpdump 开关、通过 bind mount 写入 cnss_diag.conf LOG_PATH_FLAG=0、清理 wlan_logs 并把 tcpdump.pcap0 置为目录）。
