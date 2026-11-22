@@ -20,7 +20,11 @@ export LOCALVERSION=
 # arch/arm64 CFLAGS.  That makes it the safe place for the experiment's
 # negative overrides: the configs stay enabled (vendor modules import their
 # runtime symbols and rely on the x18/KCFI conventions), but kernel code no
-# longer pays for the instrumentation.
+# longer pays for the instrumentation.  Frame pointers and sibling-call
+# optimization must keep the kernel defaults: prebuilt vendor modules such as
+# mtk_mbraink use __builtin_return_address() and walk the x29 chain across
+# core functions, so -fomit-frame-pointer makes them NULL-deref (observed on
+# the first NoLTO perf boot, 2026-11-22).
 kcflags="-D__ANDROID_COMMON_KERNEL__"
 if grep -q '^CONFIG_DASH_PERF_EXPERIMENT=y$' "$OUT_DIR/.config"; then
 	# v9.2-A plus every codegen-relevant optional extension this SoC has.
@@ -29,7 +33,6 @@ if grep -q '^CONFIG_DASH_PERF_EXPERIMENT=y$' "$OUT_DIR/.config"; then
 	# ls64/gcs/pauth-lr) are deliberately not enabled.
 	kcflags+=" -march=armv9.2-a+nosve2+nosve+aes+sha2+sha3+sm4+fp16fml"
 	kcflags+=" -mbranch-protection=none -fno-stack-protector"
-	kcflags+=" -fomit-frame-pointer -foptimize-sibling-calls"
 fi
 
 MAKE=(
