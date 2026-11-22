@@ -53,6 +53,17 @@ MAKE=(
 	KCFLAGS="$kcflags"
 )
 
+# clang r614150 does not finish AutoFDO profile loading for mm/swap.c in NoLTO
+# perf builds: llvm::applyFlowInference (MIRProfileLoader) burns 100% CPU for
+# tens of minutes, make waits on that one TU, and the log stops on an unrelated
+# parallel AR line.  Use kbuild's per-file AutoFDO opt-out for this single
+# file; the rest of the kernel keeps the profile.  target-stem for mm/swap.o
+# is "swap" (scripts/Makefile.lib strips $(obj)/ and the .o suffix).
+if grep -q '^CONFIG_DASH_PERF_EXPERIMENT=y$' "$OUT_DIR/.config" &&
+   grep -q '^CONFIG_LTO_NONE=y$' "$OUT_DIR/.config"; then
+	MAKE+=(AUTOFDO_PROFILE_swap.o=n)
+fi
+
 mkdir -p "$OUT_DIR"
 "${MAKE[@]}" -j"$JOBS" Image 2>&1 | tee "$OUT_DIR/build.log"
 
