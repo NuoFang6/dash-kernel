@@ -1536,3 +1536,44 @@ CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
 等主要加速器都由 MediaTek 厂商模块提供并已加载；没有发现因内核配置缺失
 而整体不可用的高价值加速器。实验内核相对生产内核新增的硬件加速主要是
 SHA3/SM3/SM4/NH Poly1305/AES-CCM CE。
+
+## 36. CPU 特性与 HWCAP 实机核对（2026-11-22，生产内核）
+
+- 8 个核的 Features 完全相同；MIDR part 为 4×`0xd81`、3×`0xd82`、
+  1×`0xd85`，不存在异构特性差异，`-march=armv9.2-a` 对全部核心一致。
+- userspace HWCAP：`0xefffffff`；HWCAP2：`0x801af3ff`。
+- HWCAP 已置位：FP/ASIMD/EVTSTRM/AES/PMULL/SHA1/SHA2/CRC32/ATOMICS/
+  FPHP/ASIMDHP/CPUID/ASIMDRDM/JSCVT/FCMA/LRCPC/DCPOP/SHA3/SM3/SM4/
+  ASIMDDP/SHA512/SVE/ASIMDFHM/DIT/USCAT/ILRCPC/FLAGM/SB/PACA/PACG；
+  仅 **SSBS** 未置位（硬件 Features 同样没有 ssbs）。
+- HWCAP2 已置位：DCPODP/SVE2/SVEAES/SVEPMULL/SVEBITPERM/SVESHA3/
+  SVESM4/FLAGM2/FRINT/SVEI8MM/SVEBF16/I8MM/BF16/DGH/BTI/ECV/AFP/WFXT。
+- HWCAP2 未置位：RNG、MTE、SME/SME2 系列、CSSC、RPRFM、SVE2P1、
+  MOPS、HBC、EBF16/SVE_EBF16 等。这些与 `/proc/cpuinfo` 的缺失一致，
+  属于硬件不提供，不是内核隐藏。
+- 内核配置：`ARM64_SVE=y`、`ARM64_MTE=y`、`ARM64_PTR_AUTH(_KERNEL)=y`、
+  `ARM64_BTI=y`、`ARM64_USE_LSE_ATOMICS=y`、`ARM64_AMU_EXTN=y`、
+  `ARM64_RAS_EXTN=y`、`ARM_PMUV3=y`、`HW_PERF_EVENTS=y`。
+- 注意：`CONFIG_ARM64_MTE=y` 但 HWCAP2_MTE 未置位，KASAN HW_TAGS 在
+  本机不会激活；`CONFIG_ARM64_BTI_KERNEL` 未开，userspace BTI 可用但内核
+  自身没有 BTI；生产内核有 kernel PAC，实验内核用 `-mbranch-protection=none`
+  主动关闭了 C 代码 PAC（userspace PACA/PACG 不受影响）。
+- 实验内核的 `-march=...+nosve2+nosve` 只影响内核 C codegen；SVE/SVE2
+  对 userspace 仍由 HWCAP 暴露，内核本来也不使用 SVE。
+- 加速/监控：cpufreq `sugov_ext` 活跃；available 最高
+  CPU0 2.4 GHz / CPU4 3.3 GHz / CPU7 3.73 GHz，但当前 policy 上限为
+  1.4/1.9/2.0 GHz（厂商 thermal/power 策略，当前电量 34%），不是内核
+  未启用；cpuidle 6 个状态；PMU event sources 有 `armv8_pmuv3`、
+  `armv9_cortex_a720`、`armv9_cortex_x4`、`arm_dsu_0` 和 SMMU
+  MPAM/PMCG。主线的 `ARM_DSU_PMU`/`ARM_SMMU_V3_PMU` 配置虽为 n，但
+  厂商模块已注册对应 event source，不算缺失。
+- 未启用/不可用：`ARM_SPE_PMU=n` 且硬件无 `spe`；Coresight 只有
+  funnel/TMC/dummy、无 CPU ETM/STM 且 `CONFIG_CORESIGHT=n`；CPU MPAM
+  未见；RNDR 指令未暴露（硬件 RNG 由 CCTRNG/SMCCC TRNG 提供）。
+- 安全侧提示：`spectre_v2` 当前为 “Vulnerable: Unprivileged eBPF enabled”，
+  属内核安全配置，不是性能加速缺失。
+
+结论：**userspace 可见的 CPU 特性与硬件一致，没有发现被内核配置隐藏的
+CPU 加速能力**；内核侧 LSE/CRC/Crypto CE/PMU 均已启用。剩余差异是硬件
+本身没有的 SPE/MTE/SME/CSSC 等，以及有意取舍的 kernel BTI、实验内核
+kernel PAC 和 Coresight。

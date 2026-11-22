@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 13:16:31 +0800
-> 覆盖 22 个源，340316 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-22 13:21:30 +0800
+> 覆盖 22 个源，343108 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -155,7 +155,7 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 8765 | `300591888eb9079e` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 8132 | `5d915db8442c3dda` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 85426 | `f15be059025fb9f2` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 88218 | `ea51bd8baeba93e5` | 当前交付（优先相信） |
 | 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
@@ -752,7 +752,7 @@ pstore/console 日志，内核没有机会执行任何“写 BCB”逻辑。安�
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 85426 字节 · SHA256 `f15be059025fb9f222a14d784bf6dc5ceefebe69ce5e0f67e7f55146e5094baa`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 88218 字节 · SHA256 `ea51bd8baeba93e52098748541a6a8f8aa243f024c34e228763a5ca9df139ab6`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2291,6 +2291,47 @@ CI 入口 `kernel-build` 新增 `perf` 布尔输入；`DASH_PERF=1` 合并
 等主要加速器都由 MediaTek 厂商模块提供并已加载；没有发现因内核配置缺失
 而整体不可用的高价值加速器。实验内核相对生产内核新增的硬件加速主要是
 SHA3/SM3/SM4/NH Poly1305/AES-CCM CE。
+
+### 36. CPU 特性与 HWCAP 实机核对（2026-11-22，生产内核）
+
+- 8 个核的 Features 完全相同；MIDR part 为 4×`0xd81`、3×`0xd82`、
+  1×`0xd85`，不存在异构特性差异，`-march=armv9.2-a` 对全部核心一致。
+- userspace HWCAP：`0xefffffff`；HWCAP2：`0x801af3ff`。
+- HWCAP 已置位：FP/ASIMD/EVTSTRM/AES/PMULL/SHA1/SHA2/CRC32/ATOMICS/
+  FPHP/ASIMDHP/CPUID/ASIMDRDM/JSCVT/FCMA/LRCPC/DCPOP/SHA3/SM3/SM4/
+  ASIMDDP/SHA512/SVE/ASIMDFHM/DIT/USCAT/ILRCPC/FLAGM/SB/PACA/PACG；
+  仅 **SSBS** 未置位（硬件 Features 同样没有 ssbs）。
+- HWCAP2 已置位：DCPODP/SVE2/SVEAES/SVEPMULL/SVEBITPERM/SVESHA3/
+  SVESM4/FLAGM2/FRINT/SVEI8MM/SVEBF16/I8MM/BF16/DGH/BTI/ECV/AFP/WFXT。
+- HWCAP2 未置位：RNG、MTE、SME/SME2 系列、CSSC、RPRFM、SVE2P1、
+  MOPS、HBC、EBF16/SVE_EBF16 等。这些与 `/proc/cpuinfo` 的缺失一致，
+  属于硬件不提供，不是内核隐藏。
+- 内核配置：`ARM64_SVE=y`、`ARM64_MTE=y`、`ARM64_PTR_AUTH(_KERNEL)=y`、
+  `ARM64_BTI=y`、`ARM64_USE_LSE_ATOMICS=y`、`ARM64_AMU_EXTN=y`、
+  `ARM64_RAS_EXTN=y`、`ARM_PMUV3=y`、`HW_PERF_EVENTS=y`。
+- 注意：`CONFIG_ARM64_MTE=y` 但 HWCAP2_MTE 未置位，KASAN HW_TAGS 在
+  本机不会激活；`CONFIG_ARM64_BTI_KERNEL` 未开，userspace BTI 可用但内核
+  自身没有 BTI；生产内核有 kernel PAC，实验内核用 `-mbranch-protection=none`
+  主动关闭了 C 代码 PAC（userspace PACA/PACG 不受影响）。
+- 实验内核的 `-march=...+nosve2+nosve` 只影响内核 C codegen；SVE/SVE2
+  对 userspace 仍由 HWCAP 暴露，内核本来也不使用 SVE。
+- 加速/监控：cpufreq `sugov_ext` 活跃；available 最高
+  CPU0 2.4 GHz / CPU4 3.3 GHz / CPU7 3.73 GHz，但当前 policy 上限为
+  1.4/1.9/2.0 GHz（厂商 thermal/power 策略，当前电量 34%），不是内核
+  未启用；cpuidle 6 个状态；PMU event sources 有 `armv8_pmuv3`、
+  `armv9_cortex_a720`、`armv9_cortex_x4`、`arm_dsu_0` 和 SMMU
+  MPAM/PMCG。主线的 `ARM_DSU_PMU`/`ARM_SMMU_V3_PMU` 配置虽为 n，但
+  厂商模块已注册对应 event source，不算缺失。
+- 未启用/不可用：`ARM_SPE_PMU=n` 且硬件无 `spe`；Coresight 只有
+  funnel/TMC/dummy、无 CPU ETM/STM 且 `CONFIG_CORESIGHT=n`；CPU MPAM
+  未见；RNDR 指令未暴露（硬件 RNG 由 CCTRNG/SMCCC TRNG 提供）。
+- 安全侧提示：`spectre_v2` 当前为 “Vulnerable: Unprivileged eBPF enabled”，
+  属内核安全配置，不是性能加速缺失。
+
+结论：**userspace 可见的 CPU 特性与硬件一致，没有发现被内核配置隐藏的
+CPU 加速能力**；内核侧 LSE/CRC/Crypto CE/PMU 均已启用。剩余差异是硬件
+本身没有的 SPE/MTE/SME/CSSC 等，以及有意取舍的 kernel BTI、实验内核
+kernel PAC 和 Coresight。
 
 ---
 
