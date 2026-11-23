@@ -98,9 +98,15 @@ CONFIG_IP_SET_LIST_SET=y
 CONFIG_RCU_LAZY=y
 # 电源:power-efficient workqueue(workqueue.power_efficient=0 可回退)
 CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y
-# 内存:KFENCE 延迟采样定时器(kfence.deferrable=1 等价;KUnit 自测在该
-# 模式必失败,本仓未开 KUNIT_TEST)
-CONFIG_KFENCE_DEFERRABLE=y
+# 内存/调试加固:2026-11-24 机主要求生产构建关闭这些调试与加固开销
+# (UBSan 检查与 trap、分配清零、KFENCE 采样、freelist 混淆、SLUB debug)。
+# 代价:丢失对应运行期检测/加固;收益:去掉热路径分支与额外的内存初始化。
+# CONFIG_KFENCE is not set
+# CONFIG_UBSAN is not set
+# CONFIG_UBSAN_TRAP is not set
+# CONFIG_INIT_ON_ALLOC_DEFAULT_ON is not set
+# CONFIG_SLAB_FREELIST_HARDENED is not set
+# CONFIG_SLUB_DEBUG is not set
 # NT 同步原语模拟(/dev/ntsync,Wine 系;主线 v6.14 驱动的 6.6 backport)
 CONFIG_NTSYNC=y
 # ADIOS I/O 调度器(EVONIX 同款 6.6 适配;设为默认,附加模块在已是 adios 时跳过)
@@ -138,15 +144,27 @@ CONFIG_DASH_ARM64_TUNE_A720=y
 # ── 2026-11-24 用户请求的运行时能力（仅 configure 验证，未重编） ──
 # Landlock LSM：进程自沙箱；stock 关闭，LANDLOCK 已在 LSM 链首位
 CONFIG_SECURITY_LANDLOCK=y
-# rseq：arm64 HAVE_RSEQ；stock 显式关闭；Wine/Proton 用户态同步受益
-CONFIG_RSEQ=y
-# 大页：HugeTLB 文件系统 + 容器 hugetlb 控制器（THP 已由 stock 以 madvise 启用）
+# rseq：保持关闭。arm64 HAVE_RSEQ 可用，但 CONFIG_RSEQ 会在 task_struct 中
+# 插入 rseq/rseq_len/rseq_sig/rseq_event_mask，并连带打开 CONFIG_SCHED_MM_CID
+# （def_bool y，depends on RSEQ），使 task_struct 4800B→4864B、
+# android_vendor_data1 偏移 3008→3064。MTK 预编译厂商模块（mtk_task /
+# node_cache 等，启动早期即有 __get_mi_task_struct）按 stock 偏移访问 vendor
+# data，偏移漂移会破坏其读写，实测启动花屏后重启（2026-11-24）。
+# CONFIG_RSEQ is not set
+# CONFIG_SCHED_MM_CID is not set
+# 大页：HugeTLB 文件系统（THP 已由 stock 以 madvise 启用）。
+# 注意：CGROUP_HUGETLB 必须保持关闭 —— 每个额外 cgroup 控制器都会改变
+# enum cgroup_subsys_id 的编号（devices 插在 memory 后、hugetlb 在 net_prio
+# 后），原厂 7 个控制器是 cpuset0/cpu1/cpuacct2/io3/memory4/freezer5/net_prio6；
+# 打开后 freezer 5→6、net_prio 6→7，厂商预编译模块用 stock 常量索引
+# task_css(task, freezer_cgrp_id) 内联访问会拿到错误的子系统指针。
 CONFIG_HUGETLBFS=y
-CONFIG_CGROUP_HUGETLB=y
-# Docker/容器补齐：device cgroup（按需启用控制器，无稳态开销）
+# CONFIG_CGROUP_HUGETLB is not set
+# Docker/容器补齐：device cgroup。同样会改变子系统编号（freezer/net_prio
+# 各后移一位），故保持关闭；Docker 设备限制改用宿主机 BPF 方案。
+# CONFIG_CGROUP_DEVICE is not set
 # 注明：不引入 nftables；Docker 使用 iptables-legacy/xtables 路径。
 # VXLAN 仅 Docker overlay 网络使用，未创建接口时零开销。
-CONFIG_CGROUP_DEVICE=y
 CONFIG_VXLAN=y
 # DroidVM：vhost-net 加速（KVM / MTK_GZVM / TUN 已具备）
 CONFIG_VHOST_NET=y

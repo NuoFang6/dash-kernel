@@ -1,6 +1,6 @@
 id=dash_art_tune
 name=内核附加模块
-version=v1.4
-versionCode=5
+version=v1.5
+versionCode=6
 author=NuoFang6
 description=默认启用 BBRv3 + fq、TCP sysctl 调优、ADIOS、ART/CPU/dex2oat 调优；恢复 zram 的 lz4kd 压缩；关闭厂商 WLAN 日志（persist 的 wlan_logs/cnss_diag/tcpdump 开关、通过 bind mount 写入 cnss_diag.conf LOG_PATH_FLAG=0、清理 wlan_logs 并把 tcpdump.pcap0 置为目录）。

@@ -46,9 +46,12 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 > sched-eevdf / bbrv3 / arm64-perf / power-mm / ntsync / adios / bbg /
 > stable-backports），`series` 是唯一应用顺序；文件级拆分（每文件只属于一个
 > 补丁），归属表在 `dash/scripts/split-patches.py`。已在分支 tip
-> `a5c942b8c`（6.6.144-r01）干净树验证 35 个补丁/156 个文件与 SUSFS
-> override 全量重放，零 warning/error；本轮冲突只有 f2fs `super.c` 的挂载
-> 选项（上游新增 `resizable_tail_secno`，与 dash 的 `hybrid` 并存）。
+> `a5c942b8c`（6.6.144-r01）干净树验证补丁全量重放，零 warning/error；
+> 本轮冲突只有 f2fs `super.c` 的挂载选项（上游新增 `resizable_tail_secno`，
+> 与 dash 的 `hybrid` 并存）。2026-11-24 起 `180-stable-backports/
+> 0004-writeback-fixes.patch` 改名为 `.disabled` 且不参与应用（它会把
+> `bdi_writeback` 904→960、`backing_dev_info` 1336→1392，破坏原厂 ABI），
+> 当前实际应用 34 个补丁。
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
@@ -61,6 +64,32 @@ make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.m
 > 针对本次构建明确说“授权跑 Full LTO”才可执行，“产出生产级内核/最终产物”
 > 不等于授权。Full LTO 在 15 GiB 主机上单次链接耗时很长且大量 swap，不作为
 > 常规验证门禁；NoLTO 不改变源码级 genksyms CRC。
+
+### 原厂 task_struct ABI 门禁（2026-11-24 起）
+
+`scripts/check-abi.py` + `configs/abi-baseline.json` 保存从**工厂 boot.img 内嵌
+BTF**直接解析出的原厂 ABI 基线，`build.sh` 在生成 `Image.lz4` 后自动运行：
+`task_struct` 4800B、`android_vendor_data1` 偏移 3008、`android_oem_data1`
+偏移 3520、`cgroup` 1920B、`bdi_writeback` 904B、`backing_dev_info` 1336B
+全部是硬门禁，不匹配即构建失败；`kmem_cache` 是软观察项（关闭
+`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 后会小于原厂 248B，厂商模块只持有
+指针）。
+
+`cgroup` 之所以是硬门禁：每个额外控制器都会改变 `enum cgroup_subsys_id`
+的编号（`CGROUP_DEVICE` 插在 `memory` 后、`CGROUP_HUGETLB` 在 `net_prio`
+后），使 `freezer`/`net_prio` 的 id 后移，厂商模块的
+`task_css(task, freezer_cgrp_id)` 内联访问会拿到错误子系统。
+
+原因：MTK 预编译厂商模块按 stock 偏移直接读写这两个区域。2026-11-24
+`CONFIG_RSEQ=y`（连带 `CONFIG_SCHED_MM_CID`）在 `task_struct` 插入
+rseq/mm_cid 字段，使 `task_struct` 4800→4864、vendor data 3008→3064、
+OEM data 3520→3576；`mi_game.ko` 的 `__get_mi_task_struct` 用硬编码
+`task+0xdc0`(3520) 写 magic、`task+0xdc8` 存指针，偏移漂移后写进内核
+vendor data 尾部，启动即花屏重启（与 MPTCP 同一失败模式）。手动复核：
+
+```bash
+python3 dash/scripts/check-abi.py dash/out/dash/vmlinux
+```
 
 ## AutoFDO profile 优化
 

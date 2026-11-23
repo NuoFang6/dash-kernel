@@ -30,7 +30,9 @@
 160-block-adios/         ADIOS blk-mq 调度器（内建，内核默认）
 170-security-bbg/       Baseband Guard LSM
 180-stable-backports/   EVONIX 已收录的 stable 回移：UDP tunnel 分段 UAF、
-                        IPv6 解析加固、DAMON、writeback/ext4
+                        IPv6 解析加固、DAMON、ext4（writeback 组
+                        0004 因改变 bdi_writeback/backing_dev_info 布局、
+                        破坏原厂 ABI 而改名为 .patch.disabled，不应用）
 susfs-overrides/        SUSFS 子模块文件安装后的 dash 本地覆盖（不进 series）
 ```
 
@@ -76,9 +78,11 @@ series 与映射表一致、每个补丁触碰的文件与映射表一致、与 
 排除清单里。
 
 验证（2026-11-24）：在 `android15-6.6` tip `a5c942b8c`（Merge 6.6.144-r01）
-干净树上完整应用 35 个补丁（156 个唯一归属文件）+ SUSFS 安装后 override，
-零 warning/error；`split-patches.py check` 确认补丁映射与 source-tree squash
-逐字节一致。
+干净树上完整应用 34 个补丁 + SUSFS 安装后 override，零 warning/error。
+（2026-11-24：`180-stable-backports/0004-writeback-fixes.patch` 改名
+`.disabled` 后不再计入；它会让 `bdi_writeback` 904→960、
+`backing_dev_info` 1336→1392，与 `scripts/check-abi.py` 的原厂 ABI 硬门禁
+冲突。）`split-patches.py check` 确认补丁映射与 source-tree squash 一致。
 
 ## 维护约定
 

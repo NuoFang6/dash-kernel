@@ -72,6 +72,12 @@ mkdir -p "$OUT_DIR"
 
 lz4 -l -12 -f "$OUT_DIR/arch/arm64/boot/Image" "$OUT_DIR/arch/arm64/boot/Image.lz4"
 
+# Factory ABI gate.  The stock vendor .ko modules are prebuilt against the
+# stock task_struct, so a config that changes task_struct (e.g. CONFIG_RSEQ
+# adding rseq/mm_cid, which shifted android_vendor_data1 from 3008 to 3064)
+# makes them corrupt memory at boot.  Fail the build instead of flashing it.
+python3 "$DASH_ROOT/scripts/check-abi.py" "$OUT_DIR/vmlinux"
+
 # Only the canonical dash build publishes to the shared artifact directory.
 # Validation variants (DEVICE=features-*) must not mix their Image/config with
 # the current production BUILD_INFO, SHA256SUMS, or boot.img.  A deliberate

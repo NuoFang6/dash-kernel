@@ -343,7 +343,7 @@ index b4ee9a6a5..fa72d81cc 100644
  	for (i = 0; i < NR_PAGE_TYPE; i++)
  		kvfree(sbi->write_io[i]);
 diff --git a/fs/f2fs/sysfs.c b/fs/f2fs/sysfs.c
-index 01bb23888..bfb5b4ec2 100644
+index 01bb23888..a9c42f0f8 100644
 --- a/fs/f2fs/sysfs.c
 +++ b/fs/f2fs/sysfs.c
 @@ -18,6 +18,7 @@
@@ -488,7 +488,29 @@ index 01bb23888..bfb5b4ec2 100644
  static ssize_t dirty_segments_show(struct f2fs_attr *a,
  		struct f2fs_sb_info *sbi, char *buf)
  {
-@@ -1110,6 +1238,31 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
+@@ -788,8 +916,20 @@ static ssize_t __sbi_store(struct f2fs_attr *a,
+ 	}
+ 
+ 	if (!strcmp(a->attr.name, "gc_pin_file_thresh")) {
++		/*
++		 * DASH-EXTM-COMPAT (2026-11-24): vendor ExtM's
++		 * system_perf_init writes -1 (4294967295) here to mean "no
++		 * limit".  6.6.144 fixed the attribute-name typo above, which
++		 * made this range check effective and turned that write into
++		 * -EINVAL; the vendor userspace then falls back from dm-linear
++		 * to loop for zram writeback.  Clamp instead of rejecting to
++		 * keep the 6.6.143/stock behaviour (the value landed in this
++		 * unsigned short as 65535 then).
++		 * REMOVE once Xiaomi/upstream no longer writes an out-of-range
++		 * value here; grep for DASH-EXTM-COMPAT.
++		 */
+ 		if (t > MAX_GC_FAILED_PINNED_FILES)
+-			return -EINVAL;
++			t = MAX_GC_FAILED_PINNED_FILES;
+ 		sbi->gc_pin_file_threshold = t;
+ 		return count;
+ 	}
+@@ -1110,6 +1250,31 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
  #define F2FS_GENERAL_RO_ATTR(name) \
  static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
  
@@ -520,7 +542,7 @@ index 01bb23888..bfb5b4ec2 100644
  #ifdef CONFIG_F2FS_STAT_FS
  #define STAT_INFO_RO_ATTR(name, elname)				\
  	F2FS_RO_ATTR(STAT_INFO, f2fs_stat_info, name, elname)
-@@ -1385,6 +1538,23 @@ static struct attribute *f2fs_attrs[] = {
+@@ -1385,6 +1550,23 @@ static struct attribute *f2fs_attrs[] = {
  #ifdef CONFIG_F2FS_IOSTAT
  	ATTR_LIST(iostat_enable),
  	ATTR_LIST(iostat_period_ms),

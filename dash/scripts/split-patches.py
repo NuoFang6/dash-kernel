@@ -288,12 +288,10 @@ SERIES = [
             "mm/damon/sysfs-schemes.c",
             "mm/damon/vaddr.c",
         ]),
-        ("0004-writeback-fixes.patch", [
-            "fs/fs-writeback.c",
-            "include/linux/backing-dev-defs.h",
-            "include/linux/writeback.h",
-            "mm/backing-dev.c",
-        ]),
+        # 0004-writeback-fixes.patch is kept as .patch.disabled: it grows
+        # struct bdi_writeback (904->960) and struct backing_dev_info
+        # (1336->1392), which breaks the factory ABI gate in
+        # scripts/check-abi.py.  Re-enable only with an ABI-neutral redesign.
         ("0005-ext4-writeback-xarray.patch", [
             "fs/ext4/inode.c",
         ]),

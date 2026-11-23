@@ -1,0 +1,44 @@
+{
+  "_comment": [
+    "Factory ABI baseline for dash (REDMI Turbo 5 Max / MT6991).",
+    "Source: stock boot.img (SHA256 below) pulled from the device; the BTF blob",
+    "was located inside the decompressed arm64 Image (single 0xeb9f BTF header)",
+    "and parsed directly, so these numbers are the factory kernel's own ABI,",
+    "not a rebuild of configs/stock.config.",
+    "'hard' entries break prebuilt vendor .ko modules when they drift: the MTK",
+    "modules (mtk_task / node_cache / scheduler family) address the GKI vendor",
+    "data area by the offset compiled into the stock kernel.",
+    "'soft' entries are reviewed deviations: bdi_writeback / backing_dev_info",
+    "'hard' entries break prebuilt vendor .ko modules when they drift: the MTK",
+    "extra cgroup controller. No stock vendor module references those fields, so",
+    "drift is reported but not fatal.",
+    "cgroup, bdi_writeback and backing_dev_info moved to 'hard' on 2026-11-24: the boot failures were traced to ABI drift (cgroup_subsys_id numbering with CGROUP_DEVICE/CGROUP_HUGETLB, task_struct with CONFIG_RSEQ), so stock parity is now enforced. kmem_cache is 'soft' because the owner-requested hardening-off knobs (SLAB_FREELIST_HARDENED, SLUB_DEBUG) shrink it; vendor modules only hold kmem_cache pointers."
+  ],
+  "factory_boot_img_sha256": "f8f0de691b66b22f45ed102b88416267b327841a4267c88a562788d5f39f2b3c",
+  "factory_btf_sha256": "5cf08b333a9e4e20b15b67e104d815c5b290417f6b02863c27290aaff931f8b2",
+  "hard": {
+    "task_struct": {
+      "size": 4800
+    },
+    "task_struct.android_vendor_data1": {
+      "offset": 3008
+    },
+    "task_struct.android_oem_data1": {
+      "offset": 3520
+    },
+    "cgroup": {
+      "size": 1920
+    },
+    "bdi_writeback": {
+      "size": 904
+    },
+    "backing_dev_info": {
+      "size": 1336
+    }
+  },
+  "soft": {
+    "kmem_cache": {
+      "size": 248
+    }
+  }
+}

@@ -200,6 +200,68 @@
 - **补丁序列**：已按特性拆分为 `patches/<feature>/` 系列（2026-11-21）；
   旧 6.6.118 系列与 6.6.143 整树 squash 归档，不再参与构建。
 
+### 2.10 必须与原厂 ABI 对齐的配置（禁止开启）
+
+2026-11-24 实测：6.6.144 上“花屏后重启、无启动动画”的根因就是配置改坏了
+原厂 ABI。原厂值直接从工厂 `boot.img` 内嵌 BTF 解析（`task_struct` 4800、
+`android_vendor_data1` 3008、`android_oem_data1` 3520、`cgroup` 1920、
+`bdi_writeback` 904、`backing_dev_info` 1336），由
+`scripts/check-abi.py` 在 `build.sh` 末尾硬校验。
+
+- **`CONFIG_RSEQ` 必须关闭。** 它会插入 rseq/rseq_len/rseq_sig/
+  rseq_event_mask，并连带打开 `CONFIG_SCHED_MM_CID`（加 mm_cid/
+  last_mm_cid/mm_cid_active/cid_work），使 `task_struct` 4800→4864、
+  vendor data 3008→3064、OEM data 3520→3576。`mi_game.ko` 的
+  `__get_mi_task_struct` 反汇编里硬编码 `task+0xdc0`(3520) 写 magic、
+  `task+0xdc8` 存指针，漂移后写进内核 vendor data 尾部。
+- **`CONFIG_CGROUP_DEVICE` / `CONFIG_CGROUP_HUGETLB` 必须关闭。** 每多一个
+  控制器都会改变 `enum cgroup_subsys_id`：原厂 7 个为
+  `cpuset0/cpu1/cpuacct2/io3/memory4/freezer5/net_prio6`；`devices` 插在
+  `memory` 后、`hugetlb` 在 `net_prio` 后，使 `freezer` 5→6、
+  `net_prio` 6→7，`cgroup` 1920→1984。厂商预编译模块用 stock 常量做
+  `task_css(task, freezer_cgrp_id)` 内联访问会拿到错误子系统。
+  需要 Docker 设备限制时改用宿主机 BPF 方案，不要打开该控制器。
+- **writeback 回移 0004 暂不启用**：它给 `bdi_writeback` 加
+  `switch_work`/`switch_wbs_ctxs`（904→960，`backing_dev_info`
+  1336→1392），与 ABI 对齐冲突。UDP/IPv6/DAMON/ext4 回移保留。
+- **软观察项 `kmem_cache`**：机主要求关闭 `SLAB_FREELIST_HARDENED` 与
+  `SLUB_DEBUG` 后该结构会从原厂 248 变小；厂商模块只持有 `kmem_cache`
+  指针，门禁只告警。
+- 新增任何 `task_struct` 字段、cgroup 控制器或改变上述结构的配置，都必须
+  先跑 `python3 dash/scripts/check-abi.py <vmlinux>`；需要加字段时只能放进
+  `ANDROID_KABI_RESERVE`/`ANDROID_OEM_DATA` 槽位。
+
+### 2.11 内存扩展（ExtM）的 dm 回写退化为 loop（2026-11-24）
+
+- **现象**：`/sys/block/zram0/backing_dev` 是 `/dev/block/loopNN`，而不是
+  stock/6.6.143 时的 `/dev/block/dm-71`（16 GiB dm-linear）。
+- **机制**：回写设备由厂商用户态 `system_ext/xbin/system_perf_init` 选择。
+  它优先用 FIEMAP 取 `/data/extm/extm_file` 的物理 extent，再以
+  `/dev/block/by-name/userdata` 为底层建 `dm-linear`；失败才回退 loop
+  （二进制内含 `Failed to create dm-linear device for %s, fallback to
+  loop device` / `Failed to set F2FS %s to %u, fallback to loop device`）。
+  dm 路径还会写 `/dev/sys/fs/by-name/userdata/gc_pin_file_thresh = -1`
+  （4294967295，表示不限制）。
+- **根因（已实证）**：6.6.144 上游修正了 `fs/f2fs/sysfs.c` 里
+  `gc_pin_file_threshold` 的拼写错误（属性实际叫 `gc_pin_file_thresh`），
+  使 `t > MAX_GC_FAILED_PINNED_FILES(USHRT_MAX)` 的检查**开始生效**，
+  写入 4294967295 返回 `EINVAL`；`PerfInit` 日志
+  `Failed write to .../gc_pin_file_thresh: Invalid argument` 后按设计回退
+  loop。6.6.143 因拼写不匹配，该分支从未命中，写入落到通用 handler 并被
+  截断为 65535，所以当时 dm-71 可用。
+- **影响**：回写仍工作（走 loop 设备），但多一层 loop-over-F2FS；dm 路径
+  存在的目的就是避开这层。
+- **已采用方案（2026-11-24，已实机验证）**：兼容补丁——`gc_pin_file_thresh`
+  收到超过 `USHRT_MAX` 的值时截断为 `USHRT_MAX`，等价 6.6.143/stock 的
+  可观测行为。刷入后 `backing_dev` 恢复 `/dev/block/dm-71`，写入
+  4294967295 返回成功并截断为 65535。
+  位置：`fs/f2fs/sysfs.c` 对应分支，代码内标记 `DASH-EXTM-COMPAT`，随
+  `patches/060-f2fs-xiaomi/0001-f2fs-xiaomi-features.patch` 一起生成。
+  **移除条件**：若小米用户态修正为不再写超限值（或上游给出其他兼容方案），
+  搜索 `DASH-EXTM-COMPAT` 删除该 hunk，再 `make patches`/`make gen-patches`。
+- 备选：接受 loop 回写；或显式设 `persist.miui.extm.dm_opt.enable=0` 固定走
+  loop。
+
 ## 3. 验证缺口
 
 - **KCFI 运行时**：13/13 静态哈希已校验；完整 hooks 镜像已实机启动且没有出现
@@ -228,18 +290,21 @@
   无填充槽方案），`--cpus`/`--pids-limit` 不可用；
   `NETFILTER_XT_TARGET_REJECT`（nft 变体）在 6.6 无此符号，REJECT 由 legacy
   `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
-- **2026-11-24 运行时能力（未编译/未实机）**：`180-stable-backports`
-  （UDP/IPv6/DAMON/writeback）与 Landlock、RSEQ、HUGETLBFS、CGROUP_DEVICE、
-  VXLAN、VHOST_NET、EVONIX_IO_PRIO 只完成 configure 验证（nftables 与
-  BRIDGE_NETFILTER 按机主要求不引入）；DroidVM（`/dev/kvm` 依赖固件 EL2、`/dev/gzvm` 依赖
-  GenieZone 与 `gzvm.ko`）、Docker、Wine/Proton、Re:Kernel LKM/eBPF 均未
-  实机验证。`CFS_BANDWIDTH`/`CGROUP_PIDS` 仍关闭，Docker
-  `--cpus`/`--pids-limit` 不可用。
-- **节能/开销优化候选（未实施，需机主定安全取舍）**：stock/GKI 仍带
+- **2026-11-24 运行时能力**：保留 `180-stable-backports` 的 UDP/IPv6/DAMON/
+  ext4（writeback 组因 ABI 冲突不应用）、Landlock、HUGETLBFS、VXLAN、
+  VHOST_NET、EVONIX_IO_PRIO；`RSEQ` 与 `CGROUP_DEVICE`/`CGROUP_HUGETLB`
+  因破坏原厂 ABI 已回退（见 §2.10）。NoLTO 修复版已实机启动，生产 Full LTO
+  版本待刷机验证。nftables 与 BRIDGE_NETFILTER 按机主要求不引入。DroidVM
+  （`/dev/kvm` 依赖固件 EL2、`/dev/gzvm` 依赖 GenieZone 与 `gzvm.ko`）、
+  Docker、Wine/Proton、Re:Kernel LKM/eBPF 仍未实机验证。
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 仍关闭，Docker `--cpus`/`--pids-limit`
+  不可用；`CGROUP_DEVICE` 的关闭也意味着 Docker 设备限制需用宿主机 BPF 方案。
+- **调试/加固开销项（2026-11-24 机主要求关闭，已落地）**：stock/GKI 默认带
   `UBSAN`+`UBSAN_TRAP`、`INIT_ON_ALLOC_DEFAULT_ON`、`KFENCE`（500ms 采样）、
-  `SLAB_FREELIST_HARDENED`、`SLUB_DEBUG`、`PM_DEBUG` 等调试/加固项，属于纯
-  开销而非省电功能。DASH_PERF 实验已证明关闭
-  UBSAN/INIT_ON_ALLOC/KFENCE/SLAB_HARDENED 可构建启动；是否作为默认需单独决定。
+  `SLAB_FREELIST_HARDENED`、`SLUB_DEBUG`。这些是纯开销而非省电功能，现在
+  生产构建统一关闭（`features.fragment` + `configure.sh` 强制校验）；代价是
+  失去对应运行期检测与加固，`kmem_cache` 布局随之变小（软观察项）。
+  `PM_DEBUG` 等其余调试项未改动。
   **不要动** Scene/YC 等第三方调度依赖的观测接口：`SCHED_DEBUG`、
   `SCHEDSTATS`、`DEBUG_FS`、`TASKSTATS`/`TASK_IO_ACCOUNTING`、`CPU_FREQ_STAT`、
   `PSI`、`THERMAL`、`UCLAMP`、`ENERGY_MODEL` 保持开启。
@@ -271,9 +336,11 @@ A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活�
       CRC/vermagic 拒绝；记录首屏启动耗时
 - [ ] 638 个 stock 模块清单加载（`hard_missing=0`）；抽查 `node_cache`、
       `os_cpu_qi`、`zsmalloc`
-- [ ] `/proc/config.gz` 核对：`LTO_NONE=y`、`AUTOFDO_CLANG=y`、
-      `DASH_MLGO_REGALLOC=y`、`DASH_ARM64_TUNE_A720=y`、
-      `KFENCE_DEFERRABLE=y`、`RCU_LAZY=y`、`WQ_POWER_EFFICIENT_DEFAULT=y`
+- [ ] `/proc/config.gz` 核对：`LTO_NONE=y`（NoLTO 验证）或
+      `LTO_CLANG_FULL=y`（生产）、`AUTOFDO_CLANG=y`、
+      `DASH_MLGO_REGALLOC=y`、`DASH_ARM64_TUNE_A720=y`、`RCU_LAZY=y`、
+      `WQ_POWER_EFFICIENT_DEFAULT=y`；且 `UBSAN`/`KFENCE`/`SLUB_DEBUG` 等
+      加固项均为 off（2026-11-24 起）
 - [ ] `droidspaces check` 全绿；容器启停；NoMount 挂载正常
 - [ ] 回滚演练：能回刷备份 `boot_b` 并正常开机
 
@@ -295,7 +362,7 @@ A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活�
 - [ ] suspend/resume 10 次正常唤醒（覆盖 MGLRU suspend、alarmtimer、s2idle）
 - [ ] `rcutree.enable_rcu_lazy=0` 回退可用；`workqueue.power_efficient=0`
       回退可用，无 I/O 卡顿
-- [ ] KFENCE 参数 `deferrable=Y` 生效，`dmesg` 无 KFENCE 冲突/自测失败
+- [ ] KFENCE 已关闭：`dmesg` 无 `kfence: initialized` 行（2026-11-24 起）
 - [ ] ADIOS 与 mq-deadline 均能被 `scheduler` 识别；记录顺序/随机 IOPS 与延迟
 - [ ] 待机 8 小时功耗、温升基线（与 stock 对比）
 
