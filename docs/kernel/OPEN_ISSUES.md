@@ -228,6 +228,23 @@
   无填充槽方案），`--cpus`/`--pids-limit` 不可用；
   `NETFILTER_XT_TARGET_REJECT`（nft 变体）在 6.6 无此符号，REJECT 由 legacy
   `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
+- **2026-11-24 运行时能力（未编译/未实机）**：`180-stable-backports`
+  （UDP/IPv6/DAMON/writeback）与 Landlock、RSEQ、HUGETLBFS、CGROUP_DEVICE、
+  VXLAN、VHOST_NET、EVONIX_IO_PRIO 只完成 configure 验证（nftables 与
+  BRIDGE_NETFILTER 按机主要求不引入）；DroidVM（`/dev/kvm` 依赖固件 EL2、`/dev/gzvm` 依赖
+  GenieZone 与 `gzvm.ko`）、Docker、Wine/Proton、Re:Kernel LKM/eBPF 均未
+  实机验证。`CFS_BANDWIDTH`/`CGROUP_PIDS` 仍关闭，Docker
+  `--cpus`/`--pids-limit` 不可用。
+- **节能/开销优化候选（未实施，需机主定安全取舍）**：stock/GKI 仍带
+  `UBSAN`+`UBSAN_TRAP`、`INIT_ON_ALLOC_DEFAULT_ON`、`KFENCE`（500ms 采样）、
+  `SLAB_FREELIST_HARDENED`、`SLUB_DEBUG`、`PM_DEBUG` 等调试/加固项，属于纯
+  开销而非省电功能。DASH_PERF 实验已证明关闭
+  UBSAN/INIT_ON_ALLOC/KFENCE/SLAB_HARDENED 可构建启动；是否作为默认需单独决定。
+  **不要动** Scene/YC 等第三方调度依赖的观测接口：`SCHED_DEBUG`、
+  `SCHEDSTATS`、`DEBUG_FS`、`TASKSTATS`/`TASK_IO_ACCOUNTING`、`CPU_FREQ_STAT`、
+  `PSI`、`THERMAL`、`UCLAMP`、`ENERGY_MODEL` 保持开启。
+  `KASAN/CFI/SCS/STACKPROTECTOR/HARDENED_USERCOPY` 因厂商模块导入运行时
+  符号，不能去除。
 - **性能/功耗与深度 A/B**：未做 stock vs 自编的 zram/node_cache/QoS/启动时延、
   suspend/resume、fsck/power-loss、长时压力。没有这些数据，不能对任何性能收益
   作声明。下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram
@@ -246,7 +263,7 @@ A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活�
 
 **A. 启动与基础兼容（必须全过）**
 
-- [ ] 正常开机到桌面；`uname -a` / `cat /proc/version` 显示 `6.6.143-4k`，
+- [ ] 正常开机到桌面；`uname -a` / `cat /proc/version` 显示 `6.6.144-4k`，
       无 `+` 或 `dirty` 后缀
 - [ ] `getprop ro.boot.slot_suffix` 与写入槽一致；SELinux `Enforcing`；
       `su -c id` 为 root，BakaSU 管理器正常
@@ -374,7 +391,8 @@ A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活�
 
 ## 6. 已完成、不要重复列为缺口
 
-- **LTS/安全**：2026-10-30 已升级到 AOSP `android15-6.6-2026-10_r2`（6.6.143）。
+- **LTS/安全**：2026-11-24 起跟随 AOSP `android15-6.6` 开发分支，基线
+  `a5c942b8c`（Merge `android15-6.6.144_r01`，6.6.144）；本地 NoLTO 构建已验证。
 - **stock core tracepoint**：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
   另含 46 个上游新增（合计 1906）。集成补丁（历史拆分为
   `0007-stock-parity-hooks.patch`）回移了 51 个缺失 hook，其中 44 个同时回移

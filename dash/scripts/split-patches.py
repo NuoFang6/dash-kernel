@@ -61,8 +61,6 @@ SERIES = [
             "kernel/sys.c",
             "mm/memory.c",
             "security/selinux/avc.c",
-            "security/selinux/hooks.c",
-            "security/selinux/selinuxfs.c",
         ]),
     ]),
     ("020-vendor-ko-compat", "厂商 .ko 加载兼容（签名/vermagic/CRC/namespace/GKI 保护导出）", [
@@ -148,11 +146,14 @@ SERIES = [
             "fs/erofs/sysfs.c",
         ]),
     ]),
-    ("080-dash-misc", "dash 维护性独立修复（PID 上限钳制；OpenSSL 4 extract-cert 兼容）", [
+    ("080-dash-misc", "dash 维护性独立修复（PID 上限钳制；OpenSSL 4 extract-cert 兼容；nVHE AutoFDO 关闭）", [
         ("0001-pid-max-limit-clamp.patch", [
             "certs/extract-cert.c",
             "include/linux/threads.h",
             "kernel/pid.c",
+        ]),
+        ("0002-autofdo-nvhe-opt-out.patch", [
+            "arch/arm64/kvm/hyp/nvhe/Makefile.nvhe",
         ]),
     ]),
     ("090-droidspaces", "DroidSpaces 容器支持：SYSVIPC 字段移入 ANDROID_KABI 填充槽（task_struct 偏移不变）", [
@@ -270,6 +271,31 @@ SERIES = [
             "security/baseband-guard/kernel_compat.h",
             "security/baseband-guard/tracing/tracing.c",
             "security/baseband-guard/tracing/tracing.h",
+        ]),
+    ]),
+    ("180-stable-backports", "EVONIX 已收录的 stable 6.6.145–158 回移（UDP tunnel 分段 UAF、IPv6 解析加固、DAMON、writeback/ext4）", [
+        ("0001-net-udp-tunnel-seg-uaf.patch", [
+            "net/ipv4/udp_offload.c",
+        ]),
+        ("0002-net-ipv6-parse-hardening.patch", [
+            "net/core/skbuff.c",
+            "net/ipv6/exthdrs_core.c",
+            "net/ipv6/seg6.c",
+        ]),
+        ("0003-damon-fixes.patch", [
+            "mm/damon/core.c",
+            "mm/damon/core-test.h",
+            "mm/damon/sysfs-schemes.c",
+            "mm/damon/vaddr.c",
+        ]),
+        ("0004-writeback-fixes.patch", [
+            "fs/fs-writeback.c",
+            "include/linux/backing-dev-defs.h",
+            "include/linux/writeback.h",
+            "mm/backing-dev.c",
+        ]),
+        ("0005-ext4-writeback-xarray.patch", [
+            "fs/ext4/inode.c",
         ]),
     ]),
 ]

@@ -1,5 +1,5 @@
 diff --git a/net/unix/af_unix.c b/net/unix/af_unix.c
-index b098dc30e..a3c2ae3cb 100644
+index 905ed3fda..7c023cbc8 100644
 --- a/net/unix/af_unix.c
 +++ b/net/unix/af_unix.c
 @@ -110,6 +110,9 @@
@@ -123,7 +123,7 @@ index b098dc30e..a3c2ae3cb 100644
  	.socketpair =	unix_socketpair,
  	.accept =	unix_accept,
  	.getname =	unix_getname,
-@@ -3363,6 +3446,22 @@ static int unix_seq_show(struct seq_file *seq, void *v)
+@@ -3388,6 +3471,22 @@ static int unix_seq_show(struct seq_file *seq, void *v)
  		struct sock *s = v;
  		struct unix_sock *u = unix_sk(s);
  		unix_state_lock(s);

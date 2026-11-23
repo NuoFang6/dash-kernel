@@ -214,7 +214,7 @@ index 36dcbee94..31dc23f4e 100644
  
  	return READ_ONCE(rnp->exp_tasks) != NULL ||
 diff --git a/kernel/sched/vendor_hooks.c b/kernel/sched/vendor_hooks.c
-index cacaf34de..bf3aead78 100644
+index 73a6ca0a5..a78773062 100644
 --- a/kernel/sched/vendor_hooks.c
 +++ b/kernel/sched/vendor_hooks.c
 @@ -47,8 +47,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_wakeup);
@@ -239,10 +239,10 @@ index 3afca31e2..809e6716d 100644
  }
  EXPORT_SYMBOL(__filemap_get_folio);
 diff --git a/mm/vmscan.c b/mm/vmscan.c
-index bb231a8aa..c36560078 100644
+index dc729540b..a9a5f6db1 100644
 --- a/mm/vmscan.c
 +++ b/mm/vmscan.c
-@@ -1430,6 +1430,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
+@@ -1438,6 +1438,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
  	BUG_ON(mapping != folio_mapping(folio));
  
  	trace_android_vh_remove_mapping(mapping, folio, reclaimed);
@@ -250,7 +250,7 @@ index bb231a8aa..c36560078 100644
  	if (!folio_test_swapcache(folio))
  		spin_lock(&mapping->host->i_lock);
  	xa_lock_irq(&mapping->i_pages);
-@@ -1523,6 +1524,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
+@@ -1531,6 +1532,7 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
  	if (!folio_test_swapcache(folio))
  		spin_unlock(&mapping->host->i_lock);
  	trace_android_vh_remove_mapping_failed(mapping, folio, reclaimed);
@@ -258,7 +258,7 @@ index bb231a8aa..c36560078 100644
  	return 0;
  }
  
-@@ -5592,6 +5594,10 @@ static bool should_abort_scan(struct lruvec *lruvec, struct scan_control *sc)
+@@ -5629,6 +5631,10 @@ static bool should_abort_scan(struct lruvec *lruvec, struct scan_control *sc)
  #ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
  	trace_android_vh_mglru_should_abort_scan(&sc->android_vendor_data1, &bypass);
  #endif

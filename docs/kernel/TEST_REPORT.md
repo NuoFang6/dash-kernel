@@ -1733,3 +1733,123 @@ Release 的安装包统一写全称 `AnyKernel3`（例如
    `AnyKernel3` 全称，模块显示名与说明使用简体中文。
 6. **第三方 bootloop 保护会留下状态**：实验内核非正常重启会让 NoMount 自行
    disable 并改描述；恢复稳定后要清理 `disable` 标记并还原描述。
+
+## 40. 跟随 android15-6.6 分支：6.6.144 重基线 + NoLTO 构建（2026-11-24，构建级）
+
+### 目标与结果
+
+2026-11-24 按要求把仓库从固定发布 tag 改为跟随 AOSP `android15-6.6`
+开发分支，同步全部源码/子模块/工具链，并在新基线上完成 NoLTO 全量构建。
+**未刷机**，未发布 artifacts（产物隔离在 `dash/out/dash/`）。
+
+### 上游版本判定
+
+- `android.googlesource.com` 直连仍不可达；GitLab/GitHub 在该网络下也曾
+  长时间不可用，后恢复。
+- 同一时刻各镜像的分支头不一致，必须比对后取最新：
+  - TUNA `a5c942b8c`（2026-11-23，`Merge tag 'android15-6.6.144_r01'`）→ 采用
+  - USTC `9347319`（2026-11-21）→ 落后
+  - BFSU `9e7deb2`（2026-11-18）→ 更旧
+  - 发布 tag 仍为 `android15-6.6-2026-10_r4`（6.6.143），没有 2026-11 发布
+- `versions.env` 改为 `AOSP_BRANCH=android15-6.6` + `AOSP_COMMIT=a5c942b8c`；
+  `AOSP_UPDATE=1 make source` 刷新 pin，`AOSP_PIN=1` 冻结。镜像顺序改为
+  TUNA → USTC → 上游。
+- AutoFDO profile 随 6.6.144 更新，`ACK_AUTOFDO_PROFILE_SHA256` 改为
+  `2aa4fc6e…`。
+
+### 子模块与工具链
+
+| 组件 | 同步结果 |
+|---|---|
+| BakaSU | `de80463`（main 最新，含 SELinux sid 回归修复） |
+| SUSFS | `f98f082`（官方 GitLab `gki-android15-6.6` 分支头，与 pin 相同） |
+| NoMount | `6849f00`（master 最新，虚拟 backing path 修复） |
+| tcp-brutal | `d2397ff`（master 头，未变） |
+| clang | r614150 版本未变，但同版本目录内容更新：刷新到 `main-kernel`
+  `74fa19d5` 的 tree `9258d46`（build 16836431） |
+
+### 补丁重放与适配
+
+- 30 个补丁在 `a5c942b8c` 上重放；唯一冲突为 `fs/f2fs/super.c`：
+  上游新增挂载选项 `Opt_resizable_tail_secno`，与 dash `Opt_hybrid` 同位置，
+  两者并存解决。
+- **BakaSU 新版链接失败（重要）**：新版把 `my_write_context/my_write_access/
+  my_setprocattr` 改成 static 并改用 `ksu_patch_text` 运行时 auto hook；
+  `susfs_compat.mk` 通过 grep `hooks.c` 里的 `ksu_selinux_hide_running` 判断
+  是否存在“手动 hook”。旧 AOSP 侧集成仍在，触发手动 hook 分支却引用已不存在的
+  符号，`vmlinux` 链接报 undefined。解决：回退我们新增的
+  `security/selinux/hooks.c` / `selinuxfs.c` 改动（保留 `avc.c` 的 SUSFS
+  AVC 日志伪装），让 BakaSU 走 auto hook；映射表同步移除这两个文件，补丁
+  文件数 145→143。
+- **ADIOS 更新**：EVONIX 自调查快照 `3aca65c` 后新增 3 个 ADIOS 修复
+  （starvation recovery、Tier-1 计数并发、pq1 reset 的 `pq_lock`），取
+  `901a0cf` 的 `block/adios.c` 全量替换（diff 仅 5 处，均在 dispatch 路径）。
+- 参考仓库其余检查：WK-P `70c394f`、GKID `ef6c99d` 与快照相同；WK BBRv3
+  15-6.6 补丁最后更新于 2026-06-24；`lakitu12/kernel_dash_droidspaces` 新提交
+  主要是 ACK 2026-10_r3 迁移、CI/docs、trusty-rescue 与资源限制探针关闭，
+  其 hook export 结论与我们现有 decl-only TU 方案一致，无需采纳。
+
+### 构建结果
+
+- `FAST=1`（NoLTO）+ AutoFDO + MLGO + A720 tune，**4m17s**，exit 0，
+  `warning:` 计数 0。
+- 版本 `6.6.144-4k`。
+- `Image` 38,943,232 B，SHA256
+  `589643bf0faf46489528f0ae52d0430334622f8be990adb04fe7bfbeb731c4b0`。
+- `Image.lz4` 18,395,427 B，SHA256
+  `47b2cbcd8a5d41cba4b59d6db9cf30f4bd293da6b157bb8e89c2ba9e934ee046`。
+- `vmlinux` 181,397,160 B；`vmlinux.symvers` 550K、9112 个导出符号。
+- OS4 KCFI：13/13 原型哈希与 stock 一致。
+- 厂商模块静态核对：638 个模块，`hard_missing=0 weak_missing=0`。
+- `.config`：`CONFIG_LTO_NONE=y`、`CONFIG_AUTOFDO_CLANG=y`、
+  `CONFIG_DASH_MLGO_REGALLOC=y`、`CONFIG_DASH_ARM64_TUNE_A720=y`。
+
+### 教训
+
+1. 国内镜像不是同一时刻的快照：跟随移动分支时必须比对多个镜像的 head，
+   并记录 commit；本次 TUNA 比 USTC/BFSU 新 1–5 天。
+2. 分支跟随后 AutoFDO profile 与代码一起变化，profile 哈希必须同步更新，
+   否则 configure 会按设计拒绝构建。
+3. 子模块升级不是“只换 SHA”：BakaSU 移除手动 hook 导出后，AOSP 侧旧调用
+   会造成 vmlinux 链接失败；升级后要按上游 compat 探测逻辑重新确认 hook 归属。
+4. NoLTO 构建快但依赖增量对象；出现链接错误时应先 `grep undefined symbol`
+   定位类别，不要直接全量重编。
+
+### 40.1 同日后补：EVONIX stable 回移与运行时能力（未重编）
+
+- **回移来源**：EVONIX `hyperos/ksu-susfs`（tip `901a0cf`，基于 6.6.144）。
+  逐补丁 `git apply --check` 后按上游时序合并：
+  - UDP：`efef513`（tunnel segmentation UAF）
+  - IPv6：`180b3a5`（`ipv6_find_hdr()` 越界）、`5780267`（`SEG6_ATTR_DST`
+    长度）、`9ff62f1`（`skb_checksum_setup_ipv6()` pull 下溢）
+  - DAMON：`a65fe34/eaf86c5/8b524b6/06a6377/c38ab6f/783936f/bc5352d/79e82f4`
+    （另有 `74d90fa/c0ead64/fa02385` 已被 6.6.144 基线收录）
+  - writeback：`3bfa5fe/5a4d6f3/a5c927f/8384a54/c9c6c96`，ext4
+    writeback `6bebd13`；TLB `b6bb0e7` 已被 6.6.144 基线收录。
+  - 18 个补丁按序全部 clean apply；新增 `180-stable-backports`（5 个补丁、
+    13 个文件），总序列 35 补丁/156 文件，干净重放通过。
+- **KMI 处理**：writeback 组新增 `bdi_writeback.switch_work/switch_wbs_ctxs`。
+  为尽量不移动既有字段，两个字段已从 `offline_node` 后移到既有 union 之后
+  （既有命名字段偏移不变，仍记 KMI 观察项）。
+- **ADIOS IO_PRIO**：补上 EVONIX Kconfig（`config EVONIX_IO_PRIO`，default y）
+  并在 `features.fragment` 设 `=y`；同日按机主要求把 ADIOS、BBR3、fq 设为内核默认（`MQ_IOSCHED_DEFAULT_ADIOS=y`、`CONFIG_DEFAULT_TCP_CONG="bbr3"`、`CONFIG_DEFAULT_NET_SCH="fq"`），附加模块改为检测到已是默认值时跳过。
+- **默认策略**：ADIOS（`MQ_IOSCHED_DEFAULT_ADIOS`）、BBR3
+  （`DEFAULT_TCP_CONG="bbr3"`）、fq（`DEFAULT_NET_SCH="fq"`）、
+  zram lz4kd（`ZRAM_DEF_COMP_LZ4KD`）设为默认；附加模块检测到已生效时跳过。
+  sing-box 的 TUN/TPROXY/mangle/策略路由/BPF/tc/WireGuard 原本具备；
+  **nftables 按机主要求未引入**。
+- **运行时配置**：新增并经 `make config FAST=1` olddefconfig 验证为 `=y`：
+  `SECURITY_LANDLOCK`（ABI v3）、`RSEQ`、`HUGETLBFS`/`CGROUP_HUGETLB`、
+  `CGROUP_DEVICE`、`VXLAN`、`VHOST_NET`。
+  **按机主要求回退**：`NF_TABLES`/`NFT_*` 与 `BRIDGE_NETFILTER` 保持关闭
+  （Docker 仅走 iptables-legacy；sing-box 走 xt/TPROXY 或 TUN）。
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭。
+- **AFDO 核对**：AOSP dev tip `a5c942b8c` 的
+  `android/gki/aarch64/afdo/kernel.afdo` blob 与 afdo 更新提交 `9347319`
+  完全相同（`415d6c49…`），即 6.6.144 最新预制 profile；本地 SHA256
+  `2aa4fc6e…` 已是该文件，无需更换。
+- **Re:Kernel**：官方支持 GKI 6.6.x（LKM 11.5），本内核已具备
+  `MODULES/BTF/BPF_SYSCALL/kprobes/netfilter` 与 vendor-ko-compat，可直接
+  加载其 LKM 或 eBPF 变体；不内建（其初始化/Netlink 服务属于外部模块）。
+- **状态**：以上均**未编译、未刷机**；现有 `out/dash` 产物对应较早的
+  30 补丁配置。

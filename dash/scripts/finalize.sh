@@ -26,7 +26,7 @@ aosp_commit="$(git -C "$AOSP_DIR" rev-parse HEAD)"
 clang_version="$("$TOOLCHAIN_DIR/bin/clang" --version | head -1)"
 
 {
-	printf 'AOSP_TAG=%s\n' "$AOSP_TAG"
+	printf 'AOSP_BRANCH=%s\n' "$AOSP_BRANCH"
 	printf 'AOSP_COMMIT=%s\n' "$aosp_commit"
 	printf 'KERNEL_VERSION=%s\n' "$kernel_version"
 	printf 'KERNEL_RELEASE=%s\n' "$kernel_release"

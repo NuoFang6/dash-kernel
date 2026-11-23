@@ -10,6 +10,13 @@
 - `EVONIX` = [NEESCHAL-3/EVONIX-Kernel](https://github.com/NEESCHAL-3/EVONIX-Kernel)(同域:POCO X7 Pro/Turbo 4 `rodin`/MT6899,HyperOS,GKI 6.6.144,同 root 栈,同款 clang r614150+ThinLTO)
 - 本仓内核树 `dash/src/aosp/common`(android15-6.6 @ e6c23f621,**6.6.143**)
 
+> **2026-11-24 更新**：仓库已改为跟随 `android15-6.6` 分支 tip
+> `a5c942b8c`（6.6.144-r01）；EVONIX ADIOS 已更新到 `901a0cf`，WK-P/GKID
+> 快照无变化。同日新增 `180-stable-backports`（UDP/IPv6/DAMON/writeback）
+> 与运行时配置补充（DroidVM/Wine/Docker/Landlock/大页），详见文末
+> “2026-11-24 运行时能力与 EVONIX 落地盘点”。本文其余调查与决策记录保持
+> 2026-11-21 快照，不逐条重写。
+
 **验证等级**:全部为静态核查(补丁通读 / 代码逐行比对 / changelog 比对),未实测。
 
 ## 使用方式
@@ -50,8 +57,8 @@
 | IPv6_NAT_FIX | ✍️ | 实为 config_data 伪装(藏 config.gz 里的 IP6_NF_NAT)→ R5 | ❌ | **不做**——正常启用无需藏;单条伪装无意义 |
 | force_tcp_nodelay | 👤 | 实为 setsockopt 劫持 → R5 | ❌ | **不做**——吞掉合法 TCP 选项;Go/mihomo 已默认 nodelay |
 | TCP 重传生命周期/urgent data 修复 | 🏷️ | 主线修复;urgent data 已进 stable 6.6.157,重传生命周期仍不在 → R7 | ❌ | **✅ 已落地(未实机)**——重传生命周期 = `tcp: fix use-after-free of retransmit_skb_hint`(fe99bbeee5c5,EVONIX d450c2a2dadf 同源,入 110-net-bbrv3);urgent data 部分仍批次0 |
-| UDP tunnel segmentation UAF 修复 | 🏷️ | 主线内存安全修复;UDP tunnel/GSO 组已进 6.6.151–161(大概率覆盖) → R7 | ❌ | **⏳ 等待 ACK tag**——截至 2026-11-21 最新为 2026-10_r4(6.6.143);按既定规则随 ACK 2026-11+ 基线到货,不手动 backport |
-| IPv6 checksum bounds/ext 扩展头/SR 校验修复 | 🏷️ | 主线解析加固;checksum bounds 已进 6.6.158 → R7;IP6_NF_NAT=y 在用 | ❌ | **⏳ 等待 ACK tag**——同批次0,随 ACK 2026-11+ 到货;当前没有可 bump 的 tag |
+| UDP tunnel segmentation UAF 修复 | 🏷️ | 主线内存安全修复;UDP tunnel/GSO 组已进 6.6.151–161(大概率覆盖) → R7 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24)**——EVONIX `efef513`（udp: fix potential use-after-free in tunnel segmentation），入 `180-stable-backports/0001` |
+| IPv6 checksum bounds/ext 扩展头/SR 校验修复 | 🏷️ | 主线解析加固;checksum bounds 已进 6.6.158 → R7;IP6_NF_NAT=y 在用 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24)**——EVONIX `180b3a5`（ipv6_find_hdr 越界）、`5780267`（SEG6_ATTR_DST 长度）、`9ff62f1`（skb_checksum_setup_ipv6 pull 下溢），入 `180-stable-backports/0002` |
 
 ### 性能 / 调度
 
@@ -86,8 +93,8 @@
 | arm64 per-cpu write 修复 | 🏷️ | 主线 arch/arm64 修复,零 ABI,不在 stable | ❌ | **✅ 已落地(未实机)**——`this_cpu_and` 掩码(44274c657256)+`this_cpu_write` 括号(885bff055a0f) |
 | OPP/EM 解析修复 | 🏷️ | 主线修复;OPP 竞态已进 6.6.160,EM 不在 → R7 | ❌ | **✅ 已落地(未实机)**——`opp: fix memory leak in supply parsing`(f0776d142e53)+`prevent frequency calculation overflow`(dcaa77d10ea1);竞态(932ebfad767b)仍批次0 |
 | MGLRU suspend 可中断 | 🏷️ | 主线修复,不在 stable;MGLRU 已启用 | ❌ | **✅ 已落地(未实机)**——上游 dc37771a43d4(经 ACK b61e79936c0b),memcg fairness guard 前查取消,mm/memcontrol.c+mm/vmscan.c(后者与 030 hooks 交错归 030) |
-| DAMON 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **⏳ 等待 ACK tag**——随 ACK 基线 bump 到货;当前 r4 仍为 6.6.143 |
-| TLB/writeback 修复组(6.6.145 收录) | 🏷️ | stable 官方下发;此前误写含 PSI,复核 6.6.145 changelog 未见 PSI 条目 → R7 | ❌ | **⏳ 等待 ACK tag**——复核过主动 backport 的四提交依赖链与 GKI KMI 适配成本后,机主决定放弃主动移植,继续随 ACK 基线 bump 到货;当前 r4 仍为 6.6.143 |
+| DAMON 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24)**——EVONIX 8 个剩余修复（区间校验/合并边界/sysfs 错误路径等）入 `180-stable-backports/0003`；另有 4 个已由 6.6.144 基线收录 |
+| TLB/writeback 修复组(6.6.145 收录) | 🏷️ | stable 官方下发;此前误写含 PSI,复核 6.6.145 changelog 未见 PSI 条目 → R7 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24,按机主本轮要求)**——TLB `b6bb0e7` 已由 6.6.144 基线收录；writeback 竞态/UAF/list_lock 组与 ext4 writeback 入 `180-stable-backports/0004-0005`。`bdi_writeback` 新字段已移到已有 union 之后以避免移动既有字段偏移，仍标记为 GKI KMI 观察项 |
 
 ### 文件系统 / I/O
 
@@ -96,7 +103,7 @@
 | F2FS GC 50ms / uncongestion 6ms / min_fsync_blocks 20 | ✍️/👤 | 三件套 → R5;OPPO/Huawei 量产同款 | ❌ | **✅ 已落地(未实机)**——gc.h/segment.h 入 130-f2fs-perf,f2fs.h 的 6ms 与 file.c move-range 修复并入 060 文件块;060 回归=构建级通过,运行时待实机 |
 | ext4 commit age 5→30s | ✍️/👤 | Arjan distro tweak → R5 | ❌ | **不做**——rw ext4 少;可用挂载参数 `commit=` 调 |
 | SK_MEM_PACKETS 256→1024 | ✍️ | 即 net.core.wmem/rmem_max 默认 ×4 → R5 | ❌ | **不做**——运行时 sysctl 可调(同 cache pressure 立场) |
-| ADIOS I/O 调度器 | 🏷️ | 独立上游(Masahito Suzuki 2025);EVONIX 用于 UFS 4.0 MCQ 默认 | ❌ | **✅ 已落地(未实机)**——EVONIX 当前 6.6 API 版入 `160-block-adios`,`CONFIG_MQ_IOSCHED_ADIOS=y`;保持非默认,刷入后再与 mq-deadline A/B |
+| ADIOS I/O 调度器 | 🏷️ | 独立上游(Masahito Suzuki 2025);EVONIX 用于 UFS 4.0 MCQ 默认 | ❌ | **✅ 已落地(未实机)**——EVONIX `901a0cf` 版入 `160-block-adios`，`CONFIG_MQ_IOSCHED_ADIOS=y` + `CONFIG_EVONIX_IO_PRIO=y`（前台同步读保护，上游 default y）；并设为默认（`MQ_IOSCHED_DEFAULT_ADIOS=y`）；刷入后仍可手动与 mq-deadline A/B |
 | zRAM LZ4 回写 / mq-deadline / schedutil | 🔧 | stock | ✅ 超集 | —(lz4kd+ExtM 实跑) |
 | ext4 orphan 泄漏/DIO fallback 修复 | 🏷️ | 主线修复;orphan 已进 6.6.157 → R7 | ❌ | **⛔ orphan 部分批次0;DIO fallback 无已合并主线修复(2026-09 RFC 仅 atomic write,6.6 无该路径)且 EVONIX 亦未实装——无对象,不再追** |
 | F2FS move-range 校验/writeback 报错修复 | 🏷️ | 主线修复,不在 stable;HyperOS 文件管理走 move-range | ❌ | **✅ 已落地(未实机)**——`f2fs: reject overlapping move range after len expansion`(28c1ef094e7c,fs/f2fs/file.c 归 060) |
@@ -183,7 +190,7 @@
 - **批次 3:中型 backport/移植(全部落地,除注明的两项)**:
   BBRv3(WK android15-6.6 KABI 版 → 110-net-bbrv3)、PREEMPT_SHORT
   (85e511df3cec 适配)、ADIOS(EVONIX HEAD 版 → 160-block-adios,
-  非默认)、uclamp DVFS 通知(EVONIX cf8010f36cdb)、misfit ×2
+  并设为默认)、uclamp DVFS 通知(EVONIX cf8010f36cdb)、misfit ×2
   (58eeb2d79b54+0fbd428d0788)、RT push-IPI(dd29c017aed6)、timer slack
   (e8bbcc00760d+lore 继承修正,rt_or_dl_task_policy 以 6.6 policy 检查
   等价替换)、arm64 per-cpu write(44274c657256+885bff055a0f)、
@@ -426,8 +433,9 @@ A/B 证明,不把全内核切到 O3,避免镜像/I-cache 膨胀和早期启动/B
 同域(MT6899 vs MT6991,HyperOS MTK 4K GKI 6.6,同 root 栈)。除已列行项外:
 
 - **EVONIX rodin 自研**(`CONFIG_EVONIX_*`:增强 schedutil/动态 headroom/UI
-  线程识别/SCHED_RESPONSIVE/MM_ADAPTIVE/IO_PRIO/PM_WQ 等):设备专属调参,
-  动调度与 VM 行为 → **不做**。
+  线程识别/SCHED_RESPONSIVE/MM_ADAPTIVE/PM_WQ 等):设备专属调参,
+  动调度与 VM 行为 → **不做**。`IO_PRIO` 于 2026-11-24 按机主要求单独启用
+  （仅 ADIOS 前台同步读保护；ADIOS 已设为默认）。
 - 其 NoMount(fs/nomount 内建)与我们选型一致;BakaSU SELinux 桥
   (`ksu_security_context_to_sid`)我们 pin 已含——**无缺口**。
 - **MTE 分歧**:EVONIX 关 MTE 规避 Dimensity 8400 vendor 冲突;我们 stock
@@ -648,3 +656,73 @@ android"/"gki kernel",star 排序)结论:**除已调查的 WildKernels/GKID/EVON
   6.6 树无对应代码路径,不适用;schedutil 限流溢出已进 stable 6.6.157,
   按批次 0 等待 ACK。
 - Full LTO 未运行;按 `AGENTS.md` 需机主单次授权。
+
+## 2026-11-24 运行时能力与 EVONIX 落地盘点
+
+> 本节记录本轮 `180-stable-backports`（35 补丁/156 文件）与运行时配置补充。
+> **只做了 configure 验证，未重编、未刷机**；行为级结论仍以真机为准。
+
+### EVONIX 已合并 / 默认启用
+
+| 方向 | 内容 | 来源 / 落点 | 默认状态 |
+|---|---|---|---|
+| 块 I/O | ADIOS 调度器（含 901a0cf 三个并发/饥饿修复） | `160-block-adios` | 内建且**默认** |
+| 块 I/O | `CONFIG_EVONIX_IO_PRIO`（前台同步读 tier-1 保护） | `160` + features.fragment | **y**（仅 ADIOS 生效） |
+| 容器 | DroidSpaces kABI padding + 官方 GKI 配置 | `090-droidspaces` | y |
+| 安全 | Baseband Guard LSM | `170-security-bbg` | y |
+| 调度 | uclamp DVFS 通知、misfit×2、schedutil policy init、RT timer slack | `100` / `140` | y |
+| 电源/MM | MGLRU suspend/memcontrol、swap readahead、OPP/EM 解析 | `140` | y |
+| 安全/正确性 | TCP 重传 UAF、UDP tunnel 分段 UAF、IPv6 解析加固 | `110` / `180` | y |
+| MM | DAMON 修复组、TLB 单条（基线已有）、writeback 竞态/UAF、ext4 writeback | `180` | y |
+| 兼容 | arm64 per-cpu/percpu 修复 | `120` | y |
+
+### EVONIX 未启用（有意）
+
+| 内容 | 原因 |
+|---|---|
+| EVONIX 增强 schedutil / governor enforce / 动态 headroom / UI 线程识别 / SCHED_RESPONSIVE | 设备专属调参，改默认调度行为，与 MTK EAS/HyperOS 策略冲突 |
+| `CONFIG_EVONIX_MM_OPTIMIZE`（watermark boost 抑制）、自适应内存回收、UI responsiveness engine | 改内存/回收策略，收益未验证，回归风险高 |
+| trusty-rescue + `kvm-arm.mode=nvhe` | 仅 Trusty/gz 被擦除时需要；本机 gz 在位 |
+| EVONIX inline-144 BBRv3 | 破坏 GKI KCSK `icsk_ca_priv`，采用 WK android15-6.6 KABI 版 |
+| EVONIX SELinux 手动 hook | 新 BakaSU 已改为 `ksu_patch_text` auto hook，手动 hook 已移除 |
+
+### 新增运行时能力（configure 级）
+
+| 需求 | 结论 | 配置 |
+|---|---|---|
+| DroidVM | 支持：MTK GenieZone + KVM 两条后端；`gzvm.ko` 在 stock manifest 中；TUN/bridge/veth/NAT 齐备。新增 vhost-net 加速 | `CONFIG_MTK_GZVM=m`（已有）、`CONFIG_KVM=y`（已有）、`CONFIG_VHOST_NET=y`（新增） |
+| Wine / Proton | 支持：NTSYNC、FUTEX(+PI)、COMPAT、USERFAULTFD、memfd、FUSE、BINFMT_MISC、SECCOMP、IO_URING 均在；补 rseq | `CONFIG_RSEQ=y`（新增） |
+| Docker / 容器 | 基本齐备；新增 device cgroup、VXLAN。**按机主要求不引入 nftables/BRIDGE_NETFILTER**，Docker 走 iptables-legacy/xtables | `CGROUP_DEVICE`、`VXLAN` 均 y；`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭 |
+| Docker 限制 | 硬规则关闭：`CFS_BANDWIDTH`、`CGROUP_PIDS` → `--cpus`/`--pids-limit` 不可用；`CHECKPOINT_RESTORE` 未开。未引入 nftables → 只能用 iptables-legacy/xtables（iptables-nft 用户态不可用）；未开 BRIDGE_NETFILTER → L2 桥接过滤受限 | — |
+| 网络默认 | BBR3 拥塞控制 + fq 队列设为内核默认；附加模块检测到已生效时跳过，并写入 4 个 TCP sysctl | `DEFAULT_BBR3=y`、`NET_SCH_DEFAULT=y`、`DEFAULT_FQ=y`（新增） |
+| Landlock | 启用；LSM 链首，ABI v3（6.6 上限） | `CONFIG_SECURITY_LANDLOCK=y`（新增） |
+| 内存大页 | THP 原有（madvise）；新增 HugeTLB + 容器 hugetlb 控制器 | `HUGETLBFS=y`、`CGROUP_HUGETLB=y`（新增）；使用需 `nr_hugepages`/`hugetlb` mount |
+| sing-box | 内核侧满足 TUN、xt TPROXY/socket/mark、IP/IPv6 mangle、策略路由、WireGuard、BPF/tc、netns。**nftables 未启用**：auto-redirect 需走 iptables/TPROXY 路径或直接用 TUN 模式；sing-box 通过 netlink 下发规则，本身不需要 `nft` 二进制 | 无新增 nft 项；xt/TPROXY 链路原本已具备 |
+| zram 默认 | 内核自建 zram.ko 默认压缩改为 lz4kd；实机 vendor zram 仍由附加模块恢复 | `ZRAM_DEF_COMP_LZ4KD=y`（新增） |
+| 第三方调度 Scene / YC | 支持其观测/调参接口：`SCHED_DEBUG`（`/proc/sched_debug`、sched 可调项）、`SCHEDSTATS`（`/proc/schedstat`）、`DEBUG_FS`、taskstats/IO accounting、`CPU_FREQ_STAT`、`PSI`、thermal、uclamp/energy model/schedutil；`SCHED_AUTOGROUP` 保持 Android 默认关闭 | 现有配置均 `=y`，不作为优化裁剪项 |
+| Re:Kernel | 官方支持 GKI 6.6.x（LKM 11.5）；本内核有 MODULES、BTF、BPF、kprobes、netfilter，可加载其 LKM 或 eBPF 变体。**不内建**（它自带 netlink/tombstone 初始化，官方路径是外部模块） | 无需内核改动 |
+
+### 开销评估（本轮新增开关）
+
+- nftables 与 `BRIDGE_NETFILTER`：按机主要求**不引入**，因此没有这两项的
+  规则/桥接热路径开销；代价是 Docker 只能用 iptables-legacy，nft 规则不可用。
+- `CGROUP_DEVICE`/`CGROUP_HUGETLB`：控制器只在对应 cgroup 启用时生效，普通应用零开销。
+- `VXLAN`/`VHOST_NET`：未创建 VXLAN 接口/未运行 VM 时零开销。
+- `Landlock`/`RSEQ`：Landlock 无策略时走空快速路径；RSEQ 反而减少 `getcpu` 系统调用。
+- `HUGETLBFS`：未配置 hugetlb 池时零开销；池会预留内存。
+
+### nftables 决策（2026-11-24：不引入）
+
+- 机主明确不引入 nftables，`NF_TABLES`/`NFT_*` 保持关闭；同时回退
+  `BRIDGE_NETFILTER`，避免桥接热路径开销。
+- 内核本身可同时存在 xtables 与 nf_tables，不存在兼容性崩溃；如果将来重新
+  启用，风险是规则语义冲突（重复 NAT/redirect/DNS hijack、hook priority 叠加），
+  应使用独立 table/chain。
+- Android 通常不带 `nft` 二进制；sing-box 使用 netlink 库，不需要 CLI；但在
+  当前无 nf_tables 的内核上只能走 iptables/TPROXY 或 TUN 模式。
+
+### 待真机确认
+
+- `/dev/kvm` 是否存在取决于固件是否在 EL2 启动（KVM 已内建）；`/dev/gzvm` 取决于 GenieZone 固件与 `gzvm.ko` 加载。
+- DroidVM、Docker、Wine/Proton、Re:Kernel 均**未实机验证**；本轮产物也早于这些回移/配置（未重编）。
+- `bdi_writeback` 新增字段已移到既有 union 之后以减少字段偏移变化，但仍是 GKI KMI 观察项。

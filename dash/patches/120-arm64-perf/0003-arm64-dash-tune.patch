@@ -1,8 +1,8 @@
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index df260dbab..6a830fe2b 100644
+index 4f1b9b1ff..81195d6dd 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -2441,6 +2441,71 @@ source "drivers/cpufreq/Kconfig"
+@@ -2442,6 +2442,71 @@ source "drivers/cpufreq/Kconfig"
  
  endmenu # "CPU Power Management"
  

@@ -1,8 +1,8 @@
 diff --git a/block/Kconfig.iosched b/block/Kconfig.iosched
-index 27f11320b..e98585dd8 100644
+index 27f11320b..a33d18d62 100644
 --- a/block/Kconfig.iosched
 +++ b/block/Kconfig.iosched
-@@ -16,6 +16,20 @@ config MQ_IOSCHED_KYBER
+@@ -16,6 +16,30 @@ config MQ_IOSCHED_KYBER
  	  synchronous writes, it will self-tune queue depths to achieve that
  	  goal.
  
@@ -19,6 +19,16 @@ index 27f11320b..e98585dd8 100644
 +	default n
 +	help
 +	  Enable the ADIOS I/O scheduler as the default scheduler for MQ I/O.
++
++config EVONIX_IO_PRIO
++	bool "EVONIX Foreground I/O Latency Guard for ADIOS"
++	depends on MQ_IOSCHED_ADIOS
++	default y
++	help
++	  Enables expedited dispatch of foreground synchronous reads in the
++	  ADIOS I/O scheduler via priority tier-1. Protects interactive UI frame
++	  loads and app startup from writeback stall latency under heavy UFS
++	  I/O queue depth.
 +
  config IOSCHED_BFQ
  	tristate "BFQ I/O scheduler"
@@ -37,10 +47,10 @@ index 46ada9dc8..2fd10afba 100644
  
 diff --git a/block/adios.c b/block/adios.c
 new file mode 100644
-index 000000000..203075de8
+index 000000000..8b9966513
 --- /dev/null
 +++ b/block/adios.c
-@@ -0,0 +1,2064 @@
+@@ -0,0 +1,2100 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Adaptive Deadline I/O Scheduler (ADIOS)
@@ -1336,8 +1346,23 @@ index 000000000..203075de8
 +	return NULL;
 +}
 +
++#ifdef CONFIG_EVONIX_IO_PRIO
++/*
++ * Reset Tier-1 dispatch count under pq_lock when a normal (BQ) request is dispatched.
++ * Unconditionally holding pq_lock serializes counter reset with concurrent PQ dispatches
++ * across multiple hardware contexts (UFS MCQ), eliminating race windows and guaranteeing
++ * strict linearization of anti-starvation quota tracking.
++ */
++static inline void adios_reset_pq1_dispatch_count(struct adios_data *ad) {
++	guard(spinlock_irqsave)(&ad->pq_lock);
++	ad->pq1_dispatch_count = 0;
++}
++#else
++static inline void adios_reset_pq1_dispatch_count(struct adios_data *ad) {}
++#endif
++
 +// Dispatch a request from the priority queue
-+static struct request *dispatch_from_pq(struct adios_data *ad) {
++static struct request *dispatch_from_pq(struct adios_data *ad, bool force) {
 +	struct request *rq = NULL;
 +	u32 pq_state;
 +
@@ -1353,12 +1378,17 @@ index 000000000..203075de8
 +	 * for >= 8 consecutive requests, only Tier-1 is pending (Tier-0 emergency head
 +	 * requests are strictly exempt), and normal queues (batch queue / deadline tree)
 +	 * have pending work, yield to prevent normal I/O starvation.
++	 *
++	 * When force is true (fallback recovery when BQ could not produce a request),
++	 * bypass the yield to guarantee forward progress and prevent queue stalls.
 +	 */
-+	if (READ_ONCE(ad->pq1_dispatch_count) >= 8 && !(pq_state & 1)) {
++	if (!force && READ_ONCE(ad->pq1_dispatch_count) >= 8 && !(pq_state & 1)) {
 +		u32 state = get_adios_state(ad);
 +		if (state & ((3U << ADIOS_STATE_BQ) | (3U << ADIOS_STATE_DL)))
 +			return NULL;
 +	}
++#else
++	(void)force;
 +#endif
 +
 +	guard(spinlock_irqsave)(&ad->pq_lock);
@@ -1368,7 +1398,7 @@ index 000000000..203075de8
 +
 +	u8  pq_idx = !(pq_state & 1);
 +#ifdef CONFIG_EVONIX_IO_PRIO
-+	if (pq_idx == 1 && ad->pq1_dispatch_count >= 8) {
++	if (!force && pq_idx == 1 && ad->pq1_dispatch_count >= 8) {
 +		u32 state = get_adios_state(ad);
 +		if (state & ((3U << ADIOS_STATE_BQ) | (3U << ADIOS_STATE_DL)))
 +			return NULL;
@@ -1387,10 +1417,14 @@ index 000000000..203075de8
 +	}
 +
 +#ifdef CONFIG_EVONIX_IO_PRIO
-+	if (pq_idx == 1)
-+		ad->pq1_dispatch_count++;
-+	else
++	if (pq_idx == 1) {
++		if (list_empty(q))
++			ad->pq1_dispatch_count = 0;
++		else if (ad->pq1_dispatch_count < 8)
++			ad->pq1_dispatch_count++;
++	} else {
 +		ad->pq1_dispatch_count = 0;
++	}
 +#endif
 +
 +	return rq;
@@ -1402,17 +1436,29 @@ index 000000000..203075de8
 +	struct adios_data *ad = hctx->queue->elevator->elevator_data;
 +	struct request *rq;
 +
-+	rq = dispatch_from_pq(ad);
++	rq = dispatch_from_pq(ad, false);
 +	if (rq)
 +		goto found;
 +
 +	rq = dispatch_from_bq(ad);
 +	if (rq) {
-+#ifdef CONFIG_EVONIX_IO_PRIO
-+		ad->pq1_dispatch_count = 0;
-+#endif
++		adios_reset_pq1_dispatch_count(ad);
 +		goto found;
 +	}
++
++#ifdef CONFIG_EVONIX_IO_PRIO
++	/*
++	 * Fallback recovery: if dispatch_from_pq yielded due to anti-starvation quota
++	 * (ad->pq1_dispatch_count >= 8) but dispatch_from_bq was unable to produce a
++	 * request (e.g. ongoing batch completion or empty BQ page), force dispatch
++	 * from PQ under pq_lock to maintain forward progress and prevent queue stalling.
++	 */
++	if (READ_ONCE(ad->pq1_dispatch_count) >= 8) {
++		rq = dispatch_from_pq(ad, true);
++		if (rq)
++			goto found;
++	}
++#endif
 +
 +	return NULL;
 +found:

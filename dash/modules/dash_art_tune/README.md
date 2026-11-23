@@ -4,9 +4,13 @@ KernelSU/Magisk module for dash (REDMI Turbo 5 Max, MT6991, 16GB).
 
 ## What it changes
 
-- TCP: `bbr3` + `fq_codel`; re-applied after boot.
-- ADIOS: switch `sdc` (primary UFS) when the scheduler offers `adios`;
-  otherwise log and leave the current scheduler.
+- TCP: kernel defaults are already `bbr3` + `fq`; the module only enforces
+  them when running values differ (idempotent), and applies:
+  `tcp_mtu_probing=1`, `tcp_ecn=1`, `tcp_slow_start_after_idle=0`,
+  `tcp_notsent_lowat=16384`.
+- ADIOS: kernel now defaults to ADIOS; the module only switches `sdc` when
+  the scheduler offers `adios` and is not already selected (idempotent), and
+  leaves the current scheduler otherwise.
 - CPU/ISA and dex2oat (values chosen from AOSP `AndroidRuntime.cpp` and
   `art/runtime/arch/arm64/instruction_set_features_arm64.cc`):
   - `dalvik.vm.isa.arm64.features=runtime` (hwcap auto-detect:
@@ -18,9 +22,10 @@ KernelSU/Magisk module for dash (REDMI Turbo 5 Max, MT6991, 16GB).
   - `dalvik.vm.dex2oat-threads=8`, `dex2oat-cpu-set=0-7`
   - boot: 8 threads on cpu0-7; background: 4 threads on cpu0-3
 - Heap/GC properties are intentionally untouched.
-- zram: vendor init writes `lz4` to `zram0/comp_algorithm`; when Scene is
-  not managing zram (`/data/swap_config.conf` absent or `zram=false`),
-  restore the previous `lz4kd` selection after boot (reset the device,
+- zram: built-in kernel zram now defaults to `lz4kd`; the running vendor
+  zram.ko still gets `lz4` from vendor init, so when Scene is not managing
+  zram (`/data/swap_config.conf` absent or `zram=false`), restore the previous
+  `lz4kd` selection after boot (reset the device,
   preserve `backing_dev`/writeback limit and disksize, re-create swap).
 - Vendor WLAN diagnostics/logging off:
   - persistent props `persist.vendor.performance.disable.wlan_logs=true`,

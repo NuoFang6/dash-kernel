@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-22 16:38:09 +0800
-> 覆盖 22 个源，353020 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-24 02:37:23 +0800
+> 覆盖 22 个源，364728 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -68,29 +68,49 @@
 
 ```text
 AOSP_REPO=https://android.googlesource.com/kernel/common
+# Mainland-China mirror of the same googlesource repo.  Tried before the
+# upstream when fetching; set AOSP_MIRROR_URL= to disable.
+# TUNA and BFSU are reachable and TUNA tracks googlesource most closely;
+# USTC is the fallback when TUNA is unavailable.
+AOSP_MIRROR_URL="${AOSP_MIRROR_URL-https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/kernel/common.git}"
+AOSP_MIRROR_URL_FALLBACK="${AOSP_MIRROR_URL_FALLBACK-https://mirrors.ustc.edu.cn/aosp/kernel/common}"
+# 2026-11-24: the project now follows the moving android15-6.6 development
+# branch instead of the frozen android15-6.6-2026-10_r4 release tag.
+# AOSP_COMMIT is the branch tip captured by the last sync (reproducible pin);
+# refresh it with: AOSP_UPDATE=1 make source
+# (AOSP_PIN=1 forces the pinned commit even when AOSP_UPDATE=1).
 AOSP_BRANCH=android15-6.6
-AOSP_TAG=android15-6.6-2026-10_r4
-AOSP_COMMIT=e6c23f621ca6e839abdeca58957bbc529536cff1
+AOSP_COMMIT=a5c942b8c5be461264ec25e7893e53fda4144a3a
 
 CLANG_PREBUILT_REPO=https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86
+# Same repo on the USTC AOSP mirror; used first when the toolchain has to be
+# cloned.  Set CLANG_PREBUILT_MIRROR_URL= to disable.
+CLANG_PREBUILT_MIRROR_URL="${CLANG_PREBUILT_MIRROR_URL-https://mirrors.tuna.tsinghua.edu.cn/git/AOSP/platform/prebuilts/clang/host/linux-x86.git}"
+CLANG_PREBUILT_MIRROR_URL_FALLBACK="${CLANG_PREBUILT_MIRROR_URL_FALLBACK-https://mirrors.ustc.edu.cn/aosp/platform/prebuilts/clang/host/linux-x86}"
 CLANG_PREBUILT_BRANCH=main-kernel
 CLANG_VERSION=r614150
-ACK_AUTOFDO_PROFILE_SHA256=b27ba364e664c5d83daae4cece90dffe95b6388bc2c214c2b2e1a5f35b0654b2
+# Updated with the 6.6.144 profile carried by the android15-6.6 branch tip.
+ACK_AUTOFDO_PROFILE_SHA256=2aa4fc6ef2ff1b886e646ed29fb53a524b77b9ed74ff862bed880a1832ff7d3f
 
+# Submodules follow their upstream main/master heads at the last sync.
 BAKASU_DIR=../BakaSU
-BAKASU_COMMIT=7b65bde0710b5e7c6f755545cb15a4abd417f3a8
+BAKASU_BRANCH=main
+BAKASU_COMMIT=de80463b1a177d149ca90d4c621ac22f791c22d5
 
 SUSFS_DIR=../third_party/susfs4ksu
 SUSFS_REPO=https://gitlab.com/simonpunk/susfs4ksu.git
 SUSFS_BRANCH=gki-android15-6.6
+# GitLab is unreachable from the mainland host and has no working mirror; keep
+# the last verified upstream pin until it can be refreshed.
 SUSFS_COMMIT=f98f08223bbf469cc0a1542166383d253557fc32
 
 NOMOUNT_DIR=../third_party/nomount
 NOMOUNT_REPO=https://github.com/maxsteeel/nomount.git
-NOMOUNT_TAG=v2.3.1
-NOMOUNT_COMMIT=dcd77d03e9912f397a586d7da81694d1628f170e
+NOMOUNT_BRANCH=master
+NOMOUNT_COMMIT=6849f00a342b80338fb4398765f75f014dbcd557
 
 TCP_BRUTAL_DIR=../third_party/tcp-brutal
+TCP_BRUTAL_BRANCH=master
 TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
 ```
 
@@ -152,18 +172,18 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 9649 | `5a86b586e93d31ae` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17648 | `46068b7696ec7709` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 12251 | `c6dddee5886e2300` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 17895 | `e923271e8a2db409` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 96111 | `d4206abb5217f962` | 当前交付（优先相信） |
-| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 27492 | `a94b881d3c32cec0` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 103469 | `0d615fb80d9b69a3` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 28879 | `f12f1205a258af13` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 12876 | `d8457634d960321e` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
 | 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12236 | `9ea863d66a8b6589` | 当前交付（优先相信） |
 | 09 | 当前交付 | UFS/hybrid/fastdiscard 缺口证据与安全边界 | [`docs/kernel/UFS_HYBRID_EVIDENCE.md`](UFS_HYBRID_EVIDENCE.md) | 5569 | `40b17b16dee1d3a2` | 当前交付（优先相信） |
 | 10 | 当前交付 | node_cache 源码评估与 stock 6.6.118 二进制差异 | [`docs/kernel/NODE_CACHE_SOURCE.md`](NODE_CACHE_SOURCE.md) | 17045 | `2afc71c0117a4772` | 用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。 |
 | 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 20482 | `66cf8b49cf3b40a8` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
-| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 13874 | `653111d39ebd08fb` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
+| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 13988 | `189e92ebab962f40` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
 | 15 | 需求 | 交接任务书与验收标准（历史输入） | [`docs/handoff/TASK_BRIEF.md`](../handoff/TASK_BRIEF.md) | 12697 | `6cc641eb2f82e514` | 任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。 |
@@ -182,13 +202,13 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 9649 字节 · SHA256 `5a86b586e93d31ae8549d29407cc20e100100c8d17e09ba98fcc2a5cb754e96a`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 12251 字节 · SHA256 `c6dddee5886e2300ca72f85927958c8b5cfe5e5817c333cdd9f24fa51d330891`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
 > 只链接到这里，不再复制版本号、哈希、模块数和验证结论。
 >
-> 最后核对：2026-11-22。刷新方法见文末。
+> 最后核对：2026-11-24。刷新方法见文末。
 
 ### 1. 版本与产物
 
@@ -197,8 +217,10 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
 | 当前内核 | `6.6.143-4k #1`（生产 DASH_PERF 标准 Full LTO，2026-11-22 08:18 UTC，CI run 45000486463）；生产 Full LTO `#1`（2026-11-21 16:44，run 44923883114）镜像已备份。`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
-| AOSP 基线 | `android15-6.6-2026-10_r4` / `e6c23f621ca6e839abdeca58957bbc529536cff1`（r2→r4 更新） |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
+| AOSP 基线 | `android15-6.6` 开发分支，tip `a5c942b8c5be461264ec25e7893e53fda4144a3a`（2026-11-23，Merge `android15-6.6.144_r01`，6.6.144）；2026-11-24 起不再固定发布 tag |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1，2026-11-24 刷新到 `main-kernel` 最新同版本快照（build 16836431，tree `9258d46`）；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
+| 本地 NoLTO 构建（2026-11-24） | 新基线 `a5c942b8c` + clang 最新快照，`FAST=1` 构建 exit 0，零 warning；`Image` 38,943,232 B（SHA256 `589643bf…`）/ `Image.lz4` 18,395,427 B（`47b2cbcd…`）；版本 `6.6.144-4k`；KCFI 13/13、638 模块 `hard_missing=0 weak_missing=0`；**未刷机**，产物隔离在 `dash/out/dash/`。该产物早于随后合入的 `180-stable-backports` 与运行时配置补充，**未重编** |
+| 运行时能力（configure 级，2026-11-24） | Landlock（ABI v3）、RSEQ、HUGETLBFS+CGROUP_HUGETLB、CGROUP_DEVICE、VXLAN、VHOST_NET、EVONIX_IO_PRIO 均已在 `.config` 中 `=y`；**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq（`MQ_IOSCHED_DEFAULT_ADIOS`、`DEFAULT_TCP_CONG="bbr3"`、`DEFAULT_NET_SCH="fq"`）已验证；DroidVM（`MTK_GZVM=m`+`KVM=y`）、Wine/Proton、Docker 的其余依赖已具备。**未编译/未实机**；`CFS_BANDWIDTH`/`CGROUP_PIDS` 按硬规则保持关闭；Scene/YC 依赖的 `SCHED_DEBUG`/`SCHEDSTATS`/`DEBUG_FS`/`TASKSTATS`/`CPU_FREQ_STAT`/`PSI` 保持开启 |
 | 发布 | Release `dash-6.6.143-prod`（2026-11-22 更新，tag `ebfc285`）：Image 45,857,280 B / Image.lz4 22,288,250 B / SHA256SUMS + `dash_art_tune-AnyKernel3-v1.4.zip` + `dash_art_tune-v1.4.zip`（显示名「内核附加模块」）；发布页含 AnyKernel3/fastboot 刷入说明 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
 | `boot_a` SHA256 | `221cad2d8ca79e60a1b2649e0e37b5a9a40eb3e0d93cc54ffced609a41c80030`（生产标准 Full LTO perf，2026-11-22）；生产 `d0cdd6ad…` 备份在 `dash/out/device-backup/20261122-154445-pre-nolto-perf-fp-slot_a/`；NoLTO perf `7db11d8f…` 备份在 `20261122-162106-pre-full-lto-perf-slot_a/` |
@@ -206,21 +228,36 @@ BASH_VERSION=GNU bash，版本 5.3.20(1)-release (x86_64-pc-linux-gnu)
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
 | 厂商模块 | 638 个 stock 清单 `hard_missing=0 weak_missing=0`；2026-11-22 生产 `#1` 加载 584 个（KSU/NoMount 已内建，与历史 586 个 LKM 口径等价），无 `Unknown symbol`/CRC/vermagic/invalid format 错误；KCFI 13/13 |
-| KSU 模块 | 自建 `dash_art_tune` v1.4，显示名「内核附加模块」（BBRv3+fq_codel、ADIOS、ART/dex2oat 调优、zram `lz4kd` 恢复、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
+| KSU 模块 | 自建 `dash_art_tune` v1.4，显示名「内核附加模块」（BBRv3+fq、4 个 TCP sysctl、ADIOS、ART/dex2oat 调优、zram `lz4kd` 恢复、WLAN 日志关闭：3 个 persist 开关 + `cnss_diag.conf` bind mount + `wlan_logs` 清理/`tcpdump.pcap0` 目录 + 停止 `vendor_tcpdump`）；代理客户端为 AsteriskMETA + 增强模块 |
 | DroidSpaces | 内核支持 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过；`CFS_BANDWIDTH`/`CGROUP_PIDS` 关闭，`--cpus`/`--pids-limit` 不可用 |
 | PID | `pid_max` 硬钳 32768（`PID_MAX_LIMIT`） |
-| 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块 |
+| 内存扩展 | stock vendor zram + ExtM；lz4kd 经 crypto API 选中，不替换 zram 模块。内核自建 `zram.ko` 默认改为 lz4kd（`ZRAM_DEF_COMP_LZ4KD=y`），实机 vendor zram 仍由附加模块恢复 `[lz4kd]` |
 | 网络代理 | AsteriskMETA（mihomo core）：TUN/GSO、auto-route/auto-redirect、addrtype、IPv6 NAT、BPF2SOCKS 能力齐备；MPTCP 关闭 |
 | TCP Brutal | 外部 `tcp-brutal` v2.0.1，`make brutal` 生成 `brutal.ko` |
 
 完整交付哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
 `dash/out/artifacts/BUILD_INFO`；本地 artifacts 仍是历史 #8 交付批次，
 生产 Full LTO 产物以 Release `dash-6.6.143-prod` 的 SHA256SUMS 为准。历史
-System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产物隔离在
-`dash/out/features-final/`，未作为当前实机产物发布。
+System.map 本地副本已缺失（清单保留目标哈希）。2026-11-24 的 6.6.144 NoLTO
+验证构建未发布 artifacts，只写 `dash/out/dash/`；它与实机运行的生产
+Full LTO 版本无关。
 
 ### 2. 最近验证
 
+- **2026-11-24（构建级，未刷机）**：仓库切换为跟随 AOSP `android15-6.6`
+  开发分支，基线 `a5c942b8c`（6.6.144-r01）。重放 30 个补丁/143 个文件，
+  唯一冲突为 f2fs 挂载选项（上游 `resizable_tail_secno` 与 dash `hybrid`
+  并存）；同步 BakaSU `de80463`、SUSFS `f98f082`（分支头即 pin）、NoMount
+  `6849f00`、tcp-brutal `d2397ff`，工具链刷新到最新 r614150 快照。NoLTO
+  全量构建 4m17s 通过，零 warning；KCFI 13/13、638 模块硬/弱缺失均为 0。
+  本轮同时按 BakaSU 新设计移除了 AOSP 侧过时的 SELinux 手动 hook（改由其
+  运行时 auto hook 接管），并把 ADIOS 更新到 EVONIX `901a0cf`。
+  **同日后续（未重编）**：新增 `180-stable-backports`（UDP tunnel 分段 UAF、
+  IPv6 解析、DAMON、writeback/ext4，35 补丁/156 文件），按请求启用
+  Landlock/RSEQ/HUGETLBFS/CGROUP_DEVICE/VXLAN/VHOST_NET/EVONIX_IO_PRIO
+  （**nftables 与 BRIDGE_NETFILTER 按机主要求不引入**）；配置经
+  `FAST=1` olddefconfig 验证。见
+  [TEST_REPORT.md](TEST_REPORT.md) §40。
 - **2026-11-22（实验收尾，已作为生产版发布）**：DASH_PERF 改为标准 Full LTO
   （移除 `--lto-O3`/ext-TSP/MFS/mergeicmps）。NoLTO 与 Full LTO 两版均实机
   启动：BPF loader 正常（此前 Full LTO 的 `schedcls_tether_downstream6_ether`
@@ -301,7 +338,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。本轮验证产
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 17648 字节 · SHA256 `46068b7696ec770916f4e0bd065d0ae3e0345fe5cf9d8efa9eae6d4a8bc2690c`
+> 来源：[`docs/kernel/README.md`](README.md) · 17895 字节 · SHA256 `e923271e8a2db409d73c3643f3c7834bbea47d94e911cb4fb23a7efaa170aad1`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -333,7 +370,7 @@ out/                          构建目录和 artifacts
 cd dash
 make deps       # Arch/CachyOS 依赖检查
 make toolchain  # 获取固定 clang r614150
-make source     # 浅克隆/更新 AOSP 到 2026-10_r4（6.6.143）
+make source     # 跟随 android15-6.6 分支（AOSP_UPDATE=1 拉到分支最新）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
 make build      # 最终生产构建：LTO Full（仅明确要产出生产级内核时运行）
@@ -344,14 +381,15 @@ bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
 make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.md（给 LLM 的避坑包）
 ```
 
-> **6.6.143 补丁序列（2026-11-21 起按特性拆分）**：`patches/` 下是按功能
-> 特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat / vendor-hooks-os4
-> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc / sched-eevdf / bbrv3 /
-> arm64-perf / power-mm / ntsync / adios / bbg），`series` 是唯一应用顺序；
-> 文件级拆分（每文件只属于一个补丁），归属表在
-> `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
-> squash 已从仓库删除（git 历史保留）。已在固定 r4 (`e6c23f621`) 干净树
-> 验证 28 个补丁/142 个文件与 SUSFS override 全量重放，零 warning/error；
+> **6.6.144 补丁序列（2026-11-24 起跟随 `android15-6.6` 分支）**：`patches/`
+> 下是按功能特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat /
+> vendor-hooks-os4 / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc /
+> sched-eevdf / bbrv3 / arm64-perf / power-mm / ntsync / adios / bbg /
+> stable-backports），`series` 是唯一应用顺序；文件级拆分（每文件只属于一个
+> 补丁），归属表在 `dash/scripts/split-patches.py`。已在分支 tip
+> `a5c942b8c`（6.6.144-r01）干净树验证 35 个补丁/156 个文件与 SUSFS
+> override 全量重放，零 warning/error；本轮冲突只有 f2fs `super.c` 的挂载
+> 选项（上游新增 `resizable_tail_secno`，与 dash 的 `hybrid` 并存）。
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
@@ -569,9 +607,11 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 
 ### 更新规则
 
-- 更新 AOSP：改 `versions.env` 的 `AOSP_TAG`/`AOSP_COMMIT`，运行
-  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后运行
-  `make gen-patches` 重新生成特性补丁，不要手改补丁文件。流程见
+- 更新 AOSP：本仓自 2026-11-24 起跟随 `android15-6.6` 开发分支。
+  `AOSP_UPDATE=1 make source` 拉取分支最新 tip 并把 `AOSP_COMMIT` 钉到该
+  commit（`AOSP_PIN=1` 可强制停在当前 pin），然后 `make patches`；如果补丁
+  冲突，在 `src/aosp/common` 修正后运行 `make gen-patches` 重新生成特性
+  补丁，不要手改补丁文件。流程见
   [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
 - 更新 SUSFS：更新 `SUSFS_COMMIT` 并 bump `third_party/susfs4ksu` 子模块即可；
@@ -779,7 +819,7 @@ vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 96111 字节 · SHA256 `d4206abb5217f9621017549d4441fe859220488faa84adbd5396c29483b9d682`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 103469 字节 · SHA256 `0d615fb80d9b69a351f2cece75b66a45f5befa27a83384b381154d6ea80ed156`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -2516,12 +2556,132 @@ Release 的安装包统一写全称 `AnyKernel3`（例如
 6. **第三方 bootloop 保护会留下状态**：实验内核非正常重启会让 NoMount 自行
    disable 并改描述；恢复稳定后要清理 `disable` 标记并还原描述。
 
+### 40. 跟随 android15-6.6 分支：6.6.144 重基线 + NoLTO 构建（2026-11-24，构建级）
+
+#### 目标与结果
+
+2026-11-24 按要求把仓库从固定发布 tag 改为跟随 AOSP `android15-6.6`
+开发分支，同步全部源码/子模块/工具链，并在新基线上完成 NoLTO 全量构建。
+**未刷机**，未发布 artifacts（产物隔离在 `dash/out/dash/`）。
+
+#### 上游版本判定
+
+- `android.googlesource.com` 直连仍不可达；GitLab/GitHub 在该网络下也曾
+  长时间不可用，后恢复。
+- 同一时刻各镜像的分支头不一致，必须比对后取最新：
+  - TUNA `a5c942b8c`（2026-11-23，`Merge tag 'android15-6.6.144_r01'`）→ 采用
+  - USTC `9347319`（2026-11-21）→ 落后
+  - BFSU `9e7deb2`（2026-11-18）→ 更旧
+  - 发布 tag 仍为 `android15-6.6-2026-10_r4`（6.6.143），没有 2026-11 发布
+- `versions.env` 改为 `AOSP_BRANCH=android15-6.6` + `AOSP_COMMIT=a5c942b8c`；
+  `AOSP_UPDATE=1 make source` 刷新 pin，`AOSP_PIN=1` 冻结。镜像顺序改为
+  TUNA → USTC → 上游。
+- AutoFDO profile 随 6.6.144 更新，`ACK_AUTOFDO_PROFILE_SHA256` 改为
+  `2aa4fc6e…`。
+
+#### 子模块与工具链
+
+| 组件 | 同步结果 |
+|---|---|
+| BakaSU | `de80463`（main 最新，含 SELinux sid 回归修复） |
+| SUSFS | `f98f082`（官方 GitLab `gki-android15-6.6` 分支头，与 pin 相同） |
+| NoMount | `6849f00`（master 最新，虚拟 backing path 修复） |
+| tcp-brutal | `d2397ff`（master 头，未变） |
+| clang | r614150 版本未变，但同版本目录内容更新：刷新到 `main-kernel`
+  `74fa19d5` 的 tree `9258d46`（build 16836431） |
+
+#### 补丁重放与适配
+
+- 30 个补丁在 `a5c942b8c` 上重放；唯一冲突为 `fs/f2fs/super.c`：
+  上游新增挂载选项 `Opt_resizable_tail_secno`，与 dash `Opt_hybrid` 同位置，
+  两者并存解决。
+- **BakaSU 新版链接失败（重要）**：新版把 `my_write_context/my_write_access/
+  my_setprocattr` 改成 static 并改用 `ksu_patch_text` 运行时 auto hook；
+  `susfs_compat.mk` 通过 grep `hooks.c` 里的 `ksu_selinux_hide_running` 判断
+  是否存在“手动 hook”。旧 AOSP 侧集成仍在，触发手动 hook 分支却引用已不存在的
+  符号，`vmlinux` 链接报 undefined。解决：回退我们新增的
+  `security/selinux/hooks.c` / `selinuxfs.c` 改动（保留 `avc.c` 的 SUSFS
+  AVC 日志伪装），让 BakaSU 走 auto hook；映射表同步移除这两个文件，补丁
+  文件数 145→143。
+- **ADIOS 更新**：EVONIX 自调查快照 `3aca65c` 后新增 3 个 ADIOS 修复
+  （starvation recovery、Tier-1 计数并发、pq1 reset 的 `pq_lock`），取
+  `901a0cf` 的 `block/adios.c` 全量替换（diff 仅 5 处，均在 dispatch 路径）。
+- 参考仓库其余检查：WK-P `70c394f`、GKID `ef6c99d` 与快照相同；WK BBRv3
+  15-6.6 补丁最后更新于 2026-06-24；`lakitu12/kernel_dash_droidspaces` 新提交
+  主要是 ACK 2026-10_r3 迁移、CI/docs、trusty-rescue 与资源限制探针关闭，
+  其 hook export 结论与我们现有 decl-only TU 方案一致，无需采纳。
+
+#### 构建结果
+
+- `FAST=1`（NoLTO）+ AutoFDO + MLGO + A720 tune，**4m17s**，exit 0，
+  `warning:` 计数 0。
+- 版本 `6.6.144-4k`。
+- `Image` 38,943,232 B，SHA256
+  `589643bf0faf46489528f0ae52d0430334622f8be990adb04fe7bfbeb731c4b0`。
+- `Image.lz4` 18,395,427 B，SHA256
+  `47b2cbcd8a5d41cba4b59d6db9cf30f4bd293da6b157bb8e89c2ba9e934ee046`。
+- `vmlinux` 181,397,160 B；`vmlinux.symvers` 550K、9112 个导出符号。
+- OS4 KCFI：13/13 原型哈希与 stock 一致。
+- 厂商模块静态核对：638 个模块，`hard_missing=0 weak_missing=0`。
+- `.config`：`CONFIG_LTO_NONE=y`、`CONFIG_AUTOFDO_CLANG=y`、
+  `CONFIG_DASH_MLGO_REGALLOC=y`、`CONFIG_DASH_ARM64_TUNE_A720=y`。
+
+#### 教训
+
+1. 国内镜像不是同一时刻的快照：跟随移动分支时必须比对多个镜像的 head，
+   并记录 commit；本次 TUNA 比 USTC/BFSU 新 1–5 天。
+2. 分支跟随后 AutoFDO profile 与代码一起变化，profile 哈希必须同步更新，
+   否则 configure 会按设计拒绝构建。
+3. 子模块升级不是“只换 SHA”：BakaSU 移除手动 hook 导出后，AOSP 侧旧调用
+   会造成 vmlinux 链接失败；升级后要按上游 compat 探测逻辑重新确认 hook 归属。
+4. NoLTO 构建快但依赖增量对象；出现链接错误时应先 `grep undefined symbol`
+   定位类别，不要直接全量重编。
+
+#### 40.1 同日后补：EVONIX stable 回移与运行时能力（未重编）
+
+- **回移来源**：EVONIX `hyperos/ksu-susfs`（tip `901a0cf`，基于 6.6.144）。
+  逐补丁 `git apply --check` 后按上游时序合并：
+  - UDP：`efef513`（tunnel segmentation UAF）
+  - IPv6：`180b3a5`（`ipv6_find_hdr()` 越界）、`5780267`（`SEG6_ATTR_DST`
+    长度）、`9ff62f1`（`skb_checksum_setup_ipv6()` pull 下溢）
+  - DAMON：`a65fe34/eaf86c5/8b524b6/06a6377/c38ab6f/783936f/bc5352d/79e82f4`
+    （另有 `74d90fa/c0ead64/fa02385` 已被 6.6.144 基线收录）
+  - writeback：`3bfa5fe/5a4d6f3/a5c927f/8384a54/c9c6c96`，ext4
+    writeback `6bebd13`；TLB `b6bb0e7` 已被 6.6.144 基线收录。
+  - 18 个补丁按序全部 clean apply；新增 `180-stable-backports`（5 个补丁、
+    13 个文件），总序列 35 补丁/156 文件，干净重放通过。
+- **KMI 处理**：writeback 组新增 `bdi_writeback.switch_work/switch_wbs_ctxs`。
+  为尽量不移动既有字段，两个字段已从 `offline_node` 后移到既有 union 之后
+  （既有命名字段偏移不变，仍记 KMI 观察项）。
+- **ADIOS IO_PRIO**：补上 EVONIX Kconfig（`config EVONIX_IO_PRIO`，default y）
+  并在 `features.fragment` 设 `=y`；同日按机主要求把 ADIOS、BBR3、fq 设为内核默认（`MQ_IOSCHED_DEFAULT_ADIOS=y`、`CONFIG_DEFAULT_TCP_CONG="bbr3"`、`CONFIG_DEFAULT_NET_SCH="fq"`），附加模块改为检测到已是默认值时跳过。
+- **默认策略**：ADIOS（`MQ_IOSCHED_DEFAULT_ADIOS`）、BBR3
+  （`DEFAULT_TCP_CONG="bbr3"`）、fq（`DEFAULT_NET_SCH="fq"`）、
+  zram lz4kd（`ZRAM_DEF_COMP_LZ4KD`）设为默认；附加模块检测到已生效时跳过。
+  sing-box 的 TUN/TPROXY/mangle/策略路由/BPF/tc/WireGuard 原本具备；
+  **nftables 按机主要求未引入**。
+- **运行时配置**：新增并经 `make config FAST=1` olddefconfig 验证为 `=y`：
+  `SECURITY_LANDLOCK`（ABI v3）、`RSEQ`、`HUGETLBFS`/`CGROUP_HUGETLB`、
+  `CGROUP_DEVICE`、`VXLAN`、`VHOST_NET`。
+  **按机主要求回退**：`NF_TABLES`/`NFT_*` 与 `BRIDGE_NETFILTER` 保持关闭
+  （Docker 仅走 iptables-legacy；sing-box 走 xt/TPROXY 或 TUN）。
+  `CFS_BANDWIDTH`/`CGROUP_PIDS` 保持关闭。
+- **AFDO 核对**：AOSP dev tip `a5c942b8c` 的
+  `android/gki/aarch64/afdo/kernel.afdo` blob 与 afdo 更新提交 `9347319`
+  完全相同（`415d6c49…`），即 6.6.144 最新预制 profile；本地 SHA256
+  `2aa4fc6e…` 已是该文件，无需更换。
+- **Re:Kernel**：官方支持 GKI 6.6.x（LKM 11.5），本内核已具备
+  `MODULES/BTF/BPF_SYSCALL/kprobes/netfilter` 与 vendor-ko-compat，可直接
+  加载其 LKM 或 eBPF 变体；不内建（其初始化/Netlink 服务属于外部模块）。
+- **状态**：以上均**未编译、未刷机**；现有 `out/dash` 产物对应较早的
+  30 补丁配置。
+
 ---
 
 <a id="src-05"></a>
 ## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 27492 字节 · SHA256 `a94b881d3c32cec083e73568466b303ee04a5845523fab480be980838b53310b`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 28879 字节 · SHA256 `f12f1205a258af1328157117f57036b1734db00a3a453cab0c8d606340e8f4c7`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是缺口/风险/未完成项的**唯一台账**。当前版本与实机状态见
@@ -2752,6 +2912,23 @@ Release 的安装包统一写全称 `AnyKernel3`（例如
   无填充槽方案），`--cpus`/`--pids-limit` 不可用；
   `NETFILTER_XT_TARGET_REJECT`（nft 变体）在 6.6 无此符号，REJECT 由 legacy
   `IP_NF/IP6_NF_TARGET_REJECT` 覆盖。
+- **2026-11-24 运行时能力（未编译/未实机）**：`180-stable-backports`
+  （UDP/IPv6/DAMON/writeback）与 Landlock、RSEQ、HUGETLBFS、CGROUP_DEVICE、
+  VXLAN、VHOST_NET、EVONIX_IO_PRIO 只完成 configure 验证（nftables 与
+  BRIDGE_NETFILTER 按机主要求不引入）；DroidVM（`/dev/kvm` 依赖固件 EL2、`/dev/gzvm` 依赖
+  GenieZone 与 `gzvm.ko`）、Docker、Wine/Proton、Re:Kernel LKM/eBPF 均未
+  实机验证。`CFS_BANDWIDTH`/`CGROUP_PIDS` 仍关闭，Docker
+  `--cpus`/`--pids-limit` 不可用。
+- **节能/开销优化候选（未实施，需机主定安全取舍）**：stock/GKI 仍带
+  `UBSAN`+`UBSAN_TRAP`、`INIT_ON_ALLOC_DEFAULT_ON`、`KFENCE`（500ms 采样）、
+  `SLAB_FREELIST_HARDENED`、`SLUB_DEBUG`、`PM_DEBUG` 等调试/加固项，属于纯
+  开销而非省电功能。DASH_PERF 实验已证明关闭
+  UBSAN/INIT_ON_ALLOC/KFENCE/SLAB_HARDENED 可构建启动；是否作为默认需单独决定。
+  **不要动** Scene/YC 等第三方调度依赖的观测接口：`SCHED_DEBUG`、
+  `SCHEDSTATS`、`DEBUG_FS`、`TASKSTATS`/`TASK_IO_ACCOUNTING`、`CPU_FREQ_STAT`、
+  `PSI`、`THERMAL`、`UCLAMP`、`ENERGY_MODEL` 保持开启。
+  `KASAN/CFI/SCS/STACKPROTECTOR/HARDENED_USERCOPY` 因厂商模块导入运行时
+  符号，不能去除。
 - **性能/功耗与深度 A/B**：未做 stock vs 自编的 zram/node_cache/QoS/启动时延、
   suspend/resume、fsck/power-loss、长时压力。没有这些数据，不能对任何性能收益
   作声明。下一步：用 stock boot 备份做 A/B；先做只读/可回滚的启动时延和 zram
@@ -2770,7 +2947,7 @@ A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活�
 
 **A. 启动与基础兼容（必须全过）**
 
-- [ ] 正常开机到桌面；`uname -a` / `cat /proc/version` 显示 `6.6.143-4k`，
+- [ ] 正常开机到桌面；`uname -a` / `cat /proc/version` 显示 `6.6.144-4k`，
       无 `+` 或 `dirty` 后缀
 - [ ] `getprop ro.boot.slot_suffix` 与写入槽一致；SELinux `Enforcing`；
       `su -c id` 为 root，BakaSU 管理器正常
@@ -2898,7 +3075,8 @@ A 任一失败立即回滚，不继续后续项。2026-11-21 实测设备激活�
 
 ### 6. 已完成、不要重复列为缺口
 
-- **LTS/安全**：2026-10-30 已升级到 AOSP `android15-6.6-2026-10_r2`（6.6.143）。
+- **LTS/安全**：2026-11-24 起跟随 AOSP `android15-6.6` 开发分支，基线
+  `a5c942b8c`（Merge `android15-6.6.144_r01`，6.6.144）；本地 NoLTO 构建已验证。
 - **stock core tracepoint**：stock 的 1860 个 `__traceiter_*` 全部存在；6.6.143
   另含 46 个上游新增（合计 1906）。集成补丁（历史拆分为
   `0007-stock-parity-hooks.patch`）回移了 51 个缺失 hook，其中 44 个同时回移
@@ -4376,7 +4554,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 <a id="src-12"></a>
 ## 12. 仓库导航、子模块 pin 与资源索引
 
-> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 13874 字节 · SHA256 `653111d39ebd08fbcb0c243e598e57b7024719528ef3b032c53d24528384e41f`
+> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 13988 字节 · SHA256 `189e92ebab962f40de692cad82ec65a7ffb0a9e731ef5edd52702df38eea621f`
 > 类别：仓库上下文 · 状态：仓库上下文（可能有过时状态）
 > 注意：这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。
 
@@ -4420,11 +4598,11 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 
 | 路径 | 上游 | pin / 分支 | 用途 |
 |---|---|---|---|
-| [dash/src/aosp/common](../../dash/src/aosp/common) | https://android.googlesource.com/kernel/common | tag `android15-6.6-2026-10_r2`，commit `bf768be0eed008588dc4e0db0b2f76c026a35818`（6.6.143） | 当前自编内核源码；由 `dash/versions.env` 固定 |
+| [dash/src/aosp/common](../../dash/src/aosp/common) | https://android.googlesource.com/kernel/common | 跟随 `android15-6.6` 分支，pin `a5c942b8c5be461264ec25e7893e53fda4144a3a`（6.6.144-r01） | 当前自编内核源码；`dash/versions.env` 固定 commit，`AOSP_UPDATE=1 make source` 刷新 |
 | [dash/src/micode-kernel](../../dash/src/micode-kernel) | https://github.com/MiCode/Xiaomi_Kernel_OpenSource.git | `2d28e280ea36` / `dash-w-oss`（6.6.89） | 官方公开 dash 参考源码；`mm/memfd-ashmem-shim*` 来源 |
 | [dash/src/MTK_kernel_device_modules](../../dash/src/MTK_kernel_device_modules) | https://github.com/MiCode/MTK_kernel_device_modules.git | `9c62564` / `dash-w-oss` | 官方公开 dash DTS/device modules 参考 |
 | [dash/src/MTK_kernel_modules](../../dash/src/MTK_kernel_modules) | https://github.com/MiCode/MTK_kernel_modules.git | `8c88cf7` / `dash-w-oss` | 官方公开 MTK camera/WiFi 等模块参考 |
-| [dash/toolchains/clang-prebuilt](../../dash/toolchains/clang-prebuilt) | https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 | `main-kernel` | AOSP clang r614150（23.0.1），当前构建链 |
+| [dash/toolchains/clang-prebuilt](../../dash/toolchains/clang-prebuilt) | https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 | `main-kernel` @ `74fa19d5` | AOSP clang r614150（23.0.1，2026-11-23 快照），当前构建链；`CLANG_UPDATE=1 make toolchain` 刷新 |
 | `/tmp/cc_dash_tree`（临时） | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash.git | `86b65f8476c7` / `dash-w-oss`（6.6.144） | CC 主内核参考；2.8GB。**上游已 404（2026-11-21），无法再取** |
 
 大源码树的更新方式：

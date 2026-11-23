@@ -9,13 +9,28 @@ log() {
 }
 
 apply_bbr() {
-	if ! grep -qw bbr3 /proc/sys/net/ipv4/tcp_available_congestion_control 2>/dev/null; then
+	cc=/proc/sys/net/ipv4/tcp_congestion_control
+	qdisc=/proc/sys/net/core/default_qdisc
+	cur_cc=$(cat "$cc" 2>/dev/null)
+	cur_q=$(cat "$qdisc" 2>/dev/null)
+	changed=0
+
+	if grep -qw bbr3 /proc/sys/net/ipv4/tcp_available_congestion_control 2>/dev/null; then
+		if [ "$cur_cc" != bbr3 ]; then
+			echo bbr3 >"$cc" 2>>"$LOG"
+			changed=1
+		fi
+	else
 		log "bbr3 unavailable; leaving congestion control"
-		return 1
 	fi
-	echo bbr3 >/proc/sys/net/ipv4/tcp_congestion_control 2>>"$LOG"
-	echo fq_codel >/proc/sys/net/core/default_qdisc 2>>"$LOG"
-	log "bbrv3: cc=$(cat /proc/sys/net/ipv4/tcp_congestion_control 2>/dev/null) qdisc=$(cat /proc/sys/net/core/default_qdisc 2>/dev/null)"
+	if [ "$cur_q" != fq ]; then
+		echo fq >"$qdisc" 2>>"$LOG"
+		changed=1
+	fi
+	if [ "$changed" -eq 0 ]; then
+		log "bbr3/fq already kernel defaults; leaving unchanged"
+	fi
+	log "bbrv3: cc=$(cat "$cc" 2>/dev/null) qdisc=$(cat "$qdisc" 2>/dev/null)"
 }
 
 apply_adios() {
@@ -23,10 +38,36 @@ apply_adios() {
 	for dev in sdc; do
 		sched=/sys/block/$dev/queue/scheduler
 		[ -f "$sched" ] || continue
+		# Kernel now defaults to ADIOS; do not rewrite when it is already
+		# selected (keeps the module a no-op on the tuned kernel).
+		if grep -q "\[adios\]" "$sched" 2>/dev/null; then
+			log "$dev scheduler already adios; leaving unchanged"
+			continue
+		fi
 		grep -qw adios "$sched" 2>/dev/null || continue
 		echo adios >"$sched" 2>>"$LOG"
 		log "$dev scheduler=$(cat "$sched" 2>/dev/null)"
 	done
+}
+
+apply_tcp_sysctls() {
+	changed=0
+	set_one() {
+		path=/proc/sys/$1
+		want=$2
+		cur=$(cat "$path" 2>/dev/null)
+		[ "$cur" = "$want" ] && return 0
+		echo "$want" >"$path" 2>>"$LOG" && changed=1
+	}
+	set_one net/ipv4/tcp_mtu_probing 1
+	set_one net/ipv4/tcp_ecn 1
+	set_one net/ipv4/tcp_slow_start_after_idle 0
+	set_one net/ipv4/tcp_notsent_lowat 16384
+	if [ "$changed" -eq 0 ]; then
+		log "tcp sysctls already applied; leaving unchanged"
+	else
+		log "tcp sysctls: mtu_probing=$(cat /proc/sys/net/ipv4/tcp_mtu_probing) ecn=$(cat /proc/sys/net/ipv4/tcp_ecn) ss_after_idle=$(cat /proc/sys/net/ipv4/tcp_slow_start_after_idle) notsent_lowat=$(cat /proc/sys/net/ipv4/tcp_notsent_lowat)"
+	fi
 }
 
 # Vendor WLAN diagnostics/logging:

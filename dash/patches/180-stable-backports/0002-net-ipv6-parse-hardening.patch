@@ -1,0 +1,63 @@
+diff --git a/net/core/skbuff.c b/net/core/skbuff.c
+index 8f477934d..eabb57eab 100644
+--- a/net/core/skbuff.c
++++ b/net/core/skbuff.c
+@@ -5574,7 +5574,8 @@ static int skb_checksum_setup_ipv6(struct sk_buff *skb, bool recalculate)
+ 			err = skb_maybe_pull_tail(skb,
+ 						  off +
+ 						  sizeof(struct ipv6_opt_hdr),
+-						  MAX_IPV6_HDR_LEN);
++						  off +
++						  sizeof(struct ipv6_opt_hdr));
+ 			if (err < 0)
+ 				goto out;
+ 
+@@ -5589,7 +5590,8 @@ static int skb_checksum_setup_ipv6(struct sk_buff *skb, bool recalculate)
+ 			err = skb_maybe_pull_tail(skb,
+ 						  off +
+ 						  sizeof(struct ip_auth_hdr),
+-						  MAX_IPV6_HDR_LEN);
++						  off +
++						  sizeof(struct ip_auth_hdr));
+ 			if (err < 0)
+ 				goto out;
+ 
+@@ -5604,7 +5606,8 @@ static int skb_checksum_setup_ipv6(struct sk_buff *skb, bool recalculate)
+ 			err = skb_maybe_pull_tail(skb,
+ 						  off +
+ 						  sizeof(struct frag_hdr),
+-						  MAX_IPV6_HDR_LEN);
++						  off +
++						  sizeof(struct frag_hdr));
+ 			if (err < 0)
+ 				goto out;
+ 
+diff --git a/net/ipv6/exthdrs_core.c b/net/ipv6/exthdrs_core.c
+index 49e31e4ae..ce3724f49 100644
+--- a/net/ipv6/exthdrs_core.c
++++ b/net/ipv6/exthdrs_core.c
+@@ -271,6 +271,9 @@ int ipv6_find_hdr(const struct sk_buff *skb, unsigned int *offset,
+ 			hdrlen = ipv6_optlen(hp);
+ 
+ 		if (!found) {
++			if (skb->len - start < hdrlen)
++				return -EBADMSG;
++
+ 			nexthdr = hp->nexthdr;
+ 			start += hdrlen;
+ 		}
+diff --git a/net/ipv6/seg6.c b/net/ipv6/seg6.c
+index a31521e27..380047a27 100644
+--- a/net/ipv6/seg6.c
++++ b/net/ipv6/seg6.c
+@@ -137,8 +137,8 @@ void seg6_icmp_srh(struct sk_buff *skb, struct inet6_skb_parm *opt)
+ static struct genl_family seg6_genl_family;
+ 
+ static const struct nla_policy seg6_genl_policy[SEG6_ATTR_MAX + 1] = {
+-	[SEG6_ATTR_DST]				= { .type = NLA_BINARY,
+-		.len = sizeof(struct in6_addr) },
++	[SEG6_ATTR_DST]				=
++		NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
+ 	[SEG6_ATTR_DSTLEN]			= { .type = NLA_S32, },
+ 	[SEG6_ATTR_HMACKEYID]		= { .type = NLA_U32, },
+ 	[SEG6_ATTR_SECRET]			= { .type = NLA_BINARY, },

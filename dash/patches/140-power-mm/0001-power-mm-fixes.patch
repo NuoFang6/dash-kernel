@@ -1,5 +1,5 @@
 diff --git a/drivers/base/power/wakeup.c b/drivers/base/power/wakeup.c
-index 5b93536ff..0d0838b8a 100644
+index cb8675981..6e52defb1 100644
 --- a/drivers/base/power/wakeup.c
 +++ b/drivers/base/power/wakeup.c
 @@ -936,8 +936,8 @@ EXPORT_SYMBOL_GPL(pm_wakeup_pending);

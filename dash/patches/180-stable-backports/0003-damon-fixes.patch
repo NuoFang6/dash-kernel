@@ -1,0 +1,255 @@
+diff --git a/mm/damon/core-test.h b/mm/damon/core-test.h
+index abd00396a..1edb1a6d7 100644
+--- a/mm/damon/core-test.h
++++ b/mm/damon/core-test.h
+@@ -254,7 +254,7 @@ static void damon_test_merge_regions_of(struct kunit *test)
+ 		damon_add_region(r, t);
+ 	}
+ 
+-	damon_merge_regions_of(t, 9, 9999);
++	damon_merge_regions_of(t, 9, 9999, true);
+ 	/* 0-112, 114-130, 130-156, 156-170 */
+ 	KUNIT_EXPECT_EQ(test, damon_nr_regions(t), 5u);
+ 	for (i = 0; i < 5; i++) {
+diff --git a/mm/damon/core.c b/mm/damon/core.c
+index 173a7e4c6..99b70b670 100644
+--- a/mm/damon/core.c
++++ b/mm/damon/core.c
+@@ -211,8 +211,21 @@ int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
+ {
+ 	struct damon_region *r, *next;
+ 	unsigned int i;
++	unsigned long last_end;
+ 	int err;
+ 
++	for (i = 0; i < nr_ranges; i++) {
++		unsigned long start, end;
++
++		start = ALIGN_DOWN(ranges[i].start, DAMON_MIN_REGION);
++		end = ALIGN(ranges[i].end, DAMON_MIN_REGION);
++		if (start >= end)
++			return -EINVAL;
++		if (i > 0 && last_end > start)
++			return -EINVAL;
++		last_end = end;
++	}
++
+ 	/* Remove regions which are not in the new ranges */
+ 	damon_for_each_region_safe(r, next, t) {
+ 		for (i = 0; i < nr_ranges; i++) {
+@@ -1036,7 +1049,7 @@ static void damos_apply_scheme(struct damon_ctx *c, struct damon_target *t,
+ 		quota->charged_sz += sz;
+ 		if (quota->esz && quota->charged_sz >= quota->esz) {
+ 			quota->charge_target_from = t;
+-			quota->charge_addr_from = r->ar.end + 1;
++			quota->charge_addr_from = r->ar.end;
+ 		}
+ 	}
+ 	if (s->action != DAMOS_STAT)
+@@ -1211,17 +1224,20 @@ static void damon_merge_two_regions(struct damon_target *t,
+  * t		target affected by this merge operation
+  * thres	'->nr_accesses' diff threshold for the merge
+  * sz_limit	size upper limit of each region
++ * count_age	whether to update age for this aggregation interval
+  */
+ static void damon_merge_regions_of(struct damon_target *t, unsigned int thres,
+-				   unsigned long sz_limit)
++				   unsigned long sz_limit, bool count_age)
+ {
+ 	struct damon_region *r, *prev = NULL, *next;
+ 
+ 	damon_for_each_region_safe(r, next, t) {
+-		if (abs(r->nr_accesses - r->last_nr_accesses) > thres)
+-			r->age = 0;
+-		else
+-			r->age++;
++		if (count_age) {
++			if (abs(r->nr_accesses - r->last_nr_accesses) > thres)
++				r->age = 0;
++			else
++				r->age++;
++		}
+ 
+ 		if (prev && prev->ar.end == r->ar.start &&
+ 		    abs(prev->nr_accesses - r->nr_accesses) <= thres &&
+@@ -1255,18 +1271,25 @@ static void kdamond_merge_regions(struct damon_ctx *c, unsigned int threshold,
+ 	struct damon_target *t;
+ 	unsigned int nr_regions;
+ 	unsigned int max_thres;
++	bool count_age = true;
+ 
+ 	max_thres = c->attrs.aggr_interval /
+ 		(c->attrs.sample_interval ?  c->attrs.sample_interval : 1);
+-	do {
++	while (true) {
+ 		nr_regions = 0;
+ 		damon_for_each_target(t, c) {
+-			damon_merge_regions_of(t, threshold, sz_limit);
++			damon_merge_regions_of(t, threshold, sz_limit, count_age);
+ 			nr_regions += damon_nr_regions(t);
+ 		}
+-		threshold = max(1, threshold * 2);
+-	} while (nr_regions > c->attrs.max_nr_regions &&
+-			threshold / 2 < max_thres);
++		count_age = false;
++		if (nr_regions <= c->attrs.max_nr_regions ||
++		    max_thres <= threshold)
++			break;
++		if (threshold < max_thres / 2)
++			threshold = max(1, threshold * 2);
++		else
++			threshold = max_thres;
++	}
+ }
+ 
+ /*
+diff --git a/mm/damon/sysfs-schemes.c b/mm/damon/sysfs-schemes.c
+index 5add95ad4..e7115dad1 100644
+--- a/mm/damon/sysfs-schemes.c
++++ b/mm/damon/sysfs-schemes.c
+@@ -1122,22 +1122,19 @@ static int damon_sysfs_access_pattern_add_dirs(
+ 	err = damon_sysfs_access_pattern_add_range_dir(access_pattern,
+ 			&access_pattern->sz, "sz");
+ 	if (err)
+-		goto put_sz_out;
++		return err;
+ 
+ 	err = damon_sysfs_access_pattern_add_range_dir(access_pattern,
+ 			&access_pattern->nr_accesses, "nr_accesses");
+ 	if (err)
+-		goto put_nr_accesses_sz_out;
++		goto put_sz_out;
+ 
+ 	err = damon_sysfs_access_pattern_add_range_dir(access_pattern,
+ 			&access_pattern->age, "age");
+ 	if (err)
+-		goto put_age_nr_accesses_sz_out;
++		goto put_nr_accesses_sz_out;
+ 	return 0;
+ 
+-put_age_nr_accesses_sz_out:
+-	kobject_put(&access_pattern->age->kobj);
+-	access_pattern->age = NULL;
+ put_nr_accesses_sz_out:
+ 	kobject_put(&access_pattern->nr_accesses->kobj);
+ 	access_pattern->nr_accesses = NULL;
+@@ -1353,12 +1350,12 @@ static int damon_sysfs_scheme_add_dirs(struct damon_sysfs_scheme *scheme)
+ 		goto put_filters_watermarks_quotas_access_pattern_out;
+ 	err = damon_sysfs_scheme_set_tried_regions(scheme);
+ 	if (err)
+-		goto put_tried_regions_out;
++		goto put_stats_out;
+ 	return 0;
+ 
+-put_tried_regions_out:
+-	kobject_put(&scheme->tried_regions->kobj);
+-	scheme->tried_regions = NULL;
++put_stats_out:
++	kobject_put(&scheme->stats->kobj);
++	scheme->stats = NULL;
+ put_filters_watermarks_quotas_access_pattern_out:
+ 	kobject_put(&scheme->filters->kobj);
+ 	scheme->filters = NULL;
+diff --git a/mm/damon/vaddr.c b/mm/damon/vaddr.c
+index 96f7e378f..603a28b17 100644
+--- a/mm/damon/vaddr.c
++++ b/mm/damon/vaddr.c
+@@ -429,8 +429,6 @@ static void damon_va_prepare_access_checks(struct damon_ctx *ctx)
+ }
+ 
+ struct damon_young_walk_private {
+-	/* size of the folio for the access checked virtual memory address */
+-	unsigned long *folio_sz;
+ 	bool young;
+ };
+ 
+@@ -466,7 +464,6 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 					mmu_notifier_test_young(walk->mm,
+ 						addr))
+ 			priv->young = true;
+-		*priv->folio_sz = HPAGE_PMD_SIZE;
+ 		folio_put(folio);
+ huge_out:
+ 		spin_unlock(ptl);
+@@ -488,7 +485,6 @@ static int damon_young_pmd_entry(pmd_t *pmd, unsigned long addr,
+ 	if (pte_young(ptent) || !folio_test_idle(folio) ||
+ 			mmu_notifier_test_young(walk->mm, addr))
+ 		priv->young = true;
+-	*priv->folio_sz = folio_size(folio);
+ 	folio_put(folio);
+ out:
+ 	pte_unmap_unlock(pte, ptl);
+@@ -517,8 +513,6 @@ static int damon_young_hugetlb_entry(pte_t *pte, unsigned long hmask,
+ 	if (pte_young(entry) || !folio_test_idle(folio) ||
+ 	    mmu_notifier_test_young(walk->mm, addr))
+ 		priv->young = true;
+-	*priv->folio_sz = huge_page_size(h);
+-
+ 	folio_put(folio);
+ 
+ out:
+@@ -535,11 +529,9 @@ static const struct mm_walk_ops damon_young_ops = {
+ 	.walk_lock = PGWALK_RDLOCK,
+ };
+ 
+-static bool damon_va_young(struct mm_struct *mm, unsigned long addr,
+-		unsigned long *folio_sz)
++static bool damon_va_young(struct mm_struct *mm, unsigned long addr)
+ {
+ 	struct damon_young_walk_private arg = {
+-		.folio_sz = folio_sz,
+ 		.young = false,
+ 	};
+ 
+@@ -556,29 +548,18 @@ static bool damon_va_young(struct mm_struct *mm, unsigned long addr,
+  * r	the region to be checked
+  */
+ static void __damon_va_check_access(struct mm_struct *mm,
+-				struct damon_region *r, bool same_target,
++				struct damon_region *r,
+ 				struct damon_attrs *attrs)
+ {
+-	static unsigned long last_addr;
+-	static unsigned long last_folio_sz = PAGE_SIZE;
+-	static bool last_accessed;
++	bool accessed;
+ 
+ 	if (!mm) {
+ 		damon_update_region_access_rate(r, false, attrs);
+ 		return;
+ 	}
+ 
+-	/* If the region is in the last checked page, reuse the result */
+-	if (same_target && (ALIGN_DOWN(last_addr, last_folio_sz) ==
+-				ALIGN_DOWN(r->sampling_addr, last_folio_sz))) {
+-		damon_update_region_access_rate(r, last_accessed, attrs);
+-		return;
+-	}
+-
+-	last_accessed = damon_va_young(mm, r->sampling_addr, &last_folio_sz);
+-	damon_update_region_access_rate(r, last_accessed, attrs);
+-
+-	last_addr = r->sampling_addr;
++	accessed = damon_va_young(mm, r->sampling_addr);
++	damon_update_region_access_rate(r, accessed, attrs);
+ }
+ 
+ static unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
+@@ -587,16 +568,12 @@ static unsigned int damon_va_check_accesses(struct damon_ctx *ctx)
+ 	struct mm_struct *mm;
+ 	struct damon_region *r;
+ 	unsigned int max_nr_accesses = 0;
+-	bool same_target;
+ 
+ 	damon_for_each_target(t, ctx) {
+ 		mm = damon_get_mm(t);
+-		same_target = false;
+ 		damon_for_each_region(r, t) {
+-			__damon_va_check_access(mm, r, same_target,
+-					&ctx->attrs);
++			__damon_va_check_access(mm, r, &ctx->attrs);
+ 			max_nr_accesses = max(r->nr_accesses, max_nr_accesses);
+-			same_target = true;
+ 		}
+ 		if (mm)
+ 			mmput(mm);

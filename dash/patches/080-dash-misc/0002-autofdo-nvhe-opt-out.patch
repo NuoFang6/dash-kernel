@@ -1,0 +1,18 @@
+diff --git a/arch/arm64/kvm/hyp/nvhe/Makefile.nvhe b/arch/arm64/kvm/hyp/nvhe/Makefile.nvhe
+index 977357a9c..df2c88bce 100644
+--- a/arch/arm64/kvm/hyp/nvhe/Makefile.nvhe
++++ b/arch/arm64/kvm/hyp/nvhe/Makefile.nvhe
+@@ -79,6 +79,13 @@ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_FTRACE) $(CC_FLAGS_SCS), $(KBUILD_CFLAG
+ # when profile optimization is applied. gen-hyprel does not support SHT_REL and
+ # causes a build failure. Remove profile optimization flags.
+ KBUILD_CFLAGS := $(filter-out -fprofile-sample-use=% -fprofile-use=%, $(KBUILD_CFLAGS))
++
++# The filter above only removes the flags if they were put into KBUILD_CFLAGS.
++# This tree appends AutoFDO flags to the per-object command line through
++# CFLAGS_AUTOFDO_CLANG (scripts/Makefile.lib), so use kbuild's directory-level
++# opt-out instead: no nVHE TU may emit an SHT_REL .rel.llvm.call-graph-profile
++# section, which gen-hyprel/llvm-objcopy cannot handle.
++AUTOFDO_PROFILE := n
+ KBUILD_CFLAGS += -fno-asynchronous-unwind-tables -fno-unwind-tables
+ 
+ # KVM nVHE code is run at a different exception code with a different map, so

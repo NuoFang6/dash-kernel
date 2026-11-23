@@ -1,13 +1,14 @@
 # dash kernel patches
 
-## 当前：6.6.143（AOSP `android15-6.6-2026-10_r4`）
+## 当前：6.6.144（AOSP `android15-6.6` 分支 tip `a5c942b8c`）
 
 补丁按**功能特性**分目录存放，`series` 是唯一应用顺序（每行一个特性目录，
 目录内补丁按文件名排序逐个应用）：
 
 ```text
-010-bakasu-susfs/       BakaSU 内建 + SUSFS inline hook（VFS/security/core
-                        交错文件不可再拆，含 KSU 构建 hook）
+010-bakasu-susfs/       BakaSU 内建 + SUSFS inline hook（VFS/core 交错文件不可
+                        再拆；SELinux hide 由 BakaSU 运行时 auto hook 处理，
+                        不再改 security/selinux/hooks.c/selinuxfs.c）
 020-vendor-ko-compat/   厂商 .ko 加载兼容（签名/vermagic/CRC/namespace）
 030-vendor-hooks-os4/   dash OS4 android_vh_* vendor hooks
 040-memfd-ashmem-shim/  MEMFD_ASHMEM shim 配置接入
@@ -26,8 +27,10 @@
 131-unicode-bypass/      Unicode casefold 空分解边界修复
 140-power-mm/            alarmtimer/s2idle/MGLRU/swap/cpufreq/OPP 修复
 150-drivers-ntsync/      NTSync 驱动 backport
-160-block-adios/         ADIOS blk-mq 调度器（内建，非默认）
+160-block-adios/         ADIOS blk-mq 调度器（内建，内核默认）
 170-security-bbg/       Baseband Guard LSM
+180-stable-backports/   EVONIX 已收录的 stable 回移：UDP tunnel 分段 UAF、
+                        IPv6 解析加固、DAMON、writeback/ext4
 susfs-overrides/        SUSFS 子模块文件安装后的 dash 本地覆盖（不进 series）
 ```
 
@@ -53,7 +56,7 @@ SUSFS 的 hook 调用点）整体归入 `010-bakasu-susfs`。
 
 应用（`scripts/apply-patches.sh`，编译时逐目录逐补丁汇总）：
 
-1. `git reset --hard $AOSP_COMMIT` + `git clean -fdx`（`e6c23f621`，6.6.143）；
+1. `git reset --hard $AOSP_COMMIT` + `git clean -fdx`（`a5c942b8c`，6.6.144）；
 2. 校验 BakaSU / susfs4ksu / nomount 子模块在 `versions.env` pin 的 commit；
 3. 建立 `drivers/kernelsu -> BakaSU/kernel` 符号链接；
 4. 按 `series` 逐目录逐补丁 `git apply --index`；
@@ -72,9 +75,10 @@ series 与映射表一致、每个补丁触碰的文件与映射表一致、与 
 脚本侧接线（NoMount 的 `fs/Kconfig`、susfs/kernelsu/nomount 符号链接）在
 排除清单里。
 
-验证（2026-11-21，离线）：在固定 `e6c23f621`（r4）干净树上完整应用
-28 个补丁（140 个唯一归属文件）+ SUSFS 安装后 override，零 warning/error；
-`split-patches.py check` 确认补丁映射与 source-tree squash 逐字节一致。
+验证（2026-11-24）：在 `android15-6.6` tip `a5c942b8c`（Merge 6.6.144-r01）
+干净树上完整应用 35 个补丁（156 个唯一归属文件）+ SUSFS 安装后 override，
+零 warning/error；`split-patches.py check` 确认补丁映射与 source-tree squash
+逐字节一致。
 
 ## 维护约定
 

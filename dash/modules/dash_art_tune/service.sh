@@ -23,6 +23,7 @@ MODDIR=${0%/*}
 	apply_zram_lz4kd
 	for i in 1 2 3 4; do
 		apply_bbr
+		apply_tcp_sysctls
 		apply_adios
 		setprop ctl.stop vendor_tcpdump 2>>"$LOG"
 		sleep 10

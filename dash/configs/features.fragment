@@ -103,9 +103,18 @@ CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y
 CONFIG_KFENCE_DEFERRABLE=y
 # NT 同步原语模拟(/dev/ntsync,Wine 系;主线 v6.14 驱动的 6.6 backport)
 CONFIG_NTSYNC=y
-# ADIOS I/O 调度器(EVONIX 同款 6.6 适配;非默认,对照 mq-deadline 后再定)
+# ADIOS I/O 调度器(EVONIX 同款 6.6 适配;设为默认,附加模块在已是 adios 时跳过)
 CONFIG_MQ_IOSCHED_ADIOS=y
-# CONFIG_MQ_IOSCHED_DEFAULT_ADIOS is not set
+# ADIOS 设为默认调度器；附加模块检测到已是 adios 时不再重复写
+CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y
+# EVONIX 的前台同步读优先级保护(仅 ADIOS 生效;上游 default y)
+CONFIG_EVONIX_IO_PRIO=y
+# zram 默认压缩算法：lz4kd（vendor init 仍会写 lz4，附加模块会恢复 lz4kd）
+CONFIG_ZRAM_DEF_COMP_LZ4KD=y
+# 网络默认：BBR3 拥塞控制 + fq 队列（附加模块在已是默认时跳过）
+CONFIG_DEFAULT_BBR3=y
+CONFIG_NET_SCH_DEFAULT=y
+CONFIG_DEFAULT_FQ=y
 # Baseband Guard LSM(通用 Android 分区防格式化;boot/recovery 不保护,
 # 保持可刷;LSM 链末尾追加,顺序与 EVONIX 一致)
 CONFIG_BBG=y
@@ -125,3 +134,19 @@ CONFIG_DASH_ARM64_TUNE_A720=y
 
 # RCU lazy 默认启用(异常时用 rcutree.enable_rcu_lazy=0 回退)
 # CONFIG_RCU_LAZY_DEFAULT_OFF is not set
+
+# ── 2026-11-24 用户请求的运行时能力（仅 configure 验证，未重编） ──
+# Landlock LSM：进程自沙箱；stock 关闭，LANDLOCK 已在 LSM 链首位
+CONFIG_SECURITY_LANDLOCK=y
+# rseq：arm64 HAVE_RSEQ；stock 显式关闭；Wine/Proton 用户态同步受益
+CONFIG_RSEQ=y
+# 大页：HugeTLB 文件系统 + 容器 hugetlb 控制器（THP 已由 stock 以 madvise 启用）
+CONFIG_HUGETLBFS=y
+CONFIG_CGROUP_HUGETLB=y
+# Docker/容器补齐：device cgroup（按需启用控制器，无稳态开销）
+# 注明：不引入 nftables；Docker 使用 iptables-legacy/xtables 路径。
+# VXLAN 仅 Docker overlay 网络使用，未创建接口时零开销。
+CONFIG_CGROUP_DEVICE=y
+CONFIG_VXLAN=y
+# DroidVM：vhost-net 加速（KVM / MTK_GZVM / TUN 已具备）
+CONFIG_VHOST_NET=y

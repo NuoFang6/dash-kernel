@@ -1,5 +1,5 @@
 diff --git a/mm/Kconfig b/mm/Kconfig
-index 54f595659..eedafa47a 100644
+index 7c19ce961..1e5de9b95 100644
 --- a/mm/Kconfig
 +++ b/mm/Kconfig
 @@ -1354,6 +1354,17 @@ config LOCK_MM_AND_FIND_VMA

@@ -82,6 +82,12 @@ rmmod zram; insmod zram-lz4kd.ko
   name lz4kd, driver lz4kd-scomp,   type scomp
 ```
 
+> 2026-11-24：内核自建 `zram.ko` 的默认压缩算法已设为 lz4kd
+> （`CONFIG_ZRAM_DEF_COMP_LZ4KD=y`，`CONFIG_ZRAM_DEF_COMP="lz4kd"`）。
+> 实机仍使用 **vendor zram.ko**（ExtM）；其 init 先写 lz4，由
+> `dash_art_tune` 在 service 阶段恢复 `[lz4kd]`。不要用自建 zram.ko
+> 替换 vendor 模块，否则 ExtM 的 backing_dev/xswapd 全部失效。
+
 stock zram 的 `zcomp.c` 使用 `crypto_alloc_comp()`，并通过
 `crypto_has_comp()` 接受任意已注册压缩算法；`comp_algorithm` 的静态列表
 不显示它，但选中后会显示 `[... lz4kd]`。因此只需在 zram 未初始化时写：

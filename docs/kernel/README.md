@@ -29,7 +29,7 @@ out/                          构建目录和 artifacts
 cd dash
 make deps       # Arch/CachyOS 依赖检查
 make toolchain  # 获取固定 clang r614150
-make source     # 浅克隆/更新 AOSP 到 2026-10_r4（6.6.143）
+make source     # 跟随 android15-6.6 分支（AOSP_UPDATE=1 拉到分支最新）
 make patches    # 重置源码、接入 BakaSU、按 series 打补丁
 make config     # stock.config + 功能开关
 make build      # 最终生产构建：LTO Full（仅明确要产出生产级内核时运行）
@@ -40,14 +40,15 @@ bash scripts/finalize.sh  # KCFI + 638 模块 + boot 校验，写 SHA256SUMS
 make notes                 # 合并仓库开发笔记为 docs/kernel/DEV_NOTES.md（给 LLM 的避坑包）
 ```
 
-> **6.6.143 补丁序列（2026-11-21 起按特性拆分）**：`patches/` 下是按功能
-> 特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat / vendor-hooks-os4
-> / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc / sched-eevdf / bbrv3 /
-> arm64-perf / power-mm / ntsync / adios / bbg），`series` 是唯一应用顺序；
-> 文件级拆分（每文件只属于一个补丁），归属表在
-> `dash/scripts/split-patches.py`。旧的 6.6.118 拆分系列和 6.6.143 整树
-> squash 已从仓库删除（git 历史保留）。已在固定 r4 (`e6c23f621`) 干净树
-> 验证 28 个补丁/142 个文件与 SUSFS override 全量重放，零 warning/error；
+> **6.6.144 补丁序列（2026-11-24 起跟随 `android15-6.6` 分支）**：`patches/`
+> 下是按功能特性分目录的补丁系列（bakasu-susfs / vendor-ko-compat /
+> vendor-hooks-os4 / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc /
+> sched-eevdf / bbrv3 / arm64-perf / power-mm / ntsync / adios / bbg /
+> stable-backports），`series` 是唯一应用顺序；文件级拆分（每文件只属于一个
+> 补丁），归属表在 `dash/scripts/split-patches.py`。已在分支 tip
+> `a5c942b8c`（6.6.144-r01）干净树验证 35 个补丁/156 个文件与 SUSFS
+> override 全量重放，零 warning/error；本轮冲突只有 f2fs `super.c` 的挂载
+> 选项（上游新增 `resizable_tail_secno`，与 dash 的 `hybrid` 并存）。
 > `make patches` 会重置源码再重放，执行前确认没有补丁之外的未固化改动；
 > 改 `src/aosp/common` 后用 `make gen-patches` 再生成，不要手改补丁文件。
 
@@ -265,9 +266,11 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 
 ## 更新规则
 
-- 更新 AOSP：改 `versions.env` 的 `AOSP_TAG`/`AOSP_COMMIT`，运行
-  `make patches`；如果补丁冲突，在 `src/aosp/common` 修正后运行
-  `make gen-patches` 重新生成特性补丁，不要手改补丁文件。流程见
+- 更新 AOSP：本仓自 2026-11-24 起跟随 `android15-6.6` 开发分支。
+  `AOSP_UPDATE=1 make source` 拉取分支最新 tip 并把 `AOSP_COMMIT` 钉到该
+  commit（`AOSP_PIN=1` 可强制停在当前 pin），然后 `make patches`；如果补丁
+  冲突，在 `src/aosp/common` 修正后运行 `make gen-patches` 重新生成特性
+  补丁，不要手改补丁文件。流程见
   [patches/README.md](../../dash/patches/README.md)。
 - 更新 BakaSU：更新子模块并改 `BAKASU_COMMIT`，然后 `make patches config build`。
 - 更新 SUSFS：更新 `SUSFS_COMMIT` 并 bump `third_party/susfs4ksu` 子模块即可；

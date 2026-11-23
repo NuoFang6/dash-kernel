@@ -71,7 +71,7 @@ index c3a169950..9719c2e39 100644
  f2fs-$(CONFIG_F2FS_FS_XATTR) += xattr.o
  f2fs-$(CONFIG_F2FS_FS_POSIX_ACL) += acl.o
 diff --git a/fs/f2fs/f2fs.h b/fs/f2fs/f2fs.h
-index d61cca5a6..640db17f8 100644
+index 6b8cb2769..4b9f88a1b 100644
 --- a/fs/f2fs/f2fs.h
 +++ b/fs/f2fs/f2fs.h
 @@ -27,6 +27,8 @@
@@ -91,7 +91,7 @@ index d61cca5a6..640db17f8 100644
  	int discard_unit;		/*
  					 * discard command's offset/size should
  					 * be aligned to this unit: block,
-@@ -628,7 +631,7 @@ enum {
+@@ -629,7 +632,7 @@ enum {
  #define MAX_FLUSH_RETRY_COUNT	3	/* maximum flush retry count in f2fs_enable_checkpoint() */
  
  /* congestion wait timeout value, default: 20ms */
@@ -100,7 +100,7 @@ index d61cca5a6..640db17f8 100644
  
  /* maximum retry quota flush count */
  #define DEFAULT_RETRY_QUOTA_FLUSH_COUNT		8
-@@ -1931,6 +1934,15 @@ struct f2fs_sb_info {
+@@ -1935,6 +1938,15 @@ struct f2fs_sb_info {
  	spinlock_t iostat_lat_lock;
  	struct iostat_lat_info *iostat_io_lat;
  #endif
@@ -117,7 +117,7 @@ index d61cca5a6..640db17f8 100644
  	struct lock_class_key cp_global_sem_key;
  #endif
 diff --git a/fs/f2fs/file.c b/fs/f2fs/file.c
-index ce54bd8c8..715cb289c 100644
+index 2591336e2..c56ce2c0b 100644
 --- a/fs/f2fs/file.c
 +++ b/fs/f2fs/file.c
 @@ -597,6 +597,7 @@ static int finish_preallocate_blocks(struct inode *inode)
@@ -156,7 +156,7 @@ index ce54bd8c8..715cb289c 100644
  	err = dquot_file_open(inode, filp);
  	if (err)
  		return err;
-@@ -3075,8 +3097,6 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+@@ -3082,8 +3104,6 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
  	if (src == dst) {
  		if (pos_in == pos_out)
  			return 0;
@@ -165,7 +165,7 @@ index ce54bd8c8..715cb289c 100644
  	}
  
  	inode_lock(src);
-@@ -3102,6 +3122,8 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
+@@ -3109,6 +3129,8 @@ static int f2fs_move_file_range(struct file *file_in, loff_t pos_in,
  		goto out_unlock;
  	if (len == 0)
  		olen = len = src->i_size - pos_in;
@@ -175,10 +175,10 @@ index ce54bd8c8..715cb289c 100644
  		len = ALIGN(src->i_size, F2FS_BLKSIZE) - pos_in;
  	if (len == 0) {
 diff --git a/fs/f2fs/inode.c b/fs/f2fs/inode.c
-index 1c0dab2ad..6f5a1a6bd 100644
+index 755eb5bdc..1790b7933 100644
 --- a/fs/f2fs/inode.c
 +++ b/fs/f2fs/inode.c
-@@ -838,6 +838,11 @@ void f2fs_evict_inode(struct inode *inode)
+@@ -860,6 +860,11 @@ void f2fs_evict_inode(struct inode *inode)
  	int err = 0;
  	bool freeze_protected = false;
  
@@ -279,26 +279,26 @@ index 278d80512..eaa72f1b7 100644
  	kfree(sbi->iostat_io_lat);
  }
 diff --git a/fs/f2fs/super.c b/fs/f2fs/super.c
-index d7ff0bbf0..c58ec8ce6 100644
+index b4ee9a6a5..fa72d81cc 100644
 --- a/fs/f2fs/super.c
 +++ b/fs/f2fs/super.c
-@@ -179,6 +179,7 @@ enum {
- 	Opt_age_extent_cache,
+@@ -180,6 +180,7 @@ enum {
  	Opt_errors,
  	Opt_lookup_mode,
+ 	Opt_resizable_tail_secno,
 +	Opt_hybrid,
  	Opt_err,
  };
  
-@@ -260,6 +261,7 @@ static match_table_t f2fs_tokens = {
- 	{Opt_age_extent_cache, "age_extent_cache"},
+@@ -262,6 +263,7 @@ static match_table_t f2fs_tokens = {
  	{Opt_errors, "errors=%s"},
  	{Opt_lookup_mode, "lookup_mode=%s"},
+ 	{Opt_resizable_tail_secno, "resizable_tail_secno=%u"},
 +	{Opt_hybrid, "hybrid=%u"},
  	{Opt_err, NULL},
  };
  
-@@ -1304,6 +1306,18 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
+@@ -1306,6 +1308,18 @@ static int parse_options(struct super_block *sb, char *options, bool is_remount)
  		case Opt_age_extent_cache:
  			set_opt(sbi, AGE_EXTENT_CACHE);
  			break;
@@ -317,7 +317,7 @@ index d7ff0bbf0..c58ec8ce6 100644
  		case Opt_errors:
  			name = match_strdup(&args[0]);
  			if (!name)
-@@ -1733,6 +1747,7 @@ static void f2fs_put_super(struct super_block *sb)
+@@ -1749,6 +1763,7 @@ static void f2fs_put_super(struct super_block *sb)
  	fscrypt_free_dummy_policy(&F2FS_OPTION(sbi).dummy_enc_policy);
  	destroy_percpu_info(sbi);
  	f2fs_destroy_iostat(sbi);
@@ -325,7 +325,7 @@ index d7ff0bbf0..c58ec8ce6 100644
  	for (i = 0; i < NR_PAGE_TYPE; i++)
  		kvfree(sbi->write_io[i]);
  #if IS_ENABLED(CONFIG_UNICODE)
-@@ -4694,6 +4709,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+@@ -4747,6 +4762,8 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
  	if (err)
  		goto free_bio_info;
  
@@ -334,7 +334,7 @@ index d7ff0bbf0..c58ec8ce6 100644
  	err = init_percpu_info(sbi);
  	if (err)
  		goto free_iostat;
-@@ -5038,6 +5055,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
+@@ -5093,6 +5110,7 @@ static int f2fs_fill_super(struct super_block *sb, void *data, int silent)
  	destroy_percpu_info(sbi);
  free_iostat:
  	f2fs_destroy_iostat(sbi);
@@ -343,7 +343,7 @@ index d7ff0bbf0..c58ec8ce6 100644
  	for (i = 0; i < NR_PAGE_TYPE; i++)
  		kvfree(sbi->write_io[i]);
 diff --git a/fs/f2fs/sysfs.c b/fs/f2fs/sysfs.c
-index 279ab232b..e18701077 100644
+index 01bb23888..bfb5b4ec2 100644
 --- a/fs/f2fs/sysfs.c
 +++ b/fs/f2fs/sysfs.c
 @@ -18,6 +18,7 @@
@@ -488,7 +488,7 @@ index 279ab232b..e18701077 100644
  static ssize_t dirty_segments_show(struct f2fs_attr *a,
  		struct f2fs_sb_info *sbi, char *buf)
  {
-@@ -1089,6 +1217,31 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
+@@ -1110,6 +1238,31 @@ static struct f2fs_attr f2fs_attr_##_name = {			\
  #define F2FS_GENERAL_RO_ATTR(name) \
  static struct f2fs_attr f2fs_attr_##name = __ATTR(name, 0444, name##_show, NULL)
  
@@ -520,7 +520,7 @@ index 279ab232b..e18701077 100644
  #ifdef CONFIG_F2FS_STAT_FS
  #define STAT_INFO_RO_ATTR(name, elname)				\
  	F2FS_RO_ATTR(STAT_INFO, f2fs_stat_info, name, elname)
-@@ -1361,6 +1514,23 @@ static struct attribute *f2fs_attrs[] = {
+@@ -1385,6 +1538,23 @@ static struct attribute *f2fs_attrs[] = {
  #ifdef CONFIG_F2FS_IOSTAT
  	ATTR_LIST(iostat_enable),
  	ATTR_LIST(iostat_period_ms),

@@ -6,6 +6,7 @@ MODDIR=${0%/*}
 
 log "manual action"
 apply_bbr
+apply_tcp_sysctls
 apply_adios
 apply_wlan_privacy
 setprop ctl.stop vendor_tcpdump 2>>"$LOG"

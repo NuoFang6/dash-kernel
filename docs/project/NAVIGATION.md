@@ -40,11 +40,11 @@
 
 | 路径 | 上游 | pin / 分支 | 用途 |
 |---|---|---|---|
-| [dash/src/aosp/common](../../dash/src/aosp/common) | https://android.googlesource.com/kernel/common | tag `android15-6.6-2026-10_r2`，commit `bf768be0eed008588dc4e0db0b2f76c026a35818`（6.6.143） | 当前自编内核源码；由 `dash/versions.env` 固定 |
+| [dash/src/aosp/common](../../dash/src/aosp/common) | https://android.googlesource.com/kernel/common | 跟随 `android15-6.6` 分支，pin `a5c942b8c5be461264ec25e7893e53fda4144a3a`（6.6.144-r01） | 当前自编内核源码；`dash/versions.env` 固定 commit，`AOSP_UPDATE=1 make source` 刷新 |
 | [dash/src/micode-kernel](../../dash/src/micode-kernel) | https://github.com/MiCode/Xiaomi_Kernel_OpenSource.git | `2d28e280ea36` / `dash-w-oss`（6.6.89） | 官方公开 dash 参考源码；`mm/memfd-ashmem-shim*` 来源 |
 | [dash/src/MTK_kernel_device_modules](../../dash/src/MTK_kernel_device_modules) | https://github.com/MiCode/MTK_kernel_device_modules.git | `9c62564` / `dash-w-oss` | 官方公开 dash DTS/device modules 参考 |
 | [dash/src/MTK_kernel_modules](../../dash/src/MTK_kernel_modules) | https://github.com/MiCode/MTK_kernel_modules.git | `8c88cf7` / `dash-w-oss` | 官方公开 MTK camera/WiFi 等模块参考 |
-| [dash/toolchains/clang-prebuilt](../../dash/toolchains/clang-prebuilt) | https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 | `main-kernel` | AOSP clang r614150（23.0.1），当前构建链 |
+| [dash/toolchains/clang-prebuilt](../../dash/toolchains/clang-prebuilt) | https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 | `main-kernel` @ `74fa19d5` | AOSP clang r614150（23.0.1，2026-11-23 快照），当前构建链；`CLANG_UPDATE=1 make toolchain` 刷新 |
 | `/tmp/cc_dash_tree`（临时） | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash.git | `86b65f8476c7` / `dash-w-oss`（6.6.144） | CC 主内核参考；2.8GB。**上游已 404（2026-11-21），无法再取** |
 
 大源码树的更新方式：

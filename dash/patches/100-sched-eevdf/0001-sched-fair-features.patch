@@ -1,5 +1,5 @@
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 5965e9c47..9b12e4bd8 100644
+index 2f853cc3e..e49e842ee 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
 @@ -1022,6 +1022,31 @@ int sched_update_scaling(void)
@@ -139,7 +139,7 @@ index 5965e9c47..9b12e4bd8 100644
  
  	/* tune up the balancing interval */
 diff --git a/kernel/sched/features.h b/kernel/sched/features.h
-index eb315c739..2f2b13e22 100644
+index e48c183a3..2f2b13e22 100644
 --- a/kernel/sched/features.h
 +++ b/kernel/sched/features.h
 @@ -19,7 +19,7 @@ SCHED_FEAT(NEXT_BUDDY, false)
@@ -151,24 +151,7 @@ index eb315c739..2f2b13e22 100644
  
  /*
   * Allow wakeup-time preemption of the current task:
-@@ -68,8 +68,16 @@ SCHED_FEAT(WARN_DOUBLE_CLOCK, false)
-  * rq lock and possibly create a large contention, sending an
-  * IPI to that CPU and let that CPU push the RT task to where
-  * it should go may be a better scenario.
-+ *
-+ * This is best for PREEMPT_RT, but for non-RT it can cause issues
-+ * when preemption is disabled for long periods of time. Have
-+ * it only default enabled for PREEMPT_RT.
-  */
-+# ifdef CONFIG_PREEMPT_RT
- SCHED_FEAT(RT_PUSH_IPI, true)
-+# else
-+SCHED_FEAT(RT_PUSH_IPI, false)
-+# endif
- #endif
- 
- SCHED_FEAT(RT_RUNTIME_SHARE, false)
-@@ -88,3 +96,16 @@ SCHED_FEAT(UTIL_EST, true)
+@@ -96,3 +96,16 @@ SCHED_FEAT(UTIL_EST, true)
  SCHED_FEAT(LATENCY_WARN, false)
  
  SCHED_FEAT(HZ_BW, true)

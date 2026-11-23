@@ -17,7 +17,7 @@ current_susfs="$(git -C "$SUSFS_DIR" rev-parse HEAD)"
 
 current_nomount="$(git -C "$NOMOUNT_DIR" rev-parse HEAD)"
 [[ "$current_nomount" == "$NOMOUNT_COMMIT" ]] || \
-	die "nomount is at $current_nomount, expected $NOMOUNT_COMMIT ($NOMOUNT_TAG; update versions.env or the submodule)"
+	die "nomount is at $current_nomount, expected $NOMOUNT_COMMIT ($NOMOUNT_BRANCH; update versions.env or the submodule)"
 
 git -C "$AOSP_DIR" reset --hard "$AOSP_COMMIT"
 git -C "$AOSP_DIR" clean -fdx
