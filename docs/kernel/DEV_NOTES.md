@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-24 05:46:51 +0800
-> 覆盖 22 个源，386747 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-24 05:52:15 +0800
+> 覆盖 22 个源，386840 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -172,7 +172,7 @@ fdf3b294fe9b2ac19a1ad76764f45040f8cce285beb1e8a7ead31c850206aa8a  Image
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 15628 | `99d4a7ba47cae80e` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 15721 | `1f31eab5c8901523` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 19564 | `49502ecd580e0467` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
 | 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 115775 | `c25996c6167f8841` | 当前交付（优先相信） |
@@ -202,7 +202,7 @@ fdf3b294fe9b2ac19a1ad76764f45040f8cce285beb1e8a7ead31c850206aa8a  Image
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 15628 字节 · SHA256 `99d4a7ba47cae80e8e657b33fc8d696556dd125663854263736f5a998c620d0a`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 15721 字节 · SHA256 `1f31eab5c89015232aff16d66e0fc567ec082dd40c38a68fa4c235a4f5f2abfa`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -221,7 +221,7 @@ fdf3b294fe9b2ac19a1ad76764f45040f8cce285beb1e8a7ead31c850206aa8a  Image
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1，2026-11-24 刷新到 `main-kernel` 最新同版本快照（build 16836431，tree `9258d46`）；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
 | 本地生产构建（2026-11-24） | 基线 `a5c942b8c` + 34 补丁（含 `DASH-EXTM-COMPAT`）+ 原厂 ABI 对齐配置；`LTO_CLANG_FULL` + MLGO + AutoFDO + A720 tune；`Image` 47,626,752 B（`fdf3b294…`）/ `Image.lz4` 22,724,910 B（`206d66a3…`）/ `boot.img` 67,108,864 B（`7e36a974…`）；零 warning；ABI 六项硬校验通过（`kmem_cache` 240 为软偏差）、KCFI 13/13、638 模块 `unresolved_hard=0/unresolved_weak=0`；**已刷入 `boot_a`，正常开机，ExtM backing device 恢复 `/dev/block/dm-71`** |
 | 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §2.11） |
-| 发布 | Release `dash-6.6.143-prod`（2026-11-22 更新，tag `ebfc285`）：Image 45,857,280 B / Image.lz4 22,288,250 B / SHA256SUMS + `dash_art_tune-AnyKernel3-v1.4.zip` + `dash_art_tune-v1.4.zip`（显示名「内核附加模块」）；发布页含 AnyKernel3/fastboot 刷入说明 |
+| 发布 | Release `dash-6.6.144-prod`（2026-11-24，tag 指向 `5f2af7b`）：`Image` 47,626,752 B / `Image.lz4` 22,724,910 B / `boot.img` 67,108,864 B / `SHA256SUMS` + `dash_art_tune-AnyKernel3-v1.5.zip`（22,684,391 B）+ `dash_art_tune-v1.5.zip`（7,285 B）；发布页含 fastboot 与 AnyKernel3 刷入说明。旧版 `dash-6.6.143-prod`（tag `ebfc285`）保留用于回滚 |
 | 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
 | `boot_a` SHA256 | `7e36a9747569bacda2e3571c3a050affe45694044466f72f21bed4b209e12a86`（6.6.144 生产 Full LTO + ExtM 兼容补丁，2026-11-24 刷入）；`e12ff624…`（同基线无兼容补丁版）；回滚备份 `221cad2d8ca79e60a1b2649e0e37b5a9a40eb3e0d93cc54ffced609a41c80030`（6.6.143 生产，2026-11-22）；生产 `d0cdd6ad…` 备份在 `dash/out/device-backup/20261122-154445-pre-nolto-perf-fp-slot_a/`；NoLTO perf `7db11d8f…` 备份在 `20261122-162106-pre-full-lto-perf-slot_a/` |
 | `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
@@ -237,7 +237,7 @@ fdf3b294fe9b2ac19a1ad76764f45040f8cce285beb1e8a7ead31c850206aa8a  Image
 
 完整交付哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
 `dash/out/artifacts/BUILD_INFO`；本地 artifacts 仍是历史 #8 交付批次，
-生产 Full LTO 产物以 Release `dash-6.6.143-prod` 的 SHA256SUMS 为准。历史
+生产 Full LTO 产物以 Release `dash-6.6.144-prod` 的 SHA256SUMS 为准。历史
 System.map 本地副本已缺失（清单保留目标哈希）。2026-11-24 的 6.6.144 NoLTO
 验证构建未发布 artifacts，只写 `dash/out/dash/`；它与实机运行的生产
 Full LTO 版本无关。
