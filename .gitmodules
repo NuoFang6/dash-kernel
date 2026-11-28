@@ -39,3 +39,18 @@
 [submodule "third_party/nomount"]
 	path = third_party/nomount
 	url = https://github.com/maxsteeel/nomount.git
+[submodule "third_party/xiaomi-dada-closed-modules"]
+	path = third_party/xiaomi-dada-closed-modules
+	url = https://github.com/klarnet2009/dada-closed-modules.git
+[submodule "third_party/xiaomi-opt_gki_kernel_android13-5.15"]
+	path = third_party/xiaomi-opt_gki_kernel_android13-5.15
+	url = https://github.com/donothavename/opt_gki_kernel_android13-5.15.git
+[submodule "third_party/xiaomi-chirunoneko-gki-5.15-modules"]
+	path = third_party/xiaomi-chirunoneko-gki-5.15-modules
+	url = https://github.com/NikoRurQwQRuaaMeow/chirunoneko_gki_android13-5.15_kernel_module_opensource.git
+[submodule "third_party/mtk-device-modules-hikari"]
+	path = third_party/mtk-device-modules-hikari
+	url = https://github.com/Project-Hikari-Liella/MTK_kernel_device_modules-50da8b3c19a331c676dcaa1334fa3b49e4b1a531.git
+[submodule "third_party/xiaomi-venus-memcg"]
+	path = third_party/xiaomi-venus-memcg
+	url = https://github.com/hushangda/android_kernel_xiaomi_sm8350_venus.git

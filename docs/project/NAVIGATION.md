@@ -28,6 +28,32 @@
 | [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_device_modules.git | dash-w-oss | `94914f6bc83f` | dash DTS、`kernel/configs/dash*.config`、重实现的触摸/热管理/millet/mi_memory/UFS 模块源码 |
 | [third_party/cc-dash-mtk-modules](../../third_party/cc-dash-mtk-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules.git | dash-w-oss | `d3e32dcf9f67` | MediaTek camera/connectivity/GPU/等模块源码 |
 | [third_party/cc-dash-bazel-rules](../../third_party/cc-dash-bazel-rules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_bazel_mgk_rules.git | lineage-23.2 | `1573a08b7d6b` | CC dash Kleaf/MGK 构建规则 |
+| [third_party/xiaomi-dada-closed-modules](../../third_party/xiaomi-dada-closed-modules) | https://github.com/klarnet2009/dada-closed-modules.git | main | `3c6328d3485a` | Xiaomi 15/SM8750 约 630 个闭源模块的**逆向重建源码**（146 模块，EQUIVALENT 103/PARTIAL 43，每模块带 `STATUS.md`）；`mi_wmark`/`mi_reclaim`/`dynamic_readahead`/`fault_report`/`vip_sched` 等接口与判定参考；大量模块标 DO NOT LOAD，仅读不刷（见 [FEATURES_SURVEY](../kernel/FEATURES_SURVEY.md) 2026-11-28 节） |
+| [third_party/xiaomi-opt_gki_kernel_android13-5.15](../../third_party/xiaomi-opt_gki_kernel_android13-5.15) | https://github.com/donothavename/opt_gki_kernel_android13-5.15.git | main | `4662b82f6205` | 5.15 GKI 的 OS4 内存/调度移植（`sew_mi_reclaim`/`sew_unfairmem`/`sew_scene_swappiness`/`sew_dynamic_readahead`/`kshrink_slabd`/`mi_rmap_efficiency`/`unionpower`/`ssg`）；本树已导出其所需 vendor hook |
+| [third_party/xiaomi-chirunoneko-gki-5.15-modules](../../third_party/xiaomi-chirunoneko-gki-5.15-modules) | https://github.com/NikoRurQwQRuaaMeow/chirunoneko_gki_android13-5.15_kernel_module_opensource.git | chirunoneko_5.15-lts_vendor_modules_opensource | `96dd2f7849a8` | 小米特性**清单/命名情报**（Kconfig/defconfig 为主，源码被挖空，README 仅“滚木”）；用于按特性名反查真源码 |
+| [third_party/mtk-device-modules-hikari](../../third_party/mtk-device-modules-hikari) | https://github.com/Project-Hikari-Liella/MTK_kernel_device_modules-50da8b3c19a331c676dcaa1334fa3b49e4b1a531.git | main | `430688007431` | **dash 实际的厂商 zram/内存后端源码（XRING）**：`drivers/block/zram/{zgroup,zgroup_wb,mctrl,xswapd,smart_cache}.c`，是 `zgroup_enable`/`memory.mctrl.*`/`memory.xswapd.*` 的真源码；`kernel/configs/dash.config` 也在此（`XRING_ZRAM_MEMCG(_WRITEBACK)/XSWAPD=y`，`MI_MEMORY_FREEZE=n`） |
+| [third_party/xiaomi-venus-memcg](../../third_party/xiaomi-venus-memcg) | https://github.com/hushangda/android_kernel_xiaomi_sm8350_venus.git | main | `412a1fcc196a` | 小米 memcg 策略参考实现 + **官方 `Documentation/admin-guide/mm/xiaomi-memcg.rst` 协议文档**，精确解释 `mctrl.*` 与 `xswapd.*` 的取值/单位/协议（`mm/mi_memcg*.c`、`mm/mi_smart_cache.c`） |
+
+> 小米官方 6.6 开源（`MiCode` bixi-v-oss，~30 GB）与 OneFeiFan pad6max（~200 MB）
+> **不做子模块**，按需用 GitHub API 取单文件（MFZ/ExtM/mi_wmark 权威来源），pin 见
+> `dash/versions.env` 末段。
+
+### 1.1 按需取码来源（不入子模块，2026-11-28 最后一轮搜索新增）
+
+| 仓库 | 用途 | 规模 |
+|---|---|---|
+| [Pzqqt/android_kernel_xiaomi_marble](https://github.com/Pzqqt/android_kernel_xiaomi_marble) | **唯一公开的 XRING 补全源码**：`lib/lz4p/`（12 文件，含 NEON `.S`）+ `drivers/staging/kshrink_slabd/`；`lz4p.h` 头注明 X-Ring technologies | 2.4 GB，只取单文件 |
+| [ShriHari33/mt6991-ufs-gear-lane](https://github.com/ShriHari33/mt6991-ufs-gear-lane) | MT6991 UFS `power_mode`/gear-lane 运行时切档 + W-LUN 唤醒修复 + G5 时钟分析（源码副本/PDF） | 4.7 MB，可取 `proposed/*.patch` |
+| [OnePlusOSS/android_kernel_oneplus_mt6991](https://github.com/OnePlusOSS/android_kernel_oneplus_mt6991) | **官方 MT6991 6.6.118**（`mt6991_b_16.0.0_oneplus_ace5_ultra`），AOSP-vs-厂商对照；证明 XRING 非 MTK 通用 | 2.3 GB，按文件比对 |
+| [oppo-source/android_kernel_oppo_mt6991](https://github.com/oppo-source/android_kernel_oppo_mt6991) | 官方 MT6991 6.6.30（Find X8 Pro），同上 | 2.2 GB，按文件比对 |
+| [bocchi810/mt6991-kernel-ci](https://github.com/bocchi810/mt6991-kernel-ci) | MT6991 6.6.118 CI；`hybridswap_lpc` NULL-deref 的 kprobe 守卫思路（OPLUS 后端，dash 不适用） | 19 KB |
+| [dongyanchen-dev/android_kernel_xiaomi_sm8850](https://github.com/dongyanchen-dev/android_kernel_xiaomi_sm8850) | 小米 17/K90 Pro Max GKI 构建器 + 约 60 个 f2fs/ufs/fscrypt/erofs/mglru 安全 backport | 1.2 MB |
+| [liudaoziwa/mainline-mt6991](https://github.com/liudaoziwa/mainline-mt6991) | Linux 7.3 主线 MT6991 支持（观察） | 382 GB 量级源码，不克隆 |
+| [localhosts-A/UniXNU-MT6991-Common](https://github.com/localhosts-A/UniXNU-MT6991-Common) | MT6991 硬件输入整理 `docs/hardware-inputs.md` + `dts/mt6991.dtsi`（XNU 方向） | 10 KB |
+| [SHuiTU68/android_kernel_oplus_common](https://github.com/SHuiTU68/android_kernel_oplus_common) | OPLUS F2FS 移植（`F2FS_FS_DEDUP`/`COMPRESS_FIXED_OUTPUT`/`lz4armv8` NEON），6.6.114 | 255 GB 量级，按文件比对 |
+
+> 详见 [FEATURES_SURVEY.md](../kernel/FEATURES_SURVEY.md) 末节与
+> [UPSTREAM_NOTES_REVIEW.md](../kernel/UPSTREAM_NOTES_REVIEW.md) §7.5。
 
 注意：CC 的 device modules 中很多厂商模块是**反汇编/逆向重实现**，不是原厂源码；README 明确写“it compiles doesn't mean it works”，且**不要直接刷到 HyperOS 上**。只作为接口/实现参考。
 

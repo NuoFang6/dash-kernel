@@ -15,7 +15,7 @@
 | AOSP 基线 | `android15-6.6` 开发分支，tip `a5c942b8c5be461264ec25e7893e53fda4144a3a`（2026-11-23，Merge `android15-6.6.144_r01`，6.6.144）；2026-11-24 起不再固定发布 tag |
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1，2026-11-24 刷新到 `main-kernel` 最新同版本快照（build 16836431，tree `9258d46`）；生产发布版使用 `LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`；当前实机为 NoLTO 验证版，未做 A/B |
 | 本地生产构建（2026-11-24） | 基线 `a5c942b8c` + 34 补丁（含 `DASH-EXTM-COMPAT`）+ 原厂 ABI 对齐配置；`LTO_CLANG_FULL` + MLGO + AutoFDO + A720 tune；`Image` 47,626,752 B（`fdf3b294…`）/ `Image.lz4` 22,724,910 B（`206d66a3…`）/ `boot.img` 67,108,864 B（`7e36a974…`）；零 warning；ABI 六项硬校验通过（`kmem_cache` 240 为软偏差）、KCFI 13/13、638 模块 `unresolved_hard=0/unresolved_weak=0`；**已刷入 `boot_a`，正常开机，ExtM backing device 恢复 `/dev/block/dm-71`** |
-| 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §6） |
+| 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §3/§6） |
 | 发布 | Release `dash-6.6.144-prod`（2026-11-24，tag 指向 `5f2af7b`）：`Image` 47,626,752 B / `Image.lz4` 22,724,910 B / `boot.img` 67,108,864 B / `SHA256SUMS` + `dash_art_tune-AnyKernel3-v1.5.zip`（22,684,391 B）+ `dash_art_tune-v1.5.zip`（7,285 B）；发布页含 fastboot 与 AnyKernel3 刷入说明。旧版 `dash-6.6.143-prod`（tag `ebfc285`）保留用于回滚 |
 | 运行槽位 | `boot_a`（`_a`，2026-11-28） |
 | `boot_a` SHA256 | `eae750b9b4f6c3b0302e3099312c2d76ae898aa4d82dfd8d2cf64e3bdcd8fff0`（NoLTO 验证版，分区回读一致）；原生产版 `7e36a974…` 已完整备份在 `dash/out/os4-compat/rollback.bnJIRV/boot_a.img` |
@@ -46,8 +46,22 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
   sysfs/property；调用进程可确认是 `reboot`，更上游调用者未从日志确定。重启后仍为
   `6.6.144-4k #16`，584 个关键厂商模块加载，`/dev/block/dm-71`、16 GiB zram、
   stock 七项 cgroup 控制器均恢复正常。OS4 `PerfInit` 仍报告
-  `/proc/sys/vm/swappiness` 无法打开和 `/sys/block/zram0/writeback_quota` 不存在，
-  详见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §47。
+  `/proc/sys/vm/swappiness` 无法打开和 `/sys/block/zram0/writeback_quota` 不存在。
+  **2026-11-28 定论**：这两项对 dash 属正常——dash 用 XRING（zgroup/xswapd/mctrl）
+  内存后端而非 bixi MFZ，stock dash `ikconfig` 为 `MI_MEMORY_FREEZE=n`，故
+  `mfz_enable`/`writeback_quota` 本就不存在；`swappiness` 是 SELinux 域权限而非缺
+  sysctl。详见 [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) §3 与
+  [FEATURES_SURVEY.md](kernel/FEATURES_SURVEY.md) 2026-11-28 节、[TEST_REPORT.md](kernel/TEST_REPORT.md) §47。
+
+- **2026-11-28（只读搜索，XRING 源码面收敛）**：7 轮不同关键词族 GitHub 搜索确认
+  **XRING 源码面无遗漏**（`zgroup`/`zgroup_wb`/`mctrl`/`xswapd`/`smart_cache` 已全在
+  `hikari` 子模块，且该子模块 `ufs-mediatek.c` 与 MiCode 官方 `dash-w-oss` **字节一致**）。
+  补出 2 个真实缺口：`CONFIG_XRING_ZRAM_LZ4P`（dash 设备 `comp_algorithm` 无 `lz4p`，
+  vendor `zram.ko` 内该字符串为 0）与 `kshrink_slabd`（`kallsyms` 无 `shrink_async`），
+  完整源码均只在 `marble`（MT6878）公开；另有 MT6991 UFS `power_mode` 参考工程。
+  官方 MT6991 6.6.118 树（OnePlus/OPPO）zram 为纯 AOSP，**反证 XRING 是小米专有**。
+  三项均为「未做/待决策」，未改代码、未刷机。见
+  [TEST_REPORT.md](kernel/TEST_REPORT.md) §53、[OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) E5/F4/F5。
 
 - **2026-11-27（真机，MGLRU 与小米 SmartCache / OOM panic）**：
   `persist.sys.stability.SmartCacheEnable=true` 与 `MultiCacheEnable=true`
@@ -63,7 +77,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
   回收，但**因果未证实**，已恢复 `lru_gen/enabled=0x0000` 并将其保留为
   需要隔离 A/B 的风险项；该逻辑属于当前 AOSP 基线，补丁重放不会丢失。见
   [TEST_REPORT.md](kernel/TEST_REPORT.md) §44–§48 与
-  [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) §2.1。
+  [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) §4.3（MGLRU 待决策）。
 
 - **2026-11-27（真机，BBR3 有效性与收益）**：`bbr3` 实机确认工作正常且
   有收益——受控 netns 链路（veth+netem）下，200 ms RTT + 0.5% 丢包吞吐
@@ -183,7 +197,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
 - 配置必须与原厂 ABI 对齐：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、
   `CONFIG_CGROUP_HUGETLB` 不可开启；新增 `task_struct` 字段或 cgroup 控制器前
   先跑 `python3 dash/scripts/check-abi.py <vmlinux>`（详见
-  [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) §2.10）。
+  [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) §5）。
 - 没有 stock vs 自编的 A/B 性能/功耗、suspend/resume、fsck/power-loss 数据，
   不能声明性能收益。
 - 厂商模块兼容跳过了签名/CRC/vermagic，仅适用于自有已解锁设备。

@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-28 16:11:00 +0800
-> 覆盖 22 个源，400627 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-28 19:01:03 +0800
+> 覆盖 22 个源，423996 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -112,6 +112,49 @@ NOMOUNT_COMMIT=6849f00a342b80338fb4398765f75f014dbcd557
 TCP_BRUTAL_DIR=../third_party/tcp-brutal
 TCP_BRUTAL_BRANCH=master
 TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
+# --- Xiaomi feature/source research submodules (read-only reference, not built) ---
+# Pulled 2026-11-28.  All three are research material: nothing here is compiled
+# into the kernel; patches are extracted by hand only after a decision.
+DADA_MODULES_DIR=../third_party/xiaomi-dada-closed-modules
+DADA_MODULES_REPO=https://github.com/klarnet2009/dada-closed-modules.git
+DADA_MODULES_BRANCH=main
+DADA_MODULES_COMMIT=3c6328d3485aa7a630fe39af99f5a7d3e6e4f58e
+
+OPT_GKI_DIR=../third_party/xiaomi-opt_gki_kernel_android13-5.15
+OPT_GKI_REPO=https://github.com/donothavename/opt_gki_kernel_android13-5.15.git
+OPT_GKI_BRANCH=main
+OPT_GKI_COMMIT=4662b82f6205119e8b26a0f7e83940350e4a2011
+
+CHIRUNO_MODULES_DIR=../third_party/xiaomi-chirunoneko-gki-5.15-modules
+CHIRUNO_MODULES_REPO=https://github.com/NikoRurQwQRuaaMeow/chirunoneko_gki_android13-5.15_kernel_module_opensource.git
+CHIRUNO_MODULES_BRANCH=chirunoneko_5.15-lts_vendor_modules_opensource
+CHIRUNO_MODULES_COMMIT=96dd2f7849a880cb693f371bc0fc8595645dda2f
+
+# Not a submodule: MiCode/Xiaomi 6.6 OSS (bixi-v-oss, ~30 GB).  Fetch single files
+# from the GitHub API instead, e.g. drivers/block/zram/zram_drv.c, drivers/staging/
+# mi-perf/mi_wmark/.  Pin of the fetched snapshot:
+XIAOMI_BIXI_OSS_COMMIT=56295df675b92553f83bbf333f88b0c6ee8fa7bc
+# OneFeiFan 5.10 pad6max series (MFZ/ExtM patches 0047/0048), ~200 MB, API-only:
+ONEFEI_PAD6MAX_REPO=https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max
+ONEFEI_PAD6MAX_BRANCH=pad6max
+ONEFEI_PAD6MAX_COMMIT=7737c7f646063a874016b6fc04828d89befff904
+
+# dash 实际厂商 zram/内存后端源码（XRING zgroup/mctrl/xswapd/smart_cache）。
+# 这是 dash 的 zgroup_enable / memory.mctrl.* / memory.xswapd.* 的真源码；
+# stock dash ikconfig: MI_MEMORY_FREEZE=n，XRING_ZRAM_MEMCG(_WRITEBACK)/XSWAPD=y。
+HIKARI_MTK_MODULES_DIR=../third_party/mtk-device-modules-hikari
+HIKARI_MTK_MODULES_REPO=https://github.com/Project-Hikari-Liella/MTK_kernel_device_modules-50da8b3c19a331c676dcaa1334fa3b49e4b1a531.git
+HIKARI_MTK_MODULES_BRANCH=main
+HIKARI_MTK_MODULES_COMMIT=430688007431c0c69a3c5782c1766b3aee66c8cd
+
+# Xiaomi Venus(memcg 策略)参考实现 + 官方 xiaomi-memcg 协议文档。
+# 精确解释 dash 上的 memory.mctrl.* / memory.xswapd.* / zgroup_enable 语义
+# (mctrl.score 0..1000、comp/refault/wb_ratio 0..100、xswapd.reclaim
+#  "type target_MiB window_MiB"、watermark low/high 2500/3000 等)。
+VENUS_MEMCG_DIR=../third_party/xiaomi-venus-memcg
+VENUS_MEMCG_REPO=https://github.com/hushangda/android_kernel_xiaomi_sm8350_venus.git
+VENUS_MEMCG_BRANCH=main
+VENUS_MEMCG_COMMIT=412a1fcc196a289f9d733f9aff5f4162a82d9e6b
 ```
 
 ### 构建信息
@@ -149,18 +192,18 @@ TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
 
 | # | 类别 | 标题 | 源文件 | 大小 | SHA256 | 状态/警告 |
 |---|---|---|---|---:|---|---|
-| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 18324 | `f85af40ad4fed7a4` | 当前交付（优先相信） |
-| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 19631 | `9f5957645265bb95` | 当前交付（优先相信） |
+| 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 19630 | `65e4ef6dd79f8356` | 当前交付（优先相信） |
+| 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 19664 | `fc12a94baf8dc487` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 146353 | `d12f642a78ac9e30` | 当前交付（优先相信） |
-| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 13823 | `0b112e5c1357578a` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 155591 | `75dde633d4b628a2` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 13901 | `44352dea7452bcc8` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 13030 | `f120dae237de4ece` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
-| 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 12236 | `9ea863d66a8b6589` | 当前交付（优先相信） |
+| 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 20192 | `d3afc05c2a0296d8` | 当前交付（优先相信） |
 | 09 | 当前交付 | UFS/hybrid/fastdiscard 缺口证据与安全边界 | [`docs/kernel/UFS_HYBRID_EVIDENCE.md`](UFS_HYBRID_EVIDENCE.md) | 5569 | `40b17b16dee1d3a2` | 当前交付（优先相信） |
 | 10 | 当前交付 | node_cache 源码评估与 stock 6.6.118 二进制差异 | [`docs/kernel/NODE_CACHE_SOURCE.md`](NODE_CACHE_SOURCE.md) | 17045 | `2afc71c0117a4772` | 用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。 |
 | 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 20482 | `66cf8b49cf3b40a8` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
-| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 14096 | `b929bc3c430729bd` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
+| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 18854 | `2b48e8d980253233` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
 | 15 | 需求 | 交接任务书与验收标准（历史输入） | [`docs/handoff/TASK_BRIEF.md`](../handoff/TASK_BRIEF.md) | 12697 | `6cc641eb2f82e514` | 任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。 |
@@ -179,7 +222,7 @@ TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
 <a id="src-01"></a>
 ## 1. 当前状态：版本、产物哈希与实机结论
 
-> 来源：[`docs/STATUS.md`](../STATUS.md) · 18324 字节 · SHA256 `f85af40ad4fed7a4ba2b11fe743280828aec1d592fd5254cb967fe0c3feda13b`
+> 来源：[`docs/STATUS.md`](../STATUS.md) · 19630 字节 · SHA256 `65e4ef6dd79f835650cfb6fbbc3a3a74b1ed886d153b10e8f748800f52188d60`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
@@ -197,7 +240,7 @@ TCP_BRUTAL_COMMIT=d2397ff8bca04a29fd2de01cf7d2d4b825224de8
 | AOSP 基线 | `android15-6.6` 开发分支，tip `a5c942b8c5be461264ec25e7893e53fda4144a3a`（2026-11-23，Merge `android15-6.6.144_r01`，6.6.144）；2026-11-24 起不再固定发布 tag |
 | 工具链 | clang r614150（23.0.1）/ LLD 23.0.1，2026-11-24 刷新到 `main-kernel` 最新同版本快照（build 16836431，tree `9258d46`）；生产发布版使用 `LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`；当前实机为 NoLTO 验证版，未做 A/B |
 | 本地生产构建（2026-11-24） | 基线 `a5c942b8c` + 34 补丁（含 `DASH-EXTM-COMPAT`）+ 原厂 ABI 对齐配置；`LTO_CLANG_FULL` + MLGO + AutoFDO + A720 tune；`Image` 47,626,752 B（`fdf3b294…`）/ `Image.lz4` 22,724,910 B（`206d66a3…`）/ `boot.img` 67,108,864 B（`7e36a974…`）；零 warning；ABI 六项硬校验通过（`kmem_cache` 240 为软偏差）、KCFI 13/13、638 模块 `unresolved_hard=0/unresolved_weak=0`；**已刷入 `boot_a`，正常开机，ExtM backing device 恢复 `/dev/block/dm-71`** |
-| 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §6） |
+| 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §3/§6） |
 | 发布 | Release `dash-6.6.144-prod`（2026-11-24，tag 指向 `5f2af7b`）：`Image` 47,626,752 B / `Image.lz4` 22,724,910 B / `boot.img` 67,108,864 B / `SHA256SUMS` + `dash_art_tune-AnyKernel3-v1.5.zip`（22,684,391 B）+ `dash_art_tune-v1.5.zip`（7,285 B）；发布页含 fastboot 与 AnyKernel3 刷入说明。旧版 `dash-6.6.143-prod`（tag `ebfc285`）保留用于回滚 |
 | 运行槽位 | `boot_a`（`_a`，2026-11-28） |
 | `boot_a` SHA256 | `eae750b9b4f6c3b0302e3099312c2d76ae898aa4d82dfd8d2cf64e3bdcd8fff0`（NoLTO 验证版，分区回读一致）；原生产版 `7e36a974…` 已完整备份在 `dash/out/os4-compat/rollback.bnJIRV/boot_a.img` |
@@ -228,8 +271,22 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
   sysfs/property；调用进程可确认是 `reboot`，更上游调用者未从日志确定。重启后仍为
   `6.6.144-4k #16`，584 个关键厂商模块加载，`/dev/block/dm-71`、16 GiB zram、
   stock 七项 cgroup 控制器均恢复正常。OS4 `PerfInit` 仍报告
-  `/proc/sys/vm/swappiness` 无法打开和 `/sys/block/zram0/writeback_quota` 不存在，
-  详见 [TEST_REPORT.md](TEST_REPORT.md) §47。
+  `/proc/sys/vm/swappiness` 无法打开和 `/sys/block/zram0/writeback_quota` 不存在。
+  **2026-11-28 定论**：这两项对 dash 属正常——dash 用 XRING（zgroup/xswapd/mctrl）
+  内存后端而非 bixi MFZ，stock dash `ikconfig` 为 `MI_MEMORY_FREEZE=n`，故
+  `mfz_enable`/`writeback_quota` 本就不存在；`swappiness` 是 SELinux 域权限而非缺
+  sysctl。详见 [OPEN_ISSUES.md](OPEN_ISSUES.md) §3 与
+  [FEATURES_SURVEY.md](FEATURES_SURVEY.md) 2026-11-28 节、[TEST_REPORT.md](TEST_REPORT.md) §47。
+
+- **2026-11-28（只读搜索，XRING 源码面收敛）**：7 轮不同关键词族 GitHub 搜索确认
+  **XRING 源码面无遗漏**（`zgroup`/`zgroup_wb`/`mctrl`/`xswapd`/`smart_cache` 已全在
+  `hikari` 子模块，且该子模块 `ufs-mediatek.c` 与 MiCode 官方 `dash-w-oss` **字节一致**）。
+  补出 2 个真实缺口：`CONFIG_XRING_ZRAM_LZ4P`（dash 设备 `comp_algorithm` 无 `lz4p`，
+  vendor `zram.ko` 内该字符串为 0）与 `kshrink_slabd`（`kallsyms` 无 `shrink_async`），
+  完整源码均只在 `marble`（MT6878）公开；另有 MT6991 UFS `power_mode` 参考工程。
+  官方 MT6991 6.6.118 树（OnePlus/OPPO）zram 为纯 AOSP，**反证 XRING 是小米专有**。
+  三项均为「未做/待决策」，未改代码、未刷机。见
+  [TEST_REPORT.md](TEST_REPORT.md) §53、[OPEN_ISSUES.md](OPEN_ISSUES.md) E5/F4/F5。
 
 - **2026-11-27（真机，MGLRU 与小米 SmartCache / OOM panic）**：
   `persist.sys.stability.SmartCacheEnable=true` 与 `MultiCacheEnable=true`
@@ -245,7 +302,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
   回收，但**因果未证实**，已恢复 `lru_gen/enabled=0x0000` 并将其保留为
   需要隔离 A/B 的风险项；该逻辑属于当前 AOSP 基线，补丁重放不会丢失。见
   [TEST_REPORT.md](TEST_REPORT.md) §44–§48 与
-  [OPEN_ISSUES.md](OPEN_ISSUES.md) §2.1。
+  [OPEN_ISSUES.md](OPEN_ISSUES.md) §4.3（MGLRU 待决策）。
 
 - **2026-11-27（真机，BBR3 有效性与收益）**：`bbr3` 实机确认工作正常且
   有收益——受控 netns 链路（veth+netem）下，200 ms RTT + 0.5% 丢包吞吐
@@ -365,7 +422,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
 - 配置必须与原厂 ABI 对齐：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、
   `CONFIG_CGROUP_HUGETLB` 不可开启；新增 `task_struct` 字段或 cgroup 控制器前
   先跑 `python3 dash/scripts/check-abi.py <vmlinux>`（详见
-  [OPEN_ISSUES.md](OPEN_ISSUES.md) §2.10）。
+  [OPEN_ISSUES.md](OPEN_ISSUES.md) §5）。
 - 没有 stock vs 自编的 A/B 性能/功耗、suspend/resume、fsck/power-loss 数据，
   不能声明性能收益。
 - 厂商模块兼容跳过了签名/CRC/vermagic，仅适用于自有已解锁设备。
@@ -388,7 +445,7 @@ System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO �
 <a id="src-02"></a>
 ## 2. dash 构建与交付入口
 
-> 来源：[`docs/kernel/README.md`](README.md) · 19631 字节 · SHA256 `9f5957645265bb956ae9c75e8b6504328e5d70d7874ec5fb72e96975a45c8109`
+> 来源：[`docs/kernel/README.md`](README.md) · 19664 字节 · SHA256 `fc12a94baf8dc487746c9e8112760bddd3d2fc625aea3fe94a6806eccf3de65c`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 REDMI Turbo 5 Max（`dash` / 2602BRT18C / MT6991）的 GKI2.0 内核工作区。
@@ -663,8 +720,8 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
   内核能力、tcp-brutal 与 MPTCP 结论；KSU 模块已移除，客户端为 AsteriskMETA
 - [NODE_CACHE_SOURCE.md](NODE_CACHE_SOURCE.md)：用户提供的 node_cache 重实现
   评估、与 stock 6.6.118 二进制的差异、可借鉴点和 6.6.143 适配清单
-- [FEATURES_SURVEY.md](FEATURES_SURVEY.md)：WildKernels/GKID 特性调查，
-  实现可信度分级（官方/厂商/作者自研/来源不明）、与 dash 对照与决策台账
+- [FEATURES_SURVEY.md](FEATURES_SURVEY.md)：特性调查（WildKernels/GKID/EVONIX + 小米外部来源），
+  实现可信度分级（官方/厂商/作者自研/来源不明）、单一决策表与待决策列
 - [DEV_NOTES.md](DEV_NOTES.md)：仓库开发笔记合并版；由
   [`scripts/collect-notes.py`](../../dash/scripts/collect-notes.py) 生成。
   只读原笔记，不改源文件；`make notes` 重新生成，`--check` 可校验是否过期。
@@ -899,7 +956,7 @@ vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 146353 字节 · SHA256 `d12f642a78ac9e3072f229573694484fce9b9638496183bad737de8f45f0bc90`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 155591 字节 · SHA256 `75dde633d4b628a217a9233480dc2187952e8b17dbd4831df4ee52e27ffdc034`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -1598,7 +1655,7 @@ QoS sysfs 与 stock 行为一致：
   纯增量、不动既有条目。
 - 结论：vendor `.ko` 依赖的 task_struct 偏移与导出符号 CRC 在构建级均已
   实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
-  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §5）。
+  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §4.4）。
 
 ### 22. r4 基线 + BakaSU/SUSFS bump + mihomo 模块移除 + 实机稳定性（2026-11-21）
 
@@ -1897,7 +1954,7 @@ AVB: original_image_size=18374656，vbmeta=18374656+2432，OEM 字节保留
 - 备份镜像解包后为 `6.6.143-4k #8`；但采集时设备 `uname -a` 仍为 stock
   `6.6.118-android15-8-...`，说明 #8 已写入 boot_a 但尚未重启生效。
 - 本轮未刷机。后续只写激活槽位 `_a`；刷入后重启并先记录 `dmesg`/模块加载
-  结果，再按 `OPEN_ISSUES.md` §5 清单执行。
+  结果，再按 `OPEN_ISSUES.md` §4.4 清单执行。
 
 ### 27. NoLTO 调试内核首刷实机启动（2026-11-21，真机）
 
@@ -3280,6 +3337,12 @@ panic（`panic_on_oops=1` 由 init.rc 写入，已实测生效）。
 
 #### 我们内核缺失的节点（会影响行为）
 
+> **2026-11-28 订正（见 §52）**：本表是 2026-11-27 的审计快照，保留原样。
+> 其中 `anno_writeback` 与 `min_free_order_shift` 的「影响」解读已被本轮纠正：
+> dash 用 XRING 内存后端、stock 即无 `mfz/anno_writeback`（`MI_MEMORY_FREEZE=n`），
+> 故不是缺口；`min_free_order_shift` 6.x 已删除、stock 亦无效。以 §52 与
+> [OPEN_ISSUES.md](OPEN_ISSUES.md) §3 为准。
+
 | 路径 | 触发条件 | 影响 |
 |---|---|---|
 | `/sys/kernel/dmabuf_hugetlb/enable` | `persist.sys.stability.dmabuf=true/false` | 本机该属性为空、触发不发射；能力不可用（stock 是否有未验证） |
@@ -3356,6 +3419,10 @@ watchdog；pstore 只能确认调用进程为 `reboot`（pid 13693），不能�
   格式错误。
 
 #### 仍可复现的 OS4 兼容缺口
+
+> **2026-11-28 订正（见 §52）**：`writeback_quota` 与 `anno_writeback` 对 dash 属正常
+> 缺失（dash 用 XRING，无 MFZ），不是缺口；`min_free_order_shift` 6.x 已删。
+> 本段保留为 2026-11-27 的历史观测，最终判定见 §52 与 OPEN_ISSUES §3。
 
 当前启动的 `PerfInit` 仍报告 `/proc/sys/vm/swappiness` 无法打开，以及
 `/sys/block/zram0/writeback_quota` 不存在。前者是 Android SELinux/节点访问契约
@@ -3474,229 +3541,304 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
   通过 IPv4 和 IPv6 分别传输 8 MiB。未改现有路由，不算 DroidSpaces 容器
   NAT 或 AsteriskMETA 转发测试。
 
+### 52. 外部来源调查与内存后端定论（2026-11-28，只读 + 离线）
+
+本轮按机主要求浅克隆/按需 API 拉取了若干小米特性源码仓库（子模块与 pin 见
+`dash/versions.env` 末段与 [NAVIGATION.md](../project/NAVIGATION.md) 子模块表），
+并对实机做了只读核对。目标：确认哪些「小米内存特性」是本机真缺口、哪些不是。
+
+#### 关键定论：dash 的内存后端是 XRING，不是 bixi MFZ
+
+- **stock dash `ikconfig`**（`xiaomi-dash-dev/redmi_dash_dump/ikconfig`）实测：
+  `# CONFIG_MI_MEMORY_FREEZE is not set`，而
+  `CONFIG_XRING_ZRAM_MEMCG=y`、`CONFIG_XRING_ZRAM_MEMCG_WRITEBACK=y`、
+  `CONFIG_XRING_ZRAM_XSWAPD=y`、`CONFIG_MI_MEMORY_SYSFS=m`。
+- **运行态**（`/proc/kallsyms`，只读）：`zgroup_enable_show`、`mctrl_score_read`、
+  `smart_cache_attr_group` 均归属 `[zram]`；**无任何** `mfz*`/`anno_writeback`/
+  `writeback_quota` 符号。
+- **加载的是 vendor_boot ramdisk 的厂商 zram.ko（269480 B，sha256
+  `21d0c6c666c455645906943ef603f5cfc9081076dffdb5ad3169127826887429`）**，含
+  `zgroup_enable`/`mctrl`/`xswapd`（grep 命中 2/7/10），**无 `mfz_enable`/
+  `writeback_quota`**（0/0）。`/system_dlkm/lib/modules/zram.ko` 是 85 KB 的 AOSP
+  版（无 XRING），不是实际加载的那份——此前误以该文件判断，已纠正。见
+  [ZRAM_EXTM.md](ZRAM_EXTM.md) §3.1。
+- **结论**：`mfz_enable`/`mfz_disk_quota`/`writeback_quota`/`anno_writeback_*`
+  是 bixi（高通 sm8750 等）机型的 MFZ 实现，**dash 不用、也没有**；PerfInit 在
+  dash 上对这些节点报 not-exist 属正常，**不是缺口**。先前把它列为 P1「唯一明确
+  该做」是错的，已改判「已证伪(对 dash)」。
+
+#### 设备只读采集（XRING 节点，与 venus 官方协议文档对齐）
+
+`xiaomi-venus-memcg` 子模块的 `Documentation/admin-guide/mm/xiaomi-memcg.rst` 精确
+描述了下述节点语义，实测值与之吻合：
+
+- `memory.mctrl.*`：`score`/`level`/`max`/`comp_ratio`/`wb_ratio`/`refault_ratio`
+  根值为 `18446744073709551615`（未设）；`group_param` 表头
+  `[level] min_score max_score comp_ratio wb_ratio refault_ratio [0] 0 0 0 0 0`；
+  `stat` 报 `memcg_id:1 nr_anon:690624`。
+- `memory.xswapd.*`：16 个节点全在；`enable=0`、`umrenable=0`、
+  `watermark: mem_press_watermark: 3000`（文档 low/high 2500/3000）、
+  `quota=7516192768`（7 GiB）、`stat: nr_comp: 0`；`reclaim/swapin/swapout`
+  为写接口（读报 Invalid argument 属正常）。
+- `zram0/zgroup_enable = 0`。
+
+#### 与本机既有结论一致、无需改动
+
+- `min_free_order_shift`：6.x 已删除，stock 6.6 也无（原厂镜像 §49 亦无同名串）。
+- `mi_wmark`/`extra_free_kbytes`：`extra_free_kbytes.sh` 降级写
+  `watermark_scale_factor`（实测 50），非必需。
+- `memory.swappiness`：`/proc/sys/vm/swappiness=100` 正常；PerfInit 的
+  Permission denied 是 SELinux 域权限，不是缺 sysctl。
+
+#### 结论与影响
+
+- `OPEN_ISSUES.md` 中 MFZ/`writeback_quota` 由「P1 待决策」改判「已证伪(对
+  dash)」；新增 XRING `zgroup_enable`/`xswapd` 两个真实待决策项。
+- `FEATURES_SURVEY.md` 合并总表新增 23 行小米来源对比（决策列均标 待决策/未做/
+  已证伪/保持 stock）。
+- 未向设备写入任何 sysfs/proc/property，未刷机。所有外部源码仅作只读参考。
+
+### 53. 最后一轮全关键词搜索与 XRING 源码面收敛（2026-11-28，只读 + 真机核对）
+
+目的：在 §52 之后，用**不同代码关键词族**再扫 7 轮 GitHub，确认是否还有遗漏的
+可用源码。手段与限速：`gh search code`（按 10 req/min 节流，间隔 7 s）、
+`gh search repos`、`gh search commits`、`gh search issues`；命中后用 `gh api`
+读 README/Kconfig/源码核实。**未向设备写入任何节点，未刷机。**
+
+#### 新发现 1：XRING `lz4p`（`CONFIG_XRING_ZRAM_LZ4P`）——dash 确实没有
+
+- 全 GitHub 唯一完整源码在 `Pzqqt/android_kernel_xiaomi_marble`：
+  `lib/lz4p/` 12 文件（`lz4p_compress.c` 15647 B、`lz4p_decompress.c` 23722 B、
+  `lz4p_encode.S` 19580 B、`lz4p_decode.S` 8388 B），`config XRING_ZRAM_LZ4P`
+  `bool default n`；`drivers/block/zram/zcomp.c` 里
+  `#if IS_ENABLED(CONFIG_XRING_ZRAM_LZ4P) "lz4p",`。`lib/lz4p/lz4p.h` 头注释：
+  `XRING shrink slabd Feature / Copyright (C) 2024, X-Ring technologies Inc.`。
+- dash 实测缺失：
+  - 设备 `su -c cat /sys/block/zram0/comp_algorithm` → `lzo lzo-rle lz4 zstd [lz4kd]`
+    （**无 lz4p**）；
+  - 厂商 `handoff/dash-gap-handoff/modules/vendor_ramdisk/zram.ko`
+    （269480 B，sha256 `21d0c6c666c455645906943ef603f5cfc9081076dffdb5ad3169127826887429`）
+    `strings -a | grep -ic lz4p` → **0**；`grep -iE 'slabd|kshrink'` → 空；
+    含 `zgroup`/`xswapd`/`smart_cache`/`ExtM`。
+  - → 当前 `[lz4kd]` 由**本内核 crypto** 提供，不是厂商 ko（ko 内 `lz4kd` 字符串亦为 0，
+    只有 `lzo-rle`/`zstd`）。与 [ZRAM_EXTM.md](ZRAM_EXTM.md) 的既有结论一致。
+
+#### 新发现 2：`kshrink_slabd` 完整源码已定位
+
+- `marble:drivers/staging/kshrink_slabd/kshrink_slabd.c`（230 行，`config KSHRINK_SLABD`
+  tristate default n，`Copyright (C) 2024 Xiaomi Ltd.`）。只依赖
+  `register_trace_android_vh_shrink_slab_bypass(should_shrink_async, NULL)` 与 `shrink_slab()`。
+- 本树依赖已满足：`android_vh_shrink_slab_bypass` 已导出；
+  `dash/src/aosp/common/mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`。
+- dash 实测：`lsmod` 无该模块；`su -c grep -c shrink_async /proc/kallsyms` → **0**。
+
+#### 新发现 3：官方 MT6991 6.6.118 源码可对照（负结果，强化既有定论）
+
+- `OnePlusOSS/android_kernel_oneplus_mt6991` 分支
+  `oneplus/mt6991_b_16.0.0_oneplus_ace5_ultra`：`Makefile` = 6.6.118（与设备同版）；
+  `drivers/block/zram/zcomp.c` 仅 `lzo/lzo-rle/lz4/lz4hc/842/zstd`，Kconfig 无 XRING/lz4p。
+  `oppo-source/android_kernel_oppo_mt6991`（6.6.30）同样为纯 AOSP zram。
+- MiCode `Xiaomi_Kernel_OpenSource`：`yili-w-oss` = 6.12.38、`piano-w-oss` = 6.6.57，
+  zram 均为上游形态，**无 XRING**。MiCode issue #41194（2026-11-21）仍在请求公开
+  `turner-w-oss`（K Pad，MT6991/OS4），**尚未发布**。
+- → 结论：**XRING 是小米专有，不是 MTK 平台通用**；dash 的 XRING 只存在于小米
+  `kernel_device_modules` 树（我们的 `hikari` 子模块）。
+
+#### 新发现 4：`hikari` 子模块经官方字节比对确认为 stock
+
+- `diff -q` 比较：`third_party/mtk-device-modules-hikari/drivers/ufs/ufs-mediatek.c`
+  （3527 行，`gh api` 取自 MiCode `MTK_kernel_device_modules` `dash-w-oss`）
+  → **IDENTICAL**。同目录 `ufs-mediatek-{btag,dbg,ise,mbrain,mimic,perf,rpmb,sysfs}.c`
+  与 `drivers/block/zram/{zgroup,zgroup_wb,mctrl,xswapd,smart_cache}.c` 均在。
+- → 我们引用的 XRING/UFS 源码是官方 stock，不是逆向重实现；此前 §52 的定论进一步加固。
+
+#### 新发现 5：UFS `power_mode`/gear-lane（对应 E1–E3）
+
+- `ShriHari33/mt6991-ufs-gear-lane`（MT6991 实机工程）：debugfs `power_mode` 运行时切
+  gear/lane；根因是 **Linux 5.14 起 W-LUN 与 host controller 独立 runtime-resume**，
+  只唤醒 controller 时改档会打进仍处 hibernate8 的链路 → `PMC timeout` /
+  `exit h8 state fail`；修法 `ufs_debugfs_get_user_access()` → `ufshcd_rpm_get_sync()`。
+  另有 `clk_rates` debugfs 与"进 G5 前抬 `ufs_sel`/`ufs_fde`"厂商补丁（**作者未编译**）。
+- 我们 6.6 树 `drivers/ufs/core/ufs-debugfs.c` 只有 `exception_event_mask`、
+  `exception_event_rate_limit_ms`；**无 `power_mode`**。
+- 设备复测：`max_discard_segments=1`（E3 不变）；`clkscale_control` current=0（free run）。
+
+#### 副作用与文档变更
+
+- `OPEN_ISSUES.md`：新增 E5（UFS `power_mode`）、F4（`lz4p`）、F5（`kshrink_slabd`）；
+  §3 补 3 条证据链；新增 §4.5 落地预案（建议先做 F5、F4 暂缓，理由：dash 的 `zcomp.c`
+  在厂商 ko 内，内核侧加 `lz4p` 不一定能被选中）。
+- `FEATURES_SURVEY.md`：合并总表新增 4 行（`lz4p`、`SMART_CACHE` 配置位、UFS gear_lane、
+  `kshrink_slabd` 补全源码）；新增末节「最后一轮全关键词搜索」含 8 个新增只读来源与
+  逐轮覆盖表。
+- `UPSTREAM_NOTES_REVIEW.md`：新增 §7.5。
+- **未新增子模块**（无遗漏的整仓入库需求）；`dash/versions.env`、`.gitmodules` 未改。
+
 ---
 
 <a id="src-05"></a>
 ## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 13823 字节 · SHA256 `0b112e5c1357578a1fac87bfd7ec6a59a5d1dcb8111247ce874fff4c48ea217b`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 13901 字节 · SHA256 `44352dea7452bcc8e0362110c8a3e2e6b140b31ec604ddb8108625b65079a8d3`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是当前缺口、风险和可执行 todo 的唯一台账。当前版本与实机状态见
 > [STATUS.md](../STATUS.md)；原始命令、日志和失败复盘见
-> [TEST_REPORT.md](TEST_REPORT.md)。
+> [TEST_REPORT.md](TEST_REPORT.md)；特性取舍见
+> [FEATURES_SURVEY.md](FEATURES_SURVEY.md)。
 >
-> 最后更新：2026-11-28。调查覆盖 OS4.0.4.0 的生产版 `#16` 和 NoLTO 验证版；
-> 当前设备运行版本与槽位见 [STATUS.md](../STATUS.md)。
+> 最后更新：2026-11-28（含**最后一轮 7 轮 GitHub 全关键词搜索**；新增 F4 `lz4p`、
+> F5 `kshrink_slabd`、E5 UFS `power_mode` 三行）。以 OS4.0.4.0、实机 `6.6.144-4k #1`
+> （dash，NoLTO 验证版）实测为准。本文为**表驱动、单一表格**：每行一个缺口，带
+> 「默认被 OS4 用？」和「决策」两列。决策为「待决策」/「未做」的条目等机主定夺，
+> 不擅自执行。
 
 ### 1. 结论摘要
 
-当前内核可以正常运行 OS4：设备已正常启动，584 个关键厂商模块加载，ExtM
-回写设备为 `/dev/block/dm-71`，F2FS/EROFS 挂载正常，stock 七项 cgroup 控制器
-保持不变，未发现由本轮调查引起的 panic、Oops、UFS/F2FS I/O 错误或模块拒载。
+当前内核可正常运行 OS4：设备正常启动，584 个关键厂商模块加载，ExtM 回写设备
+`/dev/block/dm-71`，F2FS/EROFS 挂载正常，stock 七项 cgroup 控制器不变，本轮调查
+未发现由内核引起的 panic/Oops/UFS·F2FS I/O 错误或模块拒载。
 
-仍然存在两类问题：
+**本轮最重要的纠正**：dash 的 zram 内存后端是 **XRING（zgroup/xswapd/mctrl）**，
+不是小米 bixi 机型的 **MFZ**。stock dash `ikconfig` 实测
+`# CONFIG_MI_MEMORY_FREEZE is not set`，而 `CONFIG_XRING_ZRAM_MEMCG=y`、
+`CONFIG_XRING_ZRAM_MEMCG_WRITEBACK=y`、`CONFIG_XRING_ZRAM_XSWAPD=y`；真机
+`/proc/kallsyms` 中 `zgroup_enable_show`/`mctrl_score_read`/`smart_cache_attr_group`
+均归属 `[zram]`。故先前判定的「MFZ 是 P1 缺口」**对 dash 不成立**——
+`mfz_enable`/`writeback_quota`/`anno_writeback_*` 在 dash 上本就不存在。
 
-1. **OS4 依赖的厂商私有接口未完整复刻。** 主要影响内存回收策略、zram
-   writeback 调节、前后台 I/O 优先级和少数调优项；目前没有证据表明它们会阻止
-   开机，但不能宣称与 stock 行为等价。
-2. **stock-only 文件系统/UFS 功能没有安全实现。** Hybrid UFS、fastdiscard、
-   UFS 官方 core 变体和若干 iostat/VIP 细节仍缺少源码或硬件契约；这些项目不能
-   通过创建同名 sysfs 节点或猜测 ABI 解决。
+### 2. 缺口总览（唯一表格）
 
-本轮调查期间设备出现两次 `reboot,shell`。pstore 记录的是用户空间显式 reboot，
-不是 kernel panic/watchdog；调查命令均为读取操作。完整证据见
-[TEST_REPORT.md §47](TEST_REPORT.md)。
+决策语义：`待决策` = 等机主；`未做` = 本轮不做；`已证伪` = 经核实不是缺口；
+`保持 stock` = 用厂商模块不自研；`观察` = 仅监控。
 
-### 2. OS4 实机核对后的当前缺口
+| 编号 | 项目 | 默认被 OS4 用？ | 实机现状（2026-11-28） | 决策 |
+|---|---|---|---|---|
+| A1 | `mfz_enable`/`mfz_disk_quota`/`anno_writeback_*`（小米 bixi MFZ） | **否**（dash 不用 MFZ） | stock dash `MI_MEMORY_FREEZE=n`，故无此节点；PerfInit 报 `mfz_enable not exist` 属正常 | **已证伪(对 dash)**——bixi/高通特性，不移植 |
+| A2 | zram `writeback_quota` | 否 | 不存在（正常） | **已证伪(对 dash)** |
+| A3 | **XRING `zgroup_enable`** | 是（dash 真正的 zram 分组回写开关） | 节点存在，值 **0**；`[zram]` 含 `zgroup_enable_show`；源码 `mtk-device-modules-hikari`；语义见 venus 文档 | **待决策**——是否启用 XRING zgroup / 与 SmartCache 关系待定 |
+| A4 | **XRING `memory.xswapd.*`**（后台换出线程） | 是（stock `XRING_ZRAM_XSWAPD=y`） | 16 个节点全在；实测 `enable=0`、`watermark(mem_press)=3000`、`quota=7GiB`、`stat nr_comp=0`；源码 `xswapd.c` + venus 文档 | **待决策**——是否启用自动 xswapd（stock 默认关） |
+| A5 | `memory.mctrl.*`（SmartCache 组策略） | 是 | 9 个节点全在；根值为 `-1`(未设)，`group_param` 表头与 venus 文档一致；`SmartCacheEnable=true` | **保持 stock**（不重写；语义见 venus 文档） |
+| A6 | zram `zgroup_enable` 伪造 | — | — | **不做**——禁止用空节点冒充（会让 PerfInit 切到不支持模式） |
+| B1 | blkio v1 `weight`/`group_idle` | 是（`on init` 写） | 根缺 `weight`/`group_idle`，子有 `blkio.bfq.weight` | **待决策**（alias 到 bfq / 记不适用） |
+| B2 | blkio `cpq.level` | 是（`smartfocusio.v1=on`） | vip/hipri/lowpri/limit 无 `blkio.cpq.level`；调度器有 cpq 但当前 `[adios]` | **待决策**（先定 cpq vs ADIOS） |
+| B3 | `/proc/sys/vm/min_free_order_shift` | 名义上 | 不存在；6.x 已删，stock 6.6 也无 | **已证伪**（不做） |
+| B4 | `extra_free_kbytes` / `mi_wmark` | 是（shim 路径） | shim 已写 `watermark_scale_factor=50`；`/sys/kernel/mi_wmark` 无 | **已证伪**（非必需） |
+| C1 | `memory.swappiness`（PerfInit 报 Permission denied） | 是 | `/proc/sys/vm/swappiness=100` 正常；属 SELinux 域权限 | **未做**（非内核缺口，不新增 sysctl） |
+| D1 | stock 小米模块（mi_reclaim/vip_sched/rss_monitor/dynamic_readahead/mi_memory/mi_mempool/mi_game/fault_report） | 是 | 全部已加载并工作（mi_reclaim `refill_total:15567`） | **保持 stock**（不自研；dada 重建版多 DO NOT LOAD） |
+| E1 | Hybrid UFS | 否 | `hybrid=1` → `-EOPNOTSUPP` | **未做**（stock-only，禁伪造） |
+| E2 | UFS 官方 core 变体替换 | 否 | 未替换 | **未做**（依赖未齐） |
+| E3 | SCSI fastdiscard / 多 descriptor UNMAP | 否 | `max_discard_segments=1`（2026-11-28 复测不变） | **未做**（无测试介质） |
+| E4 | F2FS/EROFS VIP、iostat 行为级 vs stock | 部分（iostat 默认关） | 行为级实现，非逐字 ABI | **未做**（需 stock 语义） |
+| E5 | UFS `power_mode`/gear-lane debugfs 运行时切档 | 否（非 stock） | 我们的 `ufs-debugfs.c` 只有 `exception_event_mask`/`exception_event_rate_limit_ms`；设备 `clkscale_control` current=0 | **未做**——研究/调试价值高；源码见 FEATURES_SURVEY 末节（MT6991 实机修复可用） |
+| F1 | iostat_enhance / UFS monitor 路径不匹配 | 否（property 门控） | 缺 `/proc/iostat_enhance`，但 `/proc/io_monitor` 已用 | **观察** |
+| F2 | `/sys/kernel/dmabuf_hugetlb/enable` | 否（property 门控） | 缺失 | **观察** |
+| F3 | `lz4asm`（NEON LZ4 加速模块） | 否（property 门控） | 无该模块；zram 用 lz4kd | **观察** |
+| F4 | **XRING `lz4p` zram 压缩算法**（`CONFIG_XRING_ZRAM_LZ4P`） | 否（stock dash 未编入） | 设备 `comp_algorithm` = `lzo lzo-rle lz4 zstd [lz4kd]`，无 `lz4p`；vendor `zram.ko` 中 `lz4p` 字符串 0 | **未做**——可选性能项；唯一公开源码在 `marble`（`lib/lz4p/` 12 文件 + `zcomp.c` 注册） |
+| F5 | **`kshrink_slabd`**（异步 shrink_slab） | 否 | `lsmod` 无；`/proc/kallsyms` 中 `shrink_async` 计数 0 | **未做**——性能项；完整源码 `marble:drivers/staging/kshrink_slabd/`，仅需本树已导出的 `android_vh_shrink_slab_bypass` + `shrink_slab` |
+| G1 | MGLRU / SmartCache 与 OOM deadlock 因果 | 否（厂商默认关） | `lru_gen=0x0000`，SmartCache 默认开 | **待决策**（隔离 A/B 前保持关） |
+| H1 | 性能/功耗 A/B（stock vs 自编） | — | 缺数据 | **未做** |
+| H2 | suspend/resume ≥10 次 | — | 缺数据 | **未做** |
+| H3 | UFS 长时 I/O / 冷缓存回读 / power-loss | — | 缺数据 | **未做** |
+| H4 | mihomo/AsteriskMETA 网络回归（TUN/热点/弱网/30min） | — | 未做 | **未做** |
+| H5 | KSU/SUSFS/BakaSU/DroidSpaces 独立回归 | — | 部分验证，未独立回归 | **未做** |
+| H6 | 隔离 FS 的 checkpoint/end-I/O 故障注入 | — | 静态核对过 | **未做** |
+| I1 | `zram.ko` 文件身份（已澄清） | — | **运行的是 vendor_boot ramdisk 的厂商 zram.ko（269480 B，含 zgroup/mctrl/xswapd，无 mfz；sha256 `21d0c6c6…`）**，不是 `/system_dlkm` 的 85 KB AOSP 版；见 [ZRAM_EXTM.md](ZRAM_EXTM.md) | **已澄清**（保持 vendor zram；不得替换） |
 
-#### 2.1 内存回收与 SmartCache 策略
+> 「已证伪」的行是对先前台账的纠正，不要重新实现（详见 §3）。
 
-- **状态：默认策略可用，MGLRU 不应默认开启。** OS4 的
-  `init.mt6991.rc` 和 `init.rc` 都把 `/sys/kernel/mm/lru_gen/enabled` 关闭；
-  `SmartCacheEnable=true` 时再次写 0。当前设备实测为 `0x0000`，SmartCache
-  的 `/sys/kernel/smart_cache/*` 与 `/dev/memcg/memory.mctrl.*` 在工作。
-- **冲突性质：策略互斥，不是持续抢写。** 手动打开 MGLRU 后 120 秒未被守护进程
-  压回；但厂商显然把 SmartCache/mctrl 与 MGLRU 当成二选一方案。
-- **风险：`PG_oem_reserved_5` 会在 MGLRU 开启时影响 forced readahead 页回收。**
-  该逻辑已存在于当前 AOSP 基线 `a5c942b8` 的
-  `mm/readahead.c`、`mm/vmscan.c` 和 `include/linux/page-flags.h`，不是本仓库
-  的未跟踪改动；`make patches` 不会把它静默丢失。此前 33.7 小时运行后的 OOM
-  deadlock 与手动开启 MGLRU 在时间上相关，但因果尚未证明。
+### 3. 已证伪 / 保持 stock 的证据链（供复核）
 
-**Todo**
+- **MFZ 对 dash 不适用**：stock dash `ikconfig` = `# CONFIG_MI_MEMORY_FREEZE is not set`；
+  运行态 kallsyms 无 `mfz*`/`anno_writeback`/`writeback_quota` 符号；
+  有 `zgroup_enable_show`、`mctrl_score_read`、`smart_cache_attr_group`（均 `[zram]`）。
+  MFZ 是 bixi/sm8750（高通）机型实现（`CONFIG_MI_MEMORY_FREEZE`，源码在
+  BIXI 6.6 与 ONEFEI 0048），dash（MT6991）走 XRING。**不移植 MFZ。**
+- **`writeback_quota`**：PerfInit 检查项，属 bixi MFZ 路径；dash 无此路径，正常缺失。
+- **`min_free_order_shift`**：Linux 5.x 已删；BIXI 6.6 无；全 GitHub 6.x `page_alloc.c`
+  搜不到；stock OS4 同样无效。
+- **`mi_wmark`/`extra_free_kbytes`**：设备走 `/system/bin/extra_free_kbytes.sh`，
+  属性不存在时降级写 `watermark_scale_factor`（实测 50，默认 10 → 已生效）。
+- **`swappiness` 报错**：`/proc/sys/vm/swappiness=100` 正常；是 `system_perf_init`
+  域 SELinux 权限，不新增 sysctl。
+- **stock 小米模块**：实测已加载并工作（见总表 D1），`/proc/kallsyms` 证明它们在跑；
+  dada 仓库的重建版多为 PARTIAL 或 `DO NOT LOAD`（充电/电池/TEE/Wi-Fi 族绝不可刷），
+  我们**保留 stock `.ko`**，只借鉴接口与思路。
+- **XRING 源码权威性已字节核验**（2026-11-28）：`third_party/mtk-device-modules-hikari/
+  drivers/ufs/ufs-mediatek.c`（3527 行）与 MiCode 官方 `MTK_kernel_device_modules`
+  的 `dash-w-oss` 分支 `diff -q` **完全一致**；同目录 `drivers/block/zram/`
+  含 `zgroup/zgroup_wb/mctrl/xswapd/smart_cache`。→ 引用的 XRING 源码是 stock，不是逆向版。
+- **XRING 非 MTK 通用**（2026-11-28 反证）：官方 MT6991 6.6.118 树
+  `OnePlusOSS/android_kernel_oneplus_mt6991` 与 OPPO `mt6991` 的
+  `drivers/block/zram` 均为纯 AOSP（无 XRING/lz4p）；公开 GKI 树
+  `yili-w-oss`(6.12.38)/`piano-w-oss`(6.6.57) 也无 XRING。→ XRING 仅存在于小米
+  `kernel_device_modules`（即我们的 `hikari` 子模块）。
+- **`lz4p`/`kshrink_slabd` 是真实缺口**（2026-11-28）：设备 `comp_algorithm`
+  无 `lz4p`、vendor `zram.ko` 内 `lz4p` 字符串 0、`kallsyms` 无 `shrink_async`；
+  两者完整源码只在 `marble`（MT6878）公开。**注意**：当前 `[lz4kd]` 来自本内核
+  crypto，不是厂商 ko（ko 内 `lz4kd` 字符串同样为 0，只带 `lzo-rle`/`zstd`）。
 
-- [x] 核对 `PG_oem_reserved_5` 是否属于当前基线及补丁重放范围；确认它不是
-  独立的树内残留，也没有为它伪造额外补丁。
-- [ ] 在 SmartCache 关闭、仅改变 MGLRU 的条件下做受控 A/B：记录
-  `/proc/meminfo`、`/proc/vmstat`、文件页比例、swap 使用、OOM/lockup 和
-  长时功耗；未完成前不要把 MGLRU 用于日常构建。
-- [x] 检查当前活动源码相对基线的内存管理改动；除已纳入补丁系列的上游/稳定回移
-  外，未发现另一份 `PG_oem_reserved_5` 残留。其长期行为仍需通过隔离 A/B 验证。
+### 4. 待决策项的执行预案（机主定后按此做）
 
-#### 2.2 OS4 每次开机都会尝试但当前内核缺失的接口
+#### 4.1 XRING 后端（A3/A4）
+- 源码：`third_party/mtk-device-modules-hikari/drivers/block/zram/{zgroup,zgroup_wb,
+  mctrl,xswapd,smart_cache}.c`（mt6991 分支），是该机型 `zgroup_enable`/
+  `memory.mctrl.*`/`memory.xswapd.*` 的权威实现。
+- [ ] 先只读核对：我们的 AOSP zram 是否已带这些 vendor 扩展；`zgroup_enable=0`
+      是否符合厂商预期；`xswapd` 是否需与 `CONFIG_XRING_ZRAM_XSWAPD` 对应开启。
+- [ ] 若决定启用：按 stock 语义对齐，跑 `check-abi.py` + 厂商模块/KCFI/dmesg 核对；
+      禁止伪造空节点。
 
-以下路径来自 textdump 中的 OS4 `init.rc`/`init.mt6991.rc`，并在当前设备上复核。
-“缺失”表示当前行为没有发生，不等于 stock 实现细节已经恢复。
+#### 4.2 blkio（B1/B2）
+- [ ] `weight` → `blkio.bfq.weight` alias 评估；`group_idle` 在 BFQ 无对应，明确记「不适用」，
+      不改 cgroup 子系统编号。
+- [ ] 先决策 cpq 与 ADIOS 取舍；确定恢复才实现 `cpq.level`。
 
-| 接口 | 当前实测 | OS4 影响 | 优先级 |
-|---|---|---|---|
-| `/dev/memcg/*/memory.anno_writeback_*` | 节点和内核符号均不存在 | 冻结/保护应用的注解回写策略不生效 | 高 |
-| `/proc/sys/vm/min_free_order_shift` | 不存在 | OS4 写入的高阶分配水位调节不生效 | 中高 |
-| `/sys/block/zram0/writeback_quota` | 不存在；`CONFIG_ZRAM_WRITEBACK=y` 且 ExtM 正常 | `PerfInit` 的 quota 调节路径不生效；不等同于 zram 回写整体失效 | 高 |
-| `/sys/block/zram0/mfz_enable` 等 MFZ 私有节点 | 不存在 | MFZ/厂商 zram 磁盘 quota 调节不生效 | 中 |
-| `/proc/sys/net/ipv4/tcp_default_init_rwnd` | 验证版已实现，OS4 开机写入 60，窗口变化已实测 | 已闭环；此前发布版无此节点 | 已验证 |
-| v1 blkio `weight`/`group_idle` 等 | OS4 请求的 `blkio.weight`/`group_idle` 缺失；当前有 `blkio.bfq.weight` 与 `prio.class` | 前后台 I/O 权重策略部分不生效，现有 BFQ 节点语义未与 OS4 契约对齐 | 中高 |
-| `/sys/kernel/dmabuf_hugetlb/enable` | 当前属性为空，未形成有效触发；能力未与 stock 完整对照 | 只有启用对应 OS4 属性时才可能影响 DMA-BUF hugepage 策略 | 低 |
+#### 4.3 MGLRU（G1）
+- [ ] SmartCache 关闭、仅改 MGLRU 的受控 A/B（meminfo/vmstat/文件页/swap/OOM/lockup/功耗）。
+      未完成前 MGLRU 日常构建保持关闭。
 
-补充：OS4 还配置了 `/dev/blkio/*/blkio.cpq.level`；其当前设备可用性和
-语义需要单独核对，不能用 `blkio.weight` 的结果代替。`memory.swappiness` 在
-`/dev/memcg` 中也属于 OS4 依赖项；当前 `PerfInit` 报告访问
-`/proc/sys/vm/swappiness` 为 `Permission denied`，应区分 SELinux/权限问题与
-sysctl 本身不存在。
+#### 4.4 验证缺口（H1–H6）
+- [ ] 逐项补实测；结果追加 TEST_REPORT，STATUS 只留摘要。
+- [x] BBR3 ECN 5ms 门槛属上游策略、丢包吞吐短板已有受控链路实测（TEST_REPORT §43），不作兼容缺陷。
 
-**Todo**
+#### 4.5 新增可选性能项（F4/F5，2026-11-28 搜出的真实缺口）
+- **F5 `kshrink_slabd`**（建议优先，风险最低）：源码
+  `marble:drivers/staging/kshrink_slabd/{Kconfig,Makefile,kshrink_slabd.c}`（230 行）。
+  依赖已满足：本树 `android_vh_shrink_slab_bypass` 已导出、
+  `mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`。落地步骤：拷 3 文件到
+  `drivers/staging/kshrink_slabd/` → `drivers/staging/Kconfig` 加 source →
+  `drivers/staging/Makefile` 加 `obj-$(CONFIG_KSHRINK_SLABD)` → `CONFIG_KSHRINK_SLABD=m`
+  → 跑 `check-abi.py`（新增独立模块，理论上不动 KABI）→ 实机 insmod + `/proc` 节点核对。
+- **F4 `lz4p`**（收益不确定，优先级低）：需引 `lib/lz4p/`（12 文件，含 `.S` NEON 汇编）
+  + `lib/Kconfig`/`lib/Makefile` + `zcomp.c` 注册 `"lz4p"`。**风险**：dash 的 zram 是
+  厂商 ko，`zcomp.c` 在 ko 内不在内核镜像里 → 内核侧加 `lz4p` 也**不一定**能被厂商
+  zram 选中。落地前必须先确认 dash 厂商后端是否预留算法名（当前 `comp_algorithm`
+  无 `lz4p` 已说明未预留）。因此**建议先只做 F5，F4 暂缓**。
+- **E5 UFS `power_mode`**：只读研究价值；`ShriHari33/mt6991-ufs-gear-lane` 的
+  `proposed/0001`+`0002` 对 stock `android15-6.6` 干净应用（其对 stock 6.6 未编译验证）。
+  若要动 UFS，必须先在 stock 上 dry-run + 单独验证，不与 F5 混做。
 
-- [ ] 从 stock boot/vendor zram 模块、BTF/字符串和 `PerfInit` 调用者恢复
-  `writeback_quota`、MFZ、quota 单位、边界和生命周期；先做只读 ABI 对照，再决定
-  是否实现，禁止只创建兼容空节点。
-- [ ] 调查 `anno_writeback` 的 stock 实现和调用路径，确认它是 F2FS/回写层、
-  memcg 控制器还是小米私有 reclaim 逻辑；恢复前做 ABI 结构与厂商模块兼容检查。
-- [ ] 评估 `min_free_order_shift` 与 6.6 上游 watermark/高阶分配逻辑的对应关系；
-  只有找到 stock 语义后才实现 sysctl，不要简单映射到相近参数。
-- [x] 实现 `tcp_default_init_rwnd` 兼容入口并通过 NoLTO、ABI 与模块静态门禁。
-- [x] 启动候选内核，验证 OS4 自动写入 `60`；真机回环 A/B 中 SYN 和 SYN-ACK
-  的窗口都随 sysctl 变化，测试后恢复 `60`。证据见测试报告 §50。
-- [ ] 逐项核对 `/dev/blkio` 的 `cpq.level`、`weight`、`group_idle`、
-  `prio.class`：已确认当前存在 `background/blkio.bfq.weight` 和
-  `background/blkio.prio.class`，但 OS4 请求的 `blkio.weight`、`group_idle`、
-  `cpq.level` 仍缺失；还需记录 stock/当前节点的写入返回值和实际 I/O 调度变化，
-  并确认不改变 stock cgroup 子系统编号。
-- [ ] 复核 `memory.swappiness` 的 SELinux 标签、权限和实际写入错误；已确认
-  `/dev/memcg/memory.swappiness` 与各 memcg 节点存在且读值为 `100`，但
-  `/proc/sys/vm/swappiness` 对 PerfInit 为 `Permission denied`；仍需区分
-  SELinux/ownership 契约与全局 sysctl，不要误改全局 swappiness。
-- [ ] 对 `dmabuf_hugetlb` 先取得 stock 是否存在及其用户态触发条件；当前设备节点
-  仍缺失、对应属性为空，将其保持为低优先级观察项。
+### 5. 必须保持的兼容约束（硬门禁，非决策项）
 
-#### 2.3 OS4 路径不匹配或未覆盖的观察接口
+- `CONFIG_RSEQ`/`SCHED_MM_CID` 必须关；否则 `task_struct` 与厂商 `mi_game.ko` 硬编码偏移漂移。
+- `CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须关；否则 cgroup 子系统编号与
+  `struct cgroup` 布局漂移。七项 v1 controller 保持
+  `cpuset/cpu/cpuacct/blkio/memory/freezer/net_prio` 顺序。
+- writeback 回移 0004 暂不启用；新增字段只放允许的 KABI/OEM reserve 槽。
+- 每次改配置/结构必跑 `python3 dash/scripts/check-abi.py <vmlinux>`，并核对厂商模块加载/
+  KCFI/dmesg/OS4 启动日志。
+- MGLRU 默认关、MPTCP 关（`inbound-mptcp: false`）。
+- 不关 SELinux，不写 `lk`/`super`/用户数据，不清 AVB footer、不改 vbmeta flags。
 
-- OS4 init 尝试写 `/proc/iostat_enhance/enable` 和简化的 UFS monitor 路径；
-  当前实际可用的是 `/proc/io_monitor/iostat/iostat_enabled` 与
-  `.../16810000.ufshci/monitor/monitor_enable`。这是 init/厂商路径与内核接口
-  的不匹配，不应再记录成“内核缺少 iostat”。
-- OS4 的 `fault_report` 写路径与当前 `/proc/fault_report` 也不完全相同；当前
-  模块和 proc 接口存在；checkpoint 路径已静态核对，仍缺故障注入验证。
-- `lz4asm` 是 OS4 预留的可选模块位；当前系统没有该模块或符号，zram 仍可使用
-  `lz4kd`/其他现有实现。这不是当前内核故障。
+### 6. 已关闭或不再列为缺口
 
-**Todo**
-
-- [ ] 用 stock 与当前设备分别记录 iostat/UFS/fault_report 的真实读写路径、权限、
-  输出和触发条件，决定是否需要兼容别名；不要为未触发的 init 写失败添加空节点。
-- [x] 核对 stock `f2fs_stop_checkpoint()` 及模块回调：原厂和当前基线均会在非
-  shutdown 路径上报，且没有按 `end_io` 过滤。无需重复添加 checkpoint 上报。
-- [ ] 在隔离文件系统验证 checkpoint/end I/O 和其他原子回调上下文路径；静态匹配
-  不等于故障注入验证。详见测试报告 §49。
-
-### 3. stock-only 功能缺口
-
-#### 3.1 Hybrid UFS
-
-当前已启用配置、sysfs 和挂载参数，但 `f2fs_hw_support_hybrid()` 固定返回
-false，`hybrid=1` 返回 `-EOPNOTSUPP`。缺少 ext LUN 映射、die 发现协议和 GC
-分配策略；错误实现有把数据写入错误介质的风险。
-
-- [ ] 从 stock `vmlinux` 反汇编能力查询、die 发现和 GC 分配路径，或取得原厂源代码。
-- [ ] 仅在双区域测试介质上先做只读映射验证，再进行写入/GC A/B；未完成前保持
-  明确的 `EOPNOTSUPP` 回退，不伪造 hybrid 已支持。
-
-#### 3.2 UFS 官方 core 变体
-
-stock 的 `ufs_mediatek_mod_ise.ko` 能加载，但 AOSP core 未替换。device_modules
-版本依赖 MTK block/clock/power 头和 sibling/vendor 符号，不能单文件替换。
-
-- [x] 用 device_modules 做独立 out-of-tree 编译，精简变体已生成两个 `.ko`，
-  依赖原厂 `irq-dbg`；包含完整 vendor debug/feature 的变体仍未通过，见测试报告 §49。
-- [ ] 补齐完整 vendor 变体的调试与 SCSI 依赖，在隔离设备上核对 UFS 初始化、
-  电源/时钟、错误恢复和 I/O 延迟；未完成前不替换当前已验证的 AOSP/GKI core。
-
-#### 3.3 SCSI fastdiscard / 多 descriptor UNMAP
-
-通用 discard 正常，但当前 `max_discard_segments=1`；stock 的
-`xiaomi_fastdiscard_info`、`max_unmap_descriptors` 和 `multi_unmap_len_max`
-没有公开实现。
-
-- [ ] 恢复多 descriptor UNMAP 的命令构造、长度边界、错误回退和 queue 参数。
-- [ ] 找到可安全清理的测试分区后再做 stock/当前 A/B；没有测试介质前不启用
-  fastdiscard，也不把空属性当成已支持。
-
-#### 3.4 F2FS/EROFS 行为级实现与 stock 布局差异
-
-- F2FS VIP：接口和保守 fallback 已实机验证；缺 stock inode 选择策略和调用时机。
-- F2FS iostat：开关语义已实机验证；缺 stock 20 槽/10 档 per-CPU 布局语义。
-- EROFS iostat：per-CPU aggregate 已验证；缺 stock 多桶布局和桶语义。
-- fault_report：同步和 task-context 异步路径已验证；全路径仍未确认。
-
-**Todo**
-
-- [ ] 从 stock BTF/反汇编恢复 VIP 的选择阈值、调用点和 manager 所在结构。
-- [ ] 从 stock show/record 函数恢复 F2FS iostat 与 EROFS 多桶的槽位、粒度和
-  per-CPU 合并语义；在此之前保留行为级实现并明确非逐字 ABI。
-- [ ] 对 F2FS/EROFS 做 fsck、长时写入、drop-caches 回读、故障注入和 power-loss
-  验证；所有结果追加到 `TEST_REPORT.md`。
-
-### 4. 必须保持的兼容约束
-
-以下不是 todo，而是后续改动的硬门禁：
-
-- `CONFIG_RSEQ`/`CONFIG_SCHED_MM_CID` 必须关闭；否则 `task_struct` 和厂商
-  `mi_game.ko` 的硬编码偏移漂移。
-- `CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须关闭；否则 cgroup
-  子系统编号和 `struct cgroup` 布局漂移。当前 OS4 依赖的七项 v1 controller
-  必须保持 `cpuset/cpu/cpuacct/blkio/memory/freezer/net_prio` 顺序。
-- writeback 回移 0004 暂不启用；它会改变 `bdi_writeback`/`backing_dev_info`
-  布局。任何新增字段只能放入允许的 KABI/OEM reserve 槽位。
-- 每次配置或结构改动都必须运行
-  `python3 dash/scripts/check-abi.py <vmlinux>`，并核对厂商模块加载、KCFI、
-  `dmesg` 和 OS4 启动日志。
-- MGLRU 默认保持关闭，除非完成 §2.1 的隔离 A/B；MPTCP 保持关闭，代理配置
-  必须 `inbound-mptcp: false`。
-- 不关闭 SELinux，不写 `lk`/`super`/用户数据，不清 AVB footer 或修改 vbmeta
-  flags；刷机实验必须保留完整 boot 回滚路径。
-
-### 5. 验证缺口与可执行测试
-
-- [ ] stock boot 与当前 boot 做启动时延、zram 压力、应用切换、I/O 延迟和功耗
-  A/B；现有结果不能支持性能收益声明。
-- [ ] suspend/resume 至少 10 次，覆盖 MGLRU 默认关闭、alarmtimer、s2idle，观察
-  RCU stall、hung task、soft lockup 和模块恢复。
-- [x] F2FS/EROFS 隔离冒烟：临时 zram 设备上各 10 轮重挂载校验；F2FS
-  覆盖写入、fsync、rename、move-range 和 fsck，EROFS 覆盖只读回读和 fsck。
-  见测试报告 §51。
-- [ ] 实际 UFS 长时 I/O、冷缓存回读和可回滚的 power-loss
-  测试；RAM 块设备不覆盖这些场景。
-- [ ] mihomo/AsteriskMETA 的 TUN、热点 IPv4/IPv6 转发、弱网重连和 30 分钟大流量
-  回归；保持 MPTCP 关闭。
-- [ ] KSU/SUSFS 隐藏项、BakaSU 多 manager、DroidSpaces 容器和网络能力做一次
-  独立回归；`CFS_BANDWIDTH`/`CGROUP_PIDS` 的限制仍需明确记录。
-- [x] 确认 BBR3 的 ECN 5 ms 门槛属于上游策略，丢包下吞吐短板已有受控链路
-  实测，均不作为 OS4 兼容缺陷处理；保留现有实现。见测试报告 §43。
-
-每项测试记录命令、设备版本、结果和关键日志；新的实测证据追加到
-[TEST_REPORT.md](TEST_REPORT.md)，`STATUS.md` 只保留当前状态摘要。
-
-### 6. 已关闭或不再列为缺口的事项
-
-- 2026-10/11 的 LTS 缺口、init_boot 未还原、ExtM dm 回写失败、stock core
-  tracepoint 缺失、F2FS lock/priority、lz4kd/zram 基础路径和 DroidSpaces
-  基础容器能力已分别验证，不要重新列入 todo。
-- ExtM 的 `gc_pin_file_thresh` 兼容补丁已实机验证，`backing_dev` 已恢复为
-  `/dev/block/dm-71`；不要回退该补丁，除非 OS4 用户态不再写超限值。
-- OS4 调查期间的两次 `reboot,shell` 没有 kernel panic 证据，不能把它作为当前
-  内核崩溃结论。
-- `CONFIG_RSEQ`、两个额外 cgroup controller、nftables/BRIDGE_NETFILTER、
-  Full LTO 等已按当前生产约束处理；它们不是可随意开启的“待补功能”。
+- LTS 缺口、init_boot 未还原、ExtM dm 回写失败、stock core tracepoint 缺失、
+  F2FS lock/priority、lz4kd/zram 基础路径、DroidSpaces 基础容器能力：已分别验证。
+- ExtM `gc_pin_file_thresh` 兼容补丁已实机验证，`backing_dev=dm-71`；不回退。
+- `tcp_default_init_rwnd` 已实现并真机验证（OS4 写 60、回环 A/B 生效）。
+- OS4 调查期间两次 `reboot,shell` 无 kernel panic 证据。
+- `writeback_quota`、`min_free_order_shift`、`mi_wmark`、`swappiness`、MFZ：见 §3「已证伪」。
 
 ---
 
@@ -4150,7 +4292,7 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
 <a id="src-08"></a>
 ## 8. 参考仓库工作笔记核对
 
-> 来源：[`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) · 12236 字节 · SHA256 `9ea863d66a8b658948f2ce97c50cd67fa3bcddb7fd02d86a46bd38adaee9f86a`
+> 来源：[`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) · 20192 字节 · SHA256 `d3afc05c2a0296d8f69ee00db4121991d5fcd25b41bf635681088ef7143b3563`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 范围：先读导航中每个带工作笔记/AGENTS 的仓库，再补读一批小米 MTK/OS3/OS4
@@ -4292,7 +4434,7 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
 - stock zram 默认算法是 `lz4`；lz4kd 通过 crypto API 可被 stock zram 选中，
   不需要替换 zram 模块；ExtM 内存扩展保留，见
   [ZRAM_EXTM.md](ZRAM_EXTM.md)。
-- `SUSFS`/内建 KSU 的集成方式与 BakaSU/上游说明一致；SUSFS 版本 2.3.0。
+- `SUSFS`/内建 KSU 的集成方式与 BakaSU/上游说明一致；SUSFS 版本 **v2.4.0**（pin `f98f082`；§1 快照曾误记 2.3.0，见 [STATUS.md](../STATUS.md)）。
 - 我们的 boot 封装是完整 64MB 继承 + OEM vbmeta/footer，不使用 AK3；Flavenz 的
   slot/bootconfig 修补不适用。
 
@@ -4304,8 +4446,91 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
    profile；BBRv3/ZSTD 仍待 A/B。
 3. **DroidSpaces**：若确实需要容器，单独变体加 SYSVIPC kABI 6/7/8 + namespace
    配置，不混入 stock parity。
-4. **hybrid/fastdiscard/UFS core**：继续按 [OPEN_ISSUES.md](OPEN_ISSUES.md) §2
+4. **hybrid/fastdiscard/UFS core**：继续按 [OPEN_ISSUES.md](OPEN_ISSUES.md) §2 表格（E1–E3 行）
    的证据路线推进。
+
+### 7. 全部来源仓库总清单（截至 2026-11-28；覆盖上文各节及本仓库所有调查）
+
+> §1–§6 是 2026-10-30 快照，仅覆盖当时读过笔记的仓库。本节补充此后以及本轮
+> （2026-11-28 小米特性调查 + 最后一轮全关键词搜索）读到/参考/取用过的**全部**外部
+> 来源。用途分类：**子模块**=已纳入 `third_party/`（pin 见 `dash/versions.env`、表见
+> [NAVIGATION.md](../project/NAVIGATION.md)）；**API 取用**=按需 API 取单文件，
+> 未入库；**阅读参考**=读过源码/笔记用于判断或交叉验证。§7.5 为 2026-11-28
+> 最后一轮搜索新增。
+
+#### 7.1 已纳入子模块的仓库（本地完整副本）
+
+- `Baka-SU/BakaSU`（`BakaSU/`）— KSU 内核源码
+- `SukiSU-Ultra/SukiSU_patch`（`third_party/sukisu-patch`）— lz4k/lz4kd 参考
+- `simonpunk/susfs4ksu`（GitLab，`third_party/susfs4ksu`）— SUSFS（v2.4.0）
+- `lakitu12/kernel_dash_droidspaces`（`third_party/dash-droidspaces`）— dash OS4 hooks/boot 笔记
+- `2108282/hyperos-lz4kd`（`third_party/hyperos-lz4kd`）— LZ4KD/AVB/CFI 参考
+- `Content-Creation-Club/android_kernel_xiaomi_dash`（主内核，LineageOS 6.6.144 方向）、`Content-Creation-Club/android_kernel_xiaomi_dash_build`、`Content-Creation-Club/android_kernel_xiaomi_dash_device_modules`（DTS/触摸/热管理/millet/mi_memory/UFS 重实现）、`Content-Creation-Club/android_kernel_xiaomi_dash_bazel_mgk_rules`、`Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules`（4 个 `third_party/cc-dash-*` + 主内核）— 构建脚本/设备模块/MTK 模块；注意 2026-11-21 起私有化 404
+- `HyNetworks/tcp-brutal`（`third_party/tcp-brutal`）— TCP Brutal
+- `maxsteeel/nomount`（`third_party/nomount`）— NoMount
+- `klarnet2009/dada-closed-modules`（`third_party/xiaomi-dada-closed-modules`）— Xiaomi 15/SM8750 闭源模块逆向重建（146 模块，等价性核验方法）
+- `donothavename/opt_gki_kernel_android13-5.15`（`third_party/xiaomi-opt_gki_kernel_android13-5.15`）— OS4 内存/调度 `sew_*` 移植
+- `NikoRurQwQRuaaMeow/chirunoneko_gki_android13-5.15_kernel_module_opensource`（`third_party/xiaomi-chirunoneko-gki-5.15-modules`）— 小米特性 Kconfig 清单（源码被挖空）
+- `Project-Hikari-Liella/MTK_kernel_device_modules-50da8b3c19a331c676dcaa1334fa3b49e4b1a531`（`third_party/mtk-device-modules-hikari`）— **dash 实际厂商 zram/内存后端源码（XRING zgroup/mctrl/xswapd/smart_cache）+ `kernel/configs/dash.config`**
+- `hushangda/android_kernel_xiaomi_sm8350_venus`（`third_party/xiaomi-venus-memcg`）— 小米 memcg 策略 + 官方 `xiaomi-memcg.rst` 协议文档
+
+#### 7.2 按需 API 取用（未入库，pin 见 `dash/versions.env` 末段）
+
+- `android-kernels/xiaomi-bixi-v-oss`（MiCode 6.6.56 开源镜像，~30 GB）— **MFZ / `mi_wmark` 权威来源**，取 `drivers/block/zram/zram_drv.c`、`drivers/staging/mi-perf/mi_wmark/`
+- `OneFeiFan/gki-kernel-5.10-xiaomi-pad6max`（~200 MB）— `patches/xiaomi/0047-zram-xiaomi-extm.patch`、`0048-zram-xiaomi-memory-freeze.patch` + `docs/features.md`、`docs/notes/extm-research.md`
+- `xiaomi-dash-dev/redmi_dash_dump` — 本机 stock `ikconfig`（用于确认 `MI_MEMORY_FREEZE=n` + XRING 配置）
+
+#### 7.3 阅读/交叉验证参考（读过 README/笔记/源码/配置用于判断）
+
+- 特性调查来源（[FEATURES_SURVEY.md](FEATURES_SURVEY.md)）：`WildKernels/GKI_KernelSU_SUSFS`、`WildKernels/OnePlus_KernelSU_SUSFS`、`WildPlusKernel/kernel_patches`、`ahmed-alnassif/GKID-Kernels`、`NEESCHAL-3/EVONIX-Kernel`、`zen-kernel/zen-kernel`
+- 上游笔记核对（§2，2026-10-30）：`Re-s/Mi15-Droidspaces-Kernel`、`omajili-manbu/Xiaomi_Rodin_Kernel_Enhance`、`ZxAlif-ID/Flavenz-Kernel-Peridot`、`2824799/droidspaces-xiaomi-17-kernel`、`XagaForge/android_kernel_xiaomi_mt6895`、`JuanArton/xiaomi_peridot_kernel`、`degas-developers/android_device_xiaomi_degas-kernel`、`xiaomi-mediatek-devs/android_kernel_xiaomi_mt6877`
+- 缺口调研（[GAP_RESEARCH.md](../project/GAP_RESEARCH.md)）：`MiCode/Xiaomi_Kernel_OpenSource`（`mist-w-oss`/`dada-v-oss`/`dash-w-oss`）、`MiCode/MTK_kernel_device_modules`（`dash-w-oss` UFS 37 文件）、`MiCode/MTK_kernel_modules`、`android-kernels/xiaomi-dash-w-oss`、`Content-Creation-Club/android_kernel_xiaomi_dash`、`donyanchen/android_kernel_xiaomi_sm8850`、`hgn284/xiaomi_17pro_max_sm8850`、`Apr-YT/gg-rwproc33-driver`、`wfqefwqf/share-poc-XRing-O1`、`YuKongA/ghostlock-app`、`oss-dash/poco_dash_dump`、`xiaomi-mt6991/poco_dash_dump`、`HexaUnion/redmi_dash_dump`
+- 运行/生态：[Asterisk4Magisk/AsteriskMETA](MIHOMO_ANDROID.md)（mihomo 客户端）；`tiann/KernelSU`、`5ec1cff/KernelSU`、`Dominium-Apum/kernel_xiaomi_chime`（DEV_NOTES 内附带的第三方 README 署名，非我们主动研究）
+- 自建：[NuoFang6/dash-kernel](https://github.com/NuoFang6/dash-kernel)（本仓库 CI/Release）
+
+#### 7.4 已确认无价值 / 仅一次性查证
+
+- `piano-LAB/android_kernel_xiaomi_sm8750-modules`、`lrqtech/android_kernel_xiaomi_warsaw_lineage24`：本轮搜索命中但无所需特性源码（仅 extmem 无关文件），未采用。
+- `NikoRurQwQRuaaMeow` 名下其余 30+ 仓库（ROM 移植/SM8250 老内核/Action）与本机 MT6991/6.6 无关，未展开。
+
+#### 7.5 2026-11-28 最后一轮全关键词搜索新增来源
+
+> 7 轮关键词族搜索（`gh search code`/`repos`/`commits`/`issues`，详见
+> [FEATURES_SURVEY.md §2026-11-28 最后一轮](FEATURES_SURVEY.md)）。结论：**XRING
+> 源码面无遗漏，无需新增子模块**；新增以下**只读/取码**来源。
+
+**取码（唯一公开的 XRING 补全源码）**
+
+- `Pzqqt/android_kernel_xiaomi_marble`（Melt Kernel，Redmi Note 12 Turbo / MT6878）—
+  **唯一同时带 XRING `lib/lz4p/`（12 文件，含 `lz4p_encode.S`/`lz4p_decode.S`）与
+  `drivers/staging/kshrink_slabd/` 完整源码的公开树**；`lib/lz4p/lz4p.h` 头注明
+  `X-Ring technologies Inc.`。按需 `gh api` 取单文件，不整仓克隆（2.4 GB）。
+- `ShriHari33/mt6991-ufs-gear-lane`（MT6991 UFS gear/lane 实机工程，4.7 MB）—
+  `power_mode` debugfs + W-LUN 唤醒修复（Linux 5.14 起 W-LUN 独立 resume）+ G5 时钟分析；
+  `current_vs_proposed/proposed/000{1,2,3}*.patch` 附源码副本与 PDF。
+
+**交叉验证（证明 XRING 是小米专有）**
+
+- `OnePlusOSS/android_kernel_oneplus_mt6991`（`oneplus/mt6991_b_16.0.0_oneplus_ace5_ultra`，
+  6.6.118，2.3 GB）与 `oppo-source/android_kernel_oppo_mt6991`（6.6.30，2.2 GB）—
+  `drivers/block/zram` 均为纯 AOSP（无 XRING/lz4p）。
+- MiCode `Xiaomi_Kernel_OpenSource` 的 `yili-w-oss`（6.12.38）/`piano-w-oss`（6.6.57）—
+  zram 均为上游形态，无 XRING。旁证：MiCode issue **#41194**（2026-11-21）仍在请求
+  公开 `turner-w-oss`（K Pad，MT6991/OS4），**尚未发布**。
+- 字节核验：`third_party/mtk-device-modules-hikari/drivers/ufs/ufs-mediatek.c` 与
+  MiCode `MTK_kernel_device_modules` `dash-w-oss` 分支 **`diff -q` 完全一致** →
+  我们的 XRING/UFS 源码是官方 stock，非逆向重实现。
+
+**读思路（非 dash 适用）**
+
+- `bocchi810/mt6991-kernel-ci` — OnePlus Ace 5 Ultra MT6991 6.6.118 CI；
+  `hybridswap_lpc` NULL-deref 的 kprobe 守卫思路（OPLUS hybridswap 后端，dash 不适用）。
+- `dongyanchen-dev/android_kernel_xiaomi_sm8850` — 小米 17/K90 Pro Max GKI 构建器，
+  含约 60 个 f2fs/ufs/fscrypt/erofs/mglru 安全 backport 补丁（SM8850 6.12，非 dash）。
+- `liudaoziwa/mainline-mt6991`（Linux 7.3 主线 MT6991）、
+  `localhosts-A/UniXNU-MT6991-Common`（MT6991 硬件输入 + dtsi，XNU 方向）、
+  `SHuiTU68/android_kernel_oplus_common`（OPLUS f2fs `DEDUP`/`COMPRESS_FIXED_OUTPUT`/
+  `lz4armv8`，6.6.114）— 均观察，暂不使用。
 
 ---
 
@@ -5144,7 +5369,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 <a id="src-12"></a>
 ## 12. 仓库导航、子模块 pin 与资源索引
 
-> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 14096 字节 · SHA256 `b929bc3c430729bd184faea9d21ab70ffd3b5399f1c20d08a4f0b682610f7293`
+> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 18854 字节 · SHA256 `2b48e8d980253233a8a38fd60bae393cd15fc72d5877577244d38c9c30cf7dd1`
 > 类别：仓库上下文 · 状态：仓库上下文（可能有过时状态）
 > 注意：这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。
 
@@ -5176,6 +5401,32 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 | [third_party/cc-dash-device-modules](../../third_party/cc-dash-device-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_device_modules.git | dash-w-oss | `94914f6bc83f` | dash DTS、`kernel/configs/dash*.config`、重实现的触摸/热管理/millet/mi_memory/UFS 模块源码 |
 | [third_party/cc-dash-mtk-modules](../../third_party/cc-dash-mtk-modules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules.git | dash-w-oss | `d3e32dcf9f67` | MediaTek camera/connectivity/GPU/等模块源码 |
 | [third_party/cc-dash-bazel-rules](../../third_party/cc-dash-bazel-rules) | https://github.com/Content-Creation-Club/android_kernel_xiaomi_dash_bazel_mgk_rules.git | lineage-23.2 | `1573a08b7d6b` | CC dash Kleaf/MGK 构建规则 |
+| [third_party/xiaomi-dada-closed-modules](../../third_party/xiaomi-dada-closed-modules) | https://github.com/klarnet2009/dada-closed-modules.git | main | `3c6328d3485a` | Xiaomi 15/SM8750 约 630 个闭源模块的**逆向重建源码**（146 模块，EQUIVALENT 103/PARTIAL 43，每模块带 `STATUS.md`）；`mi_wmark`/`mi_reclaim`/`dynamic_readahead`/`fault_report`/`vip_sched` 等接口与判定参考；大量模块标 DO NOT LOAD，仅读不刷（见 [FEATURES_SURVEY](FEATURES_SURVEY.md) 2026-11-28 节） |
+| [third_party/xiaomi-opt_gki_kernel_android13-5.15](../../third_party/xiaomi-opt_gki_kernel_android13-5.15) | https://github.com/donothavename/opt_gki_kernel_android13-5.15.git | main | `4662b82f6205` | 5.15 GKI 的 OS4 内存/调度移植（`sew_mi_reclaim`/`sew_unfairmem`/`sew_scene_swappiness`/`sew_dynamic_readahead`/`kshrink_slabd`/`mi_rmap_efficiency`/`unionpower`/`ssg`）；本树已导出其所需 vendor hook |
+| [third_party/xiaomi-chirunoneko-gki-5.15-modules](../../third_party/xiaomi-chirunoneko-gki-5.15-modules) | https://github.com/NikoRurQwQRuaaMeow/chirunoneko_gki_android13-5.15_kernel_module_opensource.git | chirunoneko_5.15-lts_vendor_modules_opensource | `96dd2f7849a8` | 小米特性**清单/命名情报**（Kconfig/defconfig 为主，源码被挖空，README 仅“滚木”）；用于按特性名反查真源码 |
+| [third_party/mtk-device-modules-hikari](../../third_party/mtk-device-modules-hikari) | https://github.com/Project-Hikari-Liella/MTK_kernel_device_modules-50da8b3c19a331c676dcaa1334fa3b49e4b1a531.git | main | `430688007431` | **dash 实际的厂商 zram/内存后端源码（XRING）**：`drivers/block/zram/{zgroup,zgroup_wb,mctrl,xswapd,smart_cache}.c`，是 `zgroup_enable`/`memory.mctrl.*`/`memory.xswapd.*` 的真源码；`kernel/configs/dash.config` 也在此（`XRING_ZRAM_MEMCG(_WRITEBACK)/XSWAPD=y`，`MI_MEMORY_FREEZE=n`） |
+| [third_party/xiaomi-venus-memcg](../../third_party/xiaomi-venus-memcg) | https://github.com/hushangda/android_kernel_xiaomi_sm8350_venus.git | main | `412a1fcc196a` | 小米 memcg 策略参考实现 + **官方 `Documentation/admin-guide/mm/xiaomi-memcg.rst` 协议文档**，精确解释 `mctrl.*` 与 `xswapd.*` 的取值/单位/协议（`mm/mi_memcg*.c`、`mm/mi_smart_cache.c`） |
+
+> 小米官方 6.6 开源（`MiCode` bixi-v-oss，~30 GB）与 OneFeiFan pad6max（~200 MB）
+> **不做子模块**，按需用 GitHub API 取单文件（MFZ/ExtM/mi_wmark 权威来源），pin 见
+> `dash/versions.env` 末段。
+
+#### 1.1 按需取码来源（不入子模块，2026-11-28 最后一轮搜索新增）
+
+| 仓库 | 用途 | 规模 |
+|---|---|---|
+| [Pzqqt/android_kernel_xiaomi_marble](https://github.com/Pzqqt/android_kernel_xiaomi_marble) | **唯一公开的 XRING 补全源码**：`lib/lz4p/`（12 文件，含 NEON `.S`）+ `drivers/staging/kshrink_slabd/`；`lz4p.h` 头注明 X-Ring technologies | 2.4 GB，只取单文件 |
+| [ShriHari33/mt6991-ufs-gear-lane](https://github.com/ShriHari33/mt6991-ufs-gear-lane) | MT6991 UFS `power_mode`/gear-lane 运行时切档 + W-LUN 唤醒修复 + G5 时钟分析（源码副本/PDF） | 4.7 MB，可取 `proposed/*.patch` |
+| [OnePlusOSS/android_kernel_oneplus_mt6991](https://github.com/OnePlusOSS/android_kernel_oneplus_mt6991) | **官方 MT6991 6.6.118**（`mt6991_b_16.0.0_oneplus_ace5_ultra`），AOSP-vs-厂商对照；证明 XRING 非 MTK 通用 | 2.3 GB，按文件比对 |
+| [oppo-source/android_kernel_oppo_mt6991](https://github.com/oppo-source/android_kernel_oppo_mt6991) | 官方 MT6991 6.6.30（Find X8 Pro），同上 | 2.2 GB，按文件比对 |
+| [bocchi810/mt6991-kernel-ci](https://github.com/bocchi810/mt6991-kernel-ci) | MT6991 6.6.118 CI；`hybridswap_lpc` NULL-deref 的 kprobe 守卫思路（OPLUS 后端，dash 不适用） | 19 KB |
+| [dongyanchen-dev/android_kernel_xiaomi_sm8850](https://github.com/dongyanchen-dev/android_kernel_xiaomi_sm8850) | 小米 17/K90 Pro Max GKI 构建器 + 约 60 个 f2fs/ufs/fscrypt/erofs/mglru 安全 backport | 1.2 MB |
+| [liudaoziwa/mainline-mt6991](https://github.com/liudaoziwa/mainline-mt6991) | Linux 7.3 主线 MT6991 支持（观察） | 382 GB 量级源码，不克隆 |
+| [localhosts-A/UniXNU-MT6991-Common](https://github.com/localhosts-A/UniXNU-MT6991-Common) | MT6991 硬件输入整理 `docs/hardware-inputs.md` + `dts/mt6991.dtsi`（XNU 方向） | 10 KB |
+| [SHuiTU68/android_kernel_oplus_common](https://github.com/SHuiTU68/android_kernel_oplus_common) | OPLUS F2FS 移植（`F2FS_FS_DEDUP`/`COMPRESS_FIXED_OUTPUT`/`lz4armv8` NEON），6.6.114 | 255 GB 量级，按文件比对 |
+
+> 详见 [FEATURES_SURVEY.md](FEATURES_SURVEY.md) 末节与
+> [UPSTREAM_NOTES_REVIEW.md](UPSTREAM_NOTES_REVIEW.md) §7.5。
 
 注意：CC 的 device modules 中很多厂商模块是**反汇编/逆向重实现**，不是原厂源码；README 明确写“it compiles doesn't mean it works”，且**不要直接刷到 HyperOS 上**。只作为接口/实现参考。
 

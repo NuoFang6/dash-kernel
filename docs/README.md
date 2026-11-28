@@ -37,7 +37,7 @@
 | [README.md](kernel/README.md) | 构建/更新流程、目录、构建范围 | 当前；不记录状态 |
 | [DESIGN.md](kernel/DESIGN.md) | 补丁、hooks、F2FS/EROFS 实现与差异 | 当前 |
 | [TEST_REPORT.md](kernel/TEST_REPORT.md) | 静态检查、真机证据、AVB 复盘；按日期追加 | **证据日志**，不是当前状态 |
-| [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) | 当前缺口、风险、可执行 todo 与验证缺口（按主题分组） | **缺口唯一台账** |
+| [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) | 当前缺口、风险、可执行 todo 与验证缺口（单一表格，含待决策列） | **缺口唯一台账** |
 | [ZRAM_EXTM.md](kernel/ZRAM_EXTM.md) | 内存扩展 ExtM 与 lz4kd：stock vendor zram、backing_dev、xswapd、回写验证 | 当前 |
 | [MIHOMO_ANDROID.md](kernel/MIHOMO_ANDROID.md) | mihomo Android 运行、TUN/TProxy 内核能力、tcp-brutal、MPTCP 结论；KSU 模块已移除（客户端为 AsteriskMETA） | 内核能力部分当前；模块章节过时 |
 | [NODE_CACHE_SOURCE.md](kernel/NODE_CACHE_SOURCE.md) | node_cache 源码评估、与 stock 6.6.118 二进制差异、6.6.143 适配清单 | 当前；来源是 6.12 API 重实现，不是 stock 原源码 |
@@ -45,7 +45,7 @@
 | [BOOT_PACKAGING.md](kernel/BOOT_PACKAGING.md) | boot 封装、AVB、恢复规则 | 当前 |
 | [STOCK_PARITY_AUDIT.md](kernel/STOCK_PARITY_AUDIT.md) | 实机 vs stock 6.6.118 的 config/模块/tracepoint/功能核对 | 当前 |
 | [UPSTREAM_NOTES_REVIEW.md](kernel/UPSTREAM_NOTES_REVIEW.md) | 参考仓库工作笔记核对与可借鉴/不采纳的优化 | 当前 |
-| [FEATURES_SURVEY.md](kernel/FEATURES_SURVEY.md) | WildKernels/GKID 特性调查:实现可信度分级、与 dash 对照、决策记录 | 调查快照 + 决策台账 |
+| [FEATURES_SURVEY.md](kernel/FEATURES_SURVEY.md) | 特性调查:WildKernels/GKID/EVONIX + 小米外部来源对照，单一决策表（含待决策列） | 调查快照 + 决策台账 |
 | [UFS_HYBRID_EVIDENCE.md](kernel/UFS_HYBRID_EVIDENCE.md) | UFS/hybrid/fastdiscard 缺口证据与安全边界 | 当前 |
 | [DEV_NOTES.md](kernel/DEV_NOTES.md) | 由 `dash/scripts/collect-notes.py` 生成的聚合避坑包 | **生成物**，不要手改 |
 | [UNRESOLVED_GAPS.md](kernel/UNRESOLVED_GAPS.md) | 已并入 OPEN_ISSUES | **跳转页**，不要更新 |

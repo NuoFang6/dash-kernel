@@ -2,216 +2,158 @@
 
 > 本文件是当前缺口、风险和可执行 todo 的唯一台账。当前版本与实机状态见
 > [STATUS.md](../STATUS.md)；原始命令、日志和失败复盘见
-> [TEST_REPORT.md](TEST_REPORT.md)。
+> [TEST_REPORT.md](TEST_REPORT.md)；特性取舍见
+> [FEATURES_SURVEY.md](FEATURES_SURVEY.md)。
 >
-> 最后更新：2026-11-28。调查覆盖 OS4.0.4.0 的生产版 `#16` 和 NoLTO 验证版；
-> 当前设备运行版本与槽位见 [STATUS.md](../STATUS.md)。
+> 最后更新：2026-11-28（含**最后一轮 7 轮 GitHub 全关键词搜索**；新增 F4 `lz4p`、
+> F5 `kshrink_slabd`、E5 UFS `power_mode` 三行）。以 OS4.0.4.0、实机 `6.6.144-4k #1`
+> （dash，NoLTO 验证版）实测为准。本文为**表驱动、单一表格**：每行一个缺口，带
+> 「默认被 OS4 用？」和「决策」两列。决策为「待决策」/「未做」的条目等机主定夺，
+> 不擅自执行。
 
 ## 1. 结论摘要
 
-当前内核可以正常运行 OS4：设备已正常启动，584 个关键厂商模块加载，ExtM
-回写设备为 `/dev/block/dm-71`，F2FS/EROFS 挂载正常，stock 七项 cgroup 控制器
-保持不变，未发现由本轮调查引起的 panic、Oops、UFS/F2FS I/O 错误或模块拒载。
+当前内核可正常运行 OS4：设备正常启动，584 个关键厂商模块加载，ExtM 回写设备
+`/dev/block/dm-71`，F2FS/EROFS 挂载正常，stock 七项 cgroup 控制器不变，本轮调查
+未发现由内核引起的 panic/Oops/UFS·F2FS I/O 错误或模块拒载。
 
-仍然存在两类问题：
+**本轮最重要的纠正**：dash 的 zram 内存后端是 **XRING（zgroup/xswapd/mctrl）**，
+不是小米 bixi 机型的 **MFZ**。stock dash `ikconfig` 实测
+`# CONFIG_MI_MEMORY_FREEZE is not set`，而 `CONFIG_XRING_ZRAM_MEMCG=y`、
+`CONFIG_XRING_ZRAM_MEMCG_WRITEBACK=y`、`CONFIG_XRING_ZRAM_XSWAPD=y`；真机
+`/proc/kallsyms` 中 `zgroup_enable_show`/`mctrl_score_read`/`smart_cache_attr_group`
+均归属 `[zram]`。故先前判定的「MFZ 是 P1 缺口」**对 dash 不成立**——
+`mfz_enable`/`writeback_quota`/`anno_writeback_*` 在 dash 上本就不存在。
 
-1. **OS4 依赖的厂商私有接口未完整复刻。** 主要影响内存回收策略、zram
-   writeback 调节、前后台 I/O 优先级和少数调优项；目前没有证据表明它们会阻止
-   开机，但不能宣称与 stock 行为等价。
-2. **stock-only 文件系统/UFS 功能没有安全实现。** Hybrid UFS、fastdiscard、
-   UFS 官方 core 变体和若干 iostat/VIP 细节仍缺少源码或硬件契约；这些项目不能
-   通过创建同名 sysfs 节点或猜测 ABI 解决。
+## 2. 缺口总览（唯一表格）
 
-本轮调查期间设备出现两次 `reboot,shell`。pstore 记录的是用户空间显式 reboot，
-不是 kernel panic/watchdog；调查命令均为读取操作。完整证据见
-[TEST_REPORT.md §47](TEST_REPORT.md)。
+决策语义：`待决策` = 等机主；`未做` = 本轮不做；`已证伪` = 经核实不是缺口；
+`保持 stock` = 用厂商模块不自研；`观察` = 仅监控。
 
-## 2. OS4 实机核对后的当前缺口
+| 编号 | 项目 | 默认被 OS4 用？ | 实机现状（2026-11-28） | 决策 |
+|---|---|---|---|---|
+| A1 | `mfz_enable`/`mfz_disk_quota`/`anno_writeback_*`（小米 bixi MFZ） | **否**（dash 不用 MFZ） | stock dash `MI_MEMORY_FREEZE=n`，故无此节点；PerfInit 报 `mfz_enable not exist` 属正常 | **已证伪(对 dash)**——bixi/高通特性，不移植 |
+| A2 | zram `writeback_quota` | 否 | 不存在（正常） | **已证伪(对 dash)** |
+| A3 | **XRING `zgroup_enable`** | 是（dash 真正的 zram 分组回写开关） | 节点存在，值 **0**；`[zram]` 含 `zgroup_enable_show`；源码 `mtk-device-modules-hikari`；语义见 venus 文档 | **待决策**——是否启用 XRING zgroup / 与 SmartCache 关系待定 |
+| A4 | **XRING `memory.xswapd.*`**（后台换出线程） | 是（stock `XRING_ZRAM_XSWAPD=y`） | 16 个节点全在；实测 `enable=0`、`watermark(mem_press)=3000`、`quota=7GiB`、`stat nr_comp=0`；源码 `xswapd.c` + venus 文档 | **待决策**——是否启用自动 xswapd（stock 默认关） |
+| A5 | `memory.mctrl.*`（SmartCache 组策略） | 是 | 9 个节点全在；根值为 `-1`(未设)，`group_param` 表头与 venus 文档一致；`SmartCacheEnable=true` | **保持 stock**（不重写；语义见 venus 文档） |
+| A6 | zram `zgroup_enable` 伪造 | — | — | **不做**——禁止用空节点冒充（会让 PerfInit 切到不支持模式） |
+| B1 | blkio v1 `weight`/`group_idle` | 是（`on init` 写） | 根缺 `weight`/`group_idle`，子有 `blkio.bfq.weight` | **待决策**（alias 到 bfq / 记不适用） |
+| B2 | blkio `cpq.level` | 是（`smartfocusio.v1=on`） | vip/hipri/lowpri/limit 无 `blkio.cpq.level`；调度器有 cpq 但当前 `[adios]` | **待决策**（先定 cpq vs ADIOS） |
+| B3 | `/proc/sys/vm/min_free_order_shift` | 名义上 | 不存在；6.x 已删，stock 6.6 也无 | **已证伪**（不做） |
+| B4 | `extra_free_kbytes` / `mi_wmark` | 是（shim 路径） | shim 已写 `watermark_scale_factor=50`；`/sys/kernel/mi_wmark` 无 | **已证伪**（非必需） |
+| C1 | `memory.swappiness`（PerfInit 报 Permission denied） | 是 | `/proc/sys/vm/swappiness=100` 正常；属 SELinux 域权限 | **未做**（非内核缺口，不新增 sysctl） |
+| D1 | stock 小米模块（mi_reclaim/vip_sched/rss_monitor/dynamic_readahead/mi_memory/mi_mempool/mi_game/fault_report） | 是 | 全部已加载并工作（mi_reclaim `refill_total:15567`） | **保持 stock**（不自研；dada 重建版多 DO NOT LOAD） |
+| E1 | Hybrid UFS | 否 | `hybrid=1` → `-EOPNOTSUPP` | **未做**（stock-only，禁伪造） |
+| E2 | UFS 官方 core 变体替换 | 否 | 未替换 | **未做**（依赖未齐） |
+| E3 | SCSI fastdiscard / 多 descriptor UNMAP | 否 | `max_discard_segments=1`（2026-11-28 复测不变） | **未做**（无测试介质） |
+| E4 | F2FS/EROFS VIP、iostat 行为级 vs stock | 部分（iostat 默认关） | 行为级实现，非逐字 ABI | **未做**（需 stock 语义） |
+| E5 | UFS `power_mode`/gear-lane debugfs 运行时切档 | 否（非 stock） | 我们的 `ufs-debugfs.c` 只有 `exception_event_mask`/`exception_event_rate_limit_ms`；设备 `clkscale_control` current=0 | **未做**——研究/调试价值高；源码见 FEATURES_SURVEY 末节（MT6991 实机修复可用） |
+| F1 | iostat_enhance / UFS monitor 路径不匹配 | 否（property 门控） | 缺 `/proc/iostat_enhance`，但 `/proc/io_monitor` 已用 | **观察** |
+| F2 | `/sys/kernel/dmabuf_hugetlb/enable` | 否（property 门控） | 缺失 | **观察** |
+| F3 | `lz4asm`（NEON LZ4 加速模块） | 否（property 门控） | 无该模块；zram 用 lz4kd | **观察** |
+| F4 | **XRING `lz4p` zram 压缩算法**（`CONFIG_XRING_ZRAM_LZ4P`） | 否（stock dash 未编入） | 设备 `comp_algorithm` = `lzo lzo-rle lz4 zstd [lz4kd]`，无 `lz4p`；vendor `zram.ko` 中 `lz4p` 字符串 0 | **未做**——可选性能项；唯一公开源码在 `marble`（`lib/lz4p/` 12 文件 + `zcomp.c` 注册） |
+| F5 | **`kshrink_slabd`**（异步 shrink_slab） | 否 | `lsmod` 无；`/proc/kallsyms` 中 `shrink_async` 计数 0 | **未做**——性能项；完整源码 `marble:drivers/staging/kshrink_slabd/`，仅需本树已导出的 `android_vh_shrink_slab_bypass` + `shrink_slab` |
+| G1 | MGLRU / SmartCache 与 OOM deadlock 因果 | 否（厂商默认关） | `lru_gen=0x0000`，SmartCache 默认开 | **待决策**（隔离 A/B 前保持关） |
+| H1 | 性能/功耗 A/B（stock vs 自编） | — | 缺数据 | **未做** |
+| H2 | suspend/resume ≥10 次 | — | 缺数据 | **未做** |
+| H3 | UFS 长时 I/O / 冷缓存回读 / power-loss | — | 缺数据 | **未做** |
+| H4 | mihomo/AsteriskMETA 网络回归（TUN/热点/弱网/30min） | — | 未做 | **未做** |
+| H5 | KSU/SUSFS/BakaSU/DroidSpaces 独立回归 | — | 部分验证，未独立回归 | **未做** |
+| H6 | 隔离 FS 的 checkpoint/end-I/O 故障注入 | — | 静态核对过 | **未做** |
+| I1 | `zram.ko` 文件身份（已澄清） | — | **运行的是 vendor_boot ramdisk 的厂商 zram.ko（269480 B，含 zgroup/mctrl/xswapd，无 mfz；sha256 `21d0c6c6…`）**，不是 `/system_dlkm` 的 85 KB AOSP 版；见 [ZRAM_EXTM.md](ZRAM_EXTM.md) | **已澄清**（保持 vendor zram；不得替换） |
 
-### 2.1 内存回收与 SmartCache 策略
+> 「已证伪」的行是对先前台账的纠正，不要重新实现（详见 §3）。
 
-- **状态：默认策略可用，MGLRU 不应默认开启。** OS4 的
-  `init.mt6991.rc` 和 `init.rc` 都把 `/sys/kernel/mm/lru_gen/enabled` 关闭；
-  `SmartCacheEnable=true` 时再次写 0。当前设备实测为 `0x0000`，SmartCache
-  的 `/sys/kernel/smart_cache/*` 与 `/dev/memcg/memory.mctrl.*` 在工作。
-- **冲突性质：策略互斥，不是持续抢写。** 手动打开 MGLRU 后 120 秒未被守护进程
-  压回；但厂商显然把 SmartCache/mctrl 与 MGLRU 当成二选一方案。
-- **风险：`PG_oem_reserved_5` 会在 MGLRU 开启时影响 forced readahead 页回收。**
-  该逻辑已存在于当前 AOSP 基线 `a5c942b8` 的
-  `mm/readahead.c`、`mm/vmscan.c` 和 `include/linux/page-flags.h`，不是本仓库
-  的未跟踪改动；`make patches` 不会把它静默丢失。此前 33.7 小时运行后的 OOM
-  deadlock 与手动开启 MGLRU 在时间上相关，但因果尚未证明。
+## 3. 已证伪 / 保持 stock 的证据链（供复核）
 
-**Todo**
+- **MFZ 对 dash 不适用**：stock dash `ikconfig` = `# CONFIG_MI_MEMORY_FREEZE is not set`；
+  运行态 kallsyms 无 `mfz*`/`anno_writeback`/`writeback_quota` 符号；
+  有 `zgroup_enable_show`、`mctrl_score_read`、`smart_cache_attr_group`（均 `[zram]`）。
+  MFZ 是 bixi/sm8750（高通）机型实现（`CONFIG_MI_MEMORY_FREEZE`，源码在
+  BIXI 6.6 与 ONEFEI 0048），dash（MT6991）走 XRING。**不移植 MFZ。**
+- **`writeback_quota`**：PerfInit 检查项，属 bixi MFZ 路径；dash 无此路径，正常缺失。
+- **`min_free_order_shift`**：Linux 5.x 已删；BIXI 6.6 无；全 GitHub 6.x `page_alloc.c`
+  搜不到；stock OS4 同样无效。
+- **`mi_wmark`/`extra_free_kbytes`**：设备走 `/system/bin/extra_free_kbytes.sh`，
+  属性不存在时降级写 `watermark_scale_factor`（实测 50，默认 10 → 已生效）。
+- **`swappiness` 报错**：`/proc/sys/vm/swappiness=100` 正常；是 `system_perf_init`
+  域 SELinux 权限，不新增 sysctl。
+- **stock 小米模块**：实测已加载并工作（见总表 D1），`/proc/kallsyms` 证明它们在跑；
+  dada 仓库的重建版多为 PARTIAL 或 `DO NOT LOAD`（充电/电池/TEE/Wi-Fi 族绝不可刷），
+  我们**保留 stock `.ko`**，只借鉴接口与思路。
+- **XRING 源码权威性已字节核验**（2026-11-28）：`third_party/mtk-device-modules-hikari/
+  drivers/ufs/ufs-mediatek.c`（3527 行）与 MiCode 官方 `MTK_kernel_device_modules`
+  的 `dash-w-oss` 分支 `diff -q` **完全一致**；同目录 `drivers/block/zram/`
+  含 `zgroup/zgroup_wb/mctrl/xswapd/smart_cache`。→ 引用的 XRING 源码是 stock，不是逆向版。
+- **XRING 非 MTK 通用**（2026-11-28 反证）：官方 MT6991 6.6.118 树
+  `OnePlusOSS/android_kernel_oneplus_mt6991` 与 OPPO `mt6991` 的
+  `drivers/block/zram` 均为纯 AOSP（无 XRING/lz4p）；公开 GKI 树
+  `yili-w-oss`(6.12.38)/`piano-w-oss`(6.6.57) 也无 XRING。→ XRING 仅存在于小米
+  `kernel_device_modules`（即我们的 `hikari` 子模块）。
+- **`lz4p`/`kshrink_slabd` 是真实缺口**（2026-11-28）：设备 `comp_algorithm`
+  无 `lz4p`、vendor `zram.ko` 内 `lz4p` 字符串 0、`kallsyms` 无 `shrink_async`；
+  两者完整源码只在 `marble`（MT6878）公开。**注意**：当前 `[lz4kd]` 来自本内核
+  crypto，不是厂商 ko（ko 内 `lz4kd` 字符串同样为 0，只带 `lzo-rle`/`zstd`）。
 
-- [x] 核对 `PG_oem_reserved_5` 是否属于当前基线及补丁重放范围；确认它不是
-  独立的树内残留，也没有为它伪造额外补丁。
-- [ ] 在 SmartCache 关闭、仅改变 MGLRU 的条件下做受控 A/B：记录
-  `/proc/meminfo`、`/proc/vmstat`、文件页比例、swap 使用、OOM/lockup 和
-  长时功耗；未完成前不要把 MGLRU 用于日常构建。
-- [x] 检查当前活动源码相对基线的内存管理改动；除已纳入补丁系列的上游/稳定回移
-  外，未发现另一份 `PG_oem_reserved_5` 残留。其长期行为仍需通过隔离 A/B 验证。
+## 4. 待决策项的执行预案（机主定后按此做）
 
-### 2.2 OS4 每次开机都会尝试但当前内核缺失的接口
+### 4.1 XRING 后端（A3/A4）
+- 源码：`third_party/mtk-device-modules-hikari/drivers/block/zram/{zgroup,zgroup_wb,
+  mctrl,xswapd,smart_cache}.c`（mt6991 分支），是该机型 `zgroup_enable`/
+  `memory.mctrl.*`/`memory.xswapd.*` 的权威实现。
+- [ ] 先只读核对：我们的 AOSP zram 是否已带这些 vendor 扩展；`zgroup_enable=0`
+      是否符合厂商预期；`xswapd` 是否需与 `CONFIG_XRING_ZRAM_XSWAPD` 对应开启。
+- [ ] 若决定启用：按 stock 语义对齐，跑 `check-abi.py` + 厂商模块/KCFI/dmesg 核对；
+      禁止伪造空节点。
 
-以下路径来自 textdump 中的 OS4 `init.rc`/`init.mt6991.rc`，并在当前设备上复核。
-“缺失”表示当前行为没有发生，不等于 stock 实现细节已经恢复。
+### 4.2 blkio（B1/B2）
+- [ ] `weight` → `blkio.bfq.weight` alias 评估；`group_idle` 在 BFQ 无对应，明确记「不适用」，
+      不改 cgroup 子系统编号。
+- [ ] 先决策 cpq 与 ADIOS 取舍；确定恢复才实现 `cpq.level`。
 
-| 接口 | 当前实测 | OS4 影响 | 优先级 |
-|---|---|---|---|
-| `/dev/memcg/*/memory.anno_writeback_*` | 节点和内核符号均不存在 | 冻结/保护应用的注解回写策略不生效 | 高 |
-| `/proc/sys/vm/min_free_order_shift` | 不存在 | OS4 写入的高阶分配水位调节不生效 | 中高 |
-| `/sys/block/zram0/writeback_quota` | 不存在；`CONFIG_ZRAM_WRITEBACK=y` 且 ExtM 正常 | `PerfInit` 的 quota 调节路径不生效；不等同于 zram 回写整体失效 | 高 |
-| `/sys/block/zram0/mfz_enable` 等 MFZ 私有节点 | 不存在 | MFZ/厂商 zram 磁盘 quota 调节不生效 | 中 |
-| `/proc/sys/net/ipv4/tcp_default_init_rwnd` | 验证版已实现，OS4 开机写入 60，窗口变化已实测 | 已闭环；此前发布版无此节点 | 已验证 |
-| v1 blkio `weight`/`group_idle` 等 | OS4 请求的 `blkio.weight`/`group_idle` 缺失；当前有 `blkio.bfq.weight` 与 `prio.class` | 前后台 I/O 权重策略部分不生效，现有 BFQ 节点语义未与 OS4 契约对齐 | 中高 |
-| `/sys/kernel/dmabuf_hugetlb/enable` | 当前属性为空，未形成有效触发；能力未与 stock 完整对照 | 只有启用对应 OS4 属性时才可能影响 DMA-BUF hugepage 策略 | 低 |
+### 4.3 MGLRU（G1）
+- [ ] SmartCache 关闭、仅改 MGLRU 的受控 A/B（meminfo/vmstat/文件页/swap/OOM/lockup/功耗）。
+      未完成前 MGLRU 日常构建保持关闭。
 
-补充：OS4 还配置了 `/dev/blkio/*/blkio.cpq.level`；其当前设备可用性和
-语义需要单独核对，不能用 `blkio.weight` 的结果代替。`memory.swappiness` 在
-`/dev/memcg` 中也属于 OS4 依赖项；当前 `PerfInit` 报告访问
-`/proc/sys/vm/swappiness` 为 `Permission denied`，应区分 SELinux/权限问题与
-sysctl 本身不存在。
+### 4.4 验证缺口（H1–H6）
+- [ ] 逐项补实测；结果追加 TEST_REPORT，STATUS 只留摘要。
+- [x] BBR3 ECN 5ms 门槛属上游策略、丢包吞吐短板已有受控链路实测（TEST_REPORT §43），不作兼容缺陷。
 
-**Todo**
+### 4.5 新增可选性能项（F4/F5，2026-11-28 搜出的真实缺口）
+- **F5 `kshrink_slabd`**（建议优先，风险最低）：源码
+  `marble:drivers/staging/kshrink_slabd/{Kconfig,Makefile,kshrink_slabd.c}`（230 行）。
+  依赖已满足：本树 `android_vh_shrink_slab_bypass` 已导出、
+  `mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`。落地步骤：拷 3 文件到
+  `drivers/staging/kshrink_slabd/` → `drivers/staging/Kconfig` 加 source →
+  `drivers/staging/Makefile` 加 `obj-$(CONFIG_KSHRINK_SLABD)` → `CONFIG_KSHRINK_SLABD=m`
+  → 跑 `check-abi.py`（新增独立模块，理论上不动 KABI）→ 实机 insmod + `/proc` 节点核对。
+- **F4 `lz4p`**（收益不确定，优先级低）：需引 `lib/lz4p/`（12 文件，含 `.S` NEON 汇编）
+  + `lib/Kconfig`/`lib/Makefile` + `zcomp.c` 注册 `"lz4p"`。**风险**：dash 的 zram 是
+  厂商 ko，`zcomp.c` 在 ko 内不在内核镜像里 → 内核侧加 `lz4p` 也**不一定**能被厂商
+  zram 选中。落地前必须先确认 dash 厂商后端是否预留算法名（当前 `comp_algorithm`
+  无 `lz4p` 已说明未预留）。因此**建议先只做 F5，F4 暂缓**。
+- **E5 UFS `power_mode`**：只读研究价值；`ShriHari33/mt6991-ufs-gear-lane` 的
+  `proposed/0001`+`0002` 对 stock `android15-6.6` 干净应用（其对 stock 6.6 未编译验证）。
+  若要动 UFS，必须先在 stock 上 dry-run + 单独验证，不与 F5 混做。
 
-- [ ] 从 stock boot/vendor zram 模块、BTF/字符串和 `PerfInit` 调用者恢复
-  `writeback_quota`、MFZ、quota 单位、边界和生命周期；先做只读 ABI 对照，再决定
-  是否实现，禁止只创建兼容空节点。
-- [ ] 调查 `anno_writeback` 的 stock 实现和调用路径，确认它是 F2FS/回写层、
-  memcg 控制器还是小米私有 reclaim 逻辑；恢复前做 ABI 结构与厂商模块兼容检查。
-- [ ] 评估 `min_free_order_shift` 与 6.6 上游 watermark/高阶分配逻辑的对应关系；
-  只有找到 stock 语义后才实现 sysctl，不要简单映射到相近参数。
-- [x] 实现 `tcp_default_init_rwnd` 兼容入口并通过 NoLTO、ABI 与模块静态门禁。
-- [x] 启动候选内核，验证 OS4 自动写入 `60`；真机回环 A/B 中 SYN 和 SYN-ACK
-  的窗口都随 sysctl 变化，测试后恢复 `60`。证据见测试报告 §50。
-- [ ] 逐项核对 `/dev/blkio` 的 `cpq.level`、`weight`、`group_idle`、
-  `prio.class`：已确认当前存在 `background/blkio.bfq.weight` 和
-  `background/blkio.prio.class`，但 OS4 请求的 `blkio.weight`、`group_idle`、
-  `cpq.level` 仍缺失；还需记录 stock/当前节点的写入返回值和实际 I/O 调度变化，
-  并确认不改变 stock cgroup 子系统编号。
-- [ ] 复核 `memory.swappiness` 的 SELinux 标签、权限和实际写入错误；已确认
-  `/dev/memcg/memory.swappiness` 与各 memcg 节点存在且读值为 `100`，但
-  `/proc/sys/vm/swappiness` 对 PerfInit 为 `Permission denied`；仍需区分
-  SELinux/ownership 契约与全局 sysctl，不要误改全局 swappiness。
-- [ ] 对 `dmabuf_hugetlb` 先取得 stock 是否存在及其用户态触发条件；当前设备节点
-  仍缺失、对应属性为空，将其保持为低优先级观察项。
+## 5. 必须保持的兼容约束（硬门禁，非决策项）
 
-### 2.3 OS4 路径不匹配或未覆盖的观察接口
+- `CONFIG_RSEQ`/`SCHED_MM_CID` 必须关；否则 `task_struct` 与厂商 `mi_game.ko` 硬编码偏移漂移。
+- `CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须关；否则 cgroup 子系统编号与
+  `struct cgroup` 布局漂移。七项 v1 controller 保持
+  `cpuset/cpu/cpuacct/blkio/memory/freezer/net_prio` 顺序。
+- writeback 回移 0004 暂不启用；新增字段只放允许的 KABI/OEM reserve 槽。
+- 每次改配置/结构必跑 `python3 dash/scripts/check-abi.py <vmlinux>`，并核对厂商模块加载/
+  KCFI/dmesg/OS4 启动日志。
+- MGLRU 默认关、MPTCP 关（`inbound-mptcp: false`）。
+- 不关 SELinux，不写 `lk`/`super`/用户数据，不清 AVB footer、不改 vbmeta flags。
 
-- OS4 init 尝试写 `/proc/iostat_enhance/enable` 和简化的 UFS monitor 路径；
-  当前实际可用的是 `/proc/io_monitor/iostat/iostat_enabled` 与
-  `.../16810000.ufshci/monitor/monitor_enable`。这是 init/厂商路径与内核接口
-  的不匹配，不应再记录成“内核缺少 iostat”。
-- OS4 的 `fault_report` 写路径与当前 `/proc/fault_report` 也不完全相同；当前
-  模块和 proc 接口存在；checkpoint 路径已静态核对，仍缺故障注入验证。
-- `lz4asm` 是 OS4 预留的可选模块位；当前系统没有该模块或符号，zram 仍可使用
-  `lz4kd`/其他现有实现。这不是当前内核故障。
+## 6. 已关闭或不再列为缺口
 
-**Todo**
-
-- [ ] 用 stock 与当前设备分别记录 iostat/UFS/fault_report 的真实读写路径、权限、
-  输出和触发条件，决定是否需要兼容别名；不要为未触发的 init 写失败添加空节点。
-- [x] 核对 stock `f2fs_stop_checkpoint()` 及模块回调：原厂和当前基线均会在非
-  shutdown 路径上报，且没有按 `end_io` 过滤。无需重复添加 checkpoint 上报。
-- [ ] 在隔离文件系统验证 checkpoint/end I/O 和其他原子回调上下文路径；静态匹配
-  不等于故障注入验证。详见测试报告 §49。
-
-## 3. stock-only 功能缺口
-
-### 3.1 Hybrid UFS
-
-当前已启用配置、sysfs 和挂载参数，但 `f2fs_hw_support_hybrid()` 固定返回
-false，`hybrid=1` 返回 `-EOPNOTSUPP`。缺少 ext LUN 映射、die 发现协议和 GC
-分配策略；错误实现有把数据写入错误介质的风险。
-
-- [ ] 从 stock `vmlinux` 反汇编能力查询、die 发现和 GC 分配路径，或取得原厂源代码。
-- [ ] 仅在双区域测试介质上先做只读映射验证，再进行写入/GC A/B；未完成前保持
-  明确的 `EOPNOTSUPP` 回退，不伪造 hybrid 已支持。
-
-### 3.2 UFS 官方 core 变体
-
-stock 的 `ufs_mediatek_mod_ise.ko` 能加载，但 AOSP core 未替换。device_modules
-版本依赖 MTK block/clock/power 头和 sibling/vendor 符号，不能单文件替换。
-
-- [x] 用 device_modules 做独立 out-of-tree 编译，精简变体已生成两个 `.ko`，
-  依赖原厂 `irq-dbg`；包含完整 vendor debug/feature 的变体仍未通过，见测试报告 §49。
-- [ ] 补齐完整 vendor 变体的调试与 SCSI 依赖，在隔离设备上核对 UFS 初始化、
-  电源/时钟、错误恢复和 I/O 延迟；未完成前不替换当前已验证的 AOSP/GKI core。
-
-### 3.3 SCSI fastdiscard / 多 descriptor UNMAP
-
-通用 discard 正常，但当前 `max_discard_segments=1`；stock 的
-`xiaomi_fastdiscard_info`、`max_unmap_descriptors` 和 `multi_unmap_len_max`
-没有公开实现。
-
-- [ ] 恢复多 descriptor UNMAP 的命令构造、长度边界、错误回退和 queue 参数。
-- [ ] 找到可安全清理的测试分区后再做 stock/当前 A/B；没有测试介质前不启用
-  fastdiscard，也不把空属性当成已支持。
-
-### 3.4 F2FS/EROFS 行为级实现与 stock 布局差异
-
-- F2FS VIP：接口和保守 fallback 已实机验证；缺 stock inode 选择策略和调用时机。
-- F2FS iostat：开关语义已实机验证；缺 stock 20 槽/10 档 per-CPU 布局语义。
-- EROFS iostat：per-CPU aggregate 已验证；缺 stock 多桶布局和桶语义。
-- fault_report：同步和 task-context 异步路径已验证；全路径仍未确认。
-
-**Todo**
-
-- [ ] 从 stock BTF/反汇编恢复 VIP 的选择阈值、调用点和 manager 所在结构。
-- [ ] 从 stock show/record 函数恢复 F2FS iostat 与 EROFS 多桶的槽位、粒度和
-  per-CPU 合并语义；在此之前保留行为级实现并明确非逐字 ABI。
-- [ ] 对 F2FS/EROFS 做 fsck、长时写入、drop-caches 回读、故障注入和 power-loss
-  验证；所有结果追加到 `TEST_REPORT.md`。
-
-## 4. 必须保持的兼容约束
-
-以下不是 todo，而是后续改动的硬门禁：
-
-- `CONFIG_RSEQ`/`CONFIG_SCHED_MM_CID` 必须关闭；否则 `task_struct` 和厂商
-  `mi_game.ko` 的硬编码偏移漂移。
-- `CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须关闭；否则 cgroup
-  子系统编号和 `struct cgroup` 布局漂移。当前 OS4 依赖的七项 v1 controller
-  必须保持 `cpuset/cpu/cpuacct/blkio/memory/freezer/net_prio` 顺序。
-- writeback 回移 0004 暂不启用；它会改变 `bdi_writeback`/`backing_dev_info`
-  布局。任何新增字段只能放入允许的 KABI/OEM reserve 槽位。
-- 每次配置或结构改动都必须运行
-  `python3 dash/scripts/check-abi.py <vmlinux>`，并核对厂商模块加载、KCFI、
-  `dmesg` 和 OS4 启动日志。
-- MGLRU 默认保持关闭，除非完成 §2.1 的隔离 A/B；MPTCP 保持关闭，代理配置
-  必须 `inbound-mptcp: false`。
-- 不关闭 SELinux，不写 `lk`/`super`/用户数据，不清 AVB footer 或修改 vbmeta
-  flags；刷机实验必须保留完整 boot 回滚路径。
-
-## 5. 验证缺口与可执行测试
-
-- [ ] stock boot 与当前 boot 做启动时延、zram 压力、应用切换、I/O 延迟和功耗
-  A/B；现有结果不能支持性能收益声明。
-- [ ] suspend/resume 至少 10 次，覆盖 MGLRU 默认关闭、alarmtimer、s2idle，观察
-  RCU stall、hung task、soft lockup 和模块恢复。
-- [x] F2FS/EROFS 隔离冒烟：临时 zram 设备上各 10 轮重挂载校验；F2FS
-  覆盖写入、fsync、rename、move-range 和 fsck，EROFS 覆盖只读回读和 fsck。
-  见测试报告 §51。
-- [ ] 实际 UFS 长时 I/O、冷缓存回读和可回滚的 power-loss
-  测试；RAM 块设备不覆盖这些场景。
-- [ ] mihomo/AsteriskMETA 的 TUN、热点 IPv4/IPv6 转发、弱网重连和 30 分钟大流量
-  回归；保持 MPTCP 关闭。
-- [ ] KSU/SUSFS 隐藏项、BakaSU 多 manager、DroidSpaces 容器和网络能力做一次
-  独立回归；`CFS_BANDWIDTH`/`CGROUP_PIDS` 的限制仍需明确记录。
-- [x] 确认 BBR3 的 ECN 5 ms 门槛属于上游策略，丢包下吞吐短板已有受控链路
-  实测，均不作为 OS4 兼容缺陷处理；保留现有实现。见测试报告 §43。
-
-每项测试记录命令、设备版本、结果和关键日志；新的实测证据追加到
-[TEST_REPORT.md](TEST_REPORT.md)，`STATUS.md` 只保留当前状态摘要。
-
-## 6. 已关闭或不再列为缺口的事项
-
-- 2026-10/11 的 LTS 缺口、init_boot 未还原、ExtM dm 回写失败、stock core
-  tracepoint 缺失、F2FS lock/priority、lz4kd/zram 基础路径和 DroidSpaces
-  基础容器能力已分别验证，不要重新列入 todo。
-- ExtM 的 `gc_pin_file_thresh` 兼容补丁已实机验证，`backing_dev` 已恢复为
-  `/dev/block/dm-71`；不要回退该补丁，除非 OS4 用户态不再写超限值。
-- OS4 调查期间的两次 `reboot,shell` 没有 kernel panic 证据，不能把它作为当前
-  内核崩溃结论。
-- `CONFIG_RSEQ`、两个额外 cgroup controller、nftables/BRIDGE_NETFILTER、
-  Full LTO 等已按当前生产约束处理；它们不是可随意开启的“待补功能”。
+- LTS 缺口、init_boot 未还原、ExtM dm 回写失败、stock core tracepoint 缺失、
+  F2FS lock/priority、lz4kd/zram 基础路径、DroidSpaces 基础容器能力：已分别验证。
+- ExtM `gc_pin_file_thresh` 兼容补丁已实机验证，`backing_dev=dm-71`；不回退。
+- `tcp_default_init_rwnd` 已实现并真机验证（OS4 写 60、回环 A/B 生效）。
+- OS4 调查期间两次 `reboot,shell` 无 kernel panic 证据。
+- `writeback_quota`、`min_free_order_shift`、`mi_wmark`、`swappiness`、MFZ：见 §3「已证伪」。

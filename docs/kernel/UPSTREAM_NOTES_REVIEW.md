@@ -139,7 +139,7 @@
 - stock zram 默认算法是 `lz4`；lz4kd 通过 crypto API 可被 stock zram 选中，
   不需要替换 zram 模块；ExtM 内存扩展保留，见
   [ZRAM_EXTM.md](ZRAM_EXTM.md)。
-- `SUSFS`/内建 KSU 的集成方式与 BakaSU/上游说明一致；SUSFS 版本 2.3.0。
+- `SUSFS`/内建 KSU 的集成方式与 BakaSU/上游说明一致；SUSFS 版本 **v2.4.0**（pin `f98f082`；§1 快照曾误记 2.3.0，见 [STATUS.md](../STATUS.md)）。
 - 我们的 boot 封装是完整 64MB 继承 + OEM vbmeta/footer，不使用 AK3；Flavenz 的
   slot/bootconfig 修补不适用。
 
@@ -151,5 +151,88 @@
    profile；BBRv3/ZSTD 仍待 A/B。
 3. **DroidSpaces**：若确实需要容器，单独变体加 SYSVIPC kABI 6/7/8 + namespace
    配置，不混入 stock parity。
-4. **hybrid/fastdiscard/UFS core**：继续按 [OPEN_ISSUES.md](OPEN_ISSUES.md) §2
+4. **hybrid/fastdiscard/UFS core**：继续按 [OPEN_ISSUES.md](OPEN_ISSUES.md) §2 表格（E1–E3 行）
    的证据路线推进。
+
+## 7. 全部来源仓库总清单（截至 2026-11-28；覆盖上文各节及本仓库所有调查）
+
+> §1–§6 是 2026-10-30 快照，仅覆盖当时读过笔记的仓库。本节补充此后以及本轮
+> （2026-11-28 小米特性调查 + 最后一轮全关键词搜索）读到/参考/取用过的**全部**外部
+> 来源。用途分类：**子模块**=已纳入 `third_party/`（pin 见 `dash/versions.env`、表见
+> [NAVIGATION.md](../project/NAVIGATION.md)）；**API 取用**=按需 API 取单文件，
+> 未入库；**阅读参考**=读过源码/笔记用于判断或交叉验证。§7.5 为 2026-11-28
+> 最后一轮搜索新增。
+
+### 7.1 已纳入子模块的仓库（本地完整副本）
+
+- `Baka-SU/BakaSU`（`BakaSU/`）— KSU 内核源码
+- `SukiSU-Ultra/SukiSU_patch`（`third_party/sukisu-patch`）— lz4k/lz4kd 参考
+- `simonpunk/susfs4ksu`（GitLab，`third_party/susfs4ksu`）— SUSFS（v2.4.0）
+- `lakitu12/kernel_dash_droidspaces`（`third_party/dash-droidspaces`）— dash OS4 hooks/boot 笔记
+- `2108282/hyperos-lz4kd`（`third_party/hyperos-lz4kd`）— LZ4KD/AVB/CFI 参考
+- `Content-Creation-Club/android_kernel_xiaomi_dash`（主内核，LineageOS 6.6.144 方向）、`Content-Creation-Club/android_kernel_xiaomi_dash_build`、`Content-Creation-Club/android_kernel_xiaomi_dash_device_modules`（DTS/触摸/热管理/millet/mi_memory/UFS 重实现）、`Content-Creation-Club/android_kernel_xiaomi_dash_bazel_mgk_rules`、`Content-Creation-Club/android_kernel_xiaomi_dash_mtk_modules`（4 个 `third_party/cc-dash-*` + 主内核）— 构建脚本/设备模块/MTK 模块；注意 2026-11-21 起私有化 404
+- `HyNetworks/tcp-brutal`（`third_party/tcp-brutal`）— TCP Brutal
+- `maxsteeel/nomount`（`third_party/nomount`）— NoMount
+- `klarnet2009/dada-closed-modules`（`third_party/xiaomi-dada-closed-modules`）— Xiaomi 15/SM8750 闭源模块逆向重建（146 模块，等价性核验方法）
+- `donothavename/opt_gki_kernel_android13-5.15`（`third_party/xiaomi-opt_gki_kernel_android13-5.15`）— OS4 内存/调度 `sew_*` 移植
+- `NikoRurQwQRuaaMeow/chirunoneko_gki_android13-5.15_kernel_module_opensource`（`third_party/xiaomi-chirunoneko-gki-5.15-modules`）— 小米特性 Kconfig 清单（源码被挖空）
+- `Project-Hikari-Liella/MTK_kernel_device_modules-50da8b3c19a331c676dcaa1334fa3b49e4b1a531`（`third_party/mtk-device-modules-hikari`）— **dash 实际厂商 zram/内存后端源码（XRING zgroup/mctrl/xswapd/smart_cache）+ `kernel/configs/dash.config`**
+- `hushangda/android_kernel_xiaomi_sm8350_venus`（`third_party/xiaomi-venus-memcg`）— 小米 memcg 策略 + 官方 `xiaomi-memcg.rst` 协议文档
+
+### 7.2 按需 API 取用（未入库，pin 见 `dash/versions.env` 末段）
+
+- `android-kernels/xiaomi-bixi-v-oss`（MiCode 6.6.56 开源镜像，~30 GB）— **MFZ / `mi_wmark` 权威来源**，取 `drivers/block/zram/zram_drv.c`、`drivers/staging/mi-perf/mi_wmark/`
+- `OneFeiFan/gki-kernel-5.10-xiaomi-pad6max`（~200 MB）— `patches/xiaomi/0047-zram-xiaomi-extm.patch`、`0048-zram-xiaomi-memory-freeze.patch` + `docs/features.md`、`docs/notes/extm-research.md`
+- `xiaomi-dash-dev/redmi_dash_dump` — 本机 stock `ikconfig`（用于确认 `MI_MEMORY_FREEZE=n` + XRING 配置）
+
+### 7.3 阅读/交叉验证参考（读过 README/笔记/源码/配置用于判断）
+
+- 特性调查来源（[FEATURES_SURVEY.md](FEATURES_SURVEY.md)）：`WildKernels/GKI_KernelSU_SUSFS`、`WildKernels/OnePlus_KernelSU_SUSFS`、`WildPlusKernel/kernel_patches`、`ahmed-alnassif/GKID-Kernels`、`NEESCHAL-3/EVONIX-Kernel`、`zen-kernel/zen-kernel`
+- 上游笔记核对（§2，2026-10-30）：`Re-s/Mi15-Droidspaces-Kernel`、`omajili-manbu/Xiaomi_Rodin_Kernel_Enhance`、`ZxAlif-ID/Flavenz-Kernel-Peridot`、`2824799/droidspaces-xiaomi-17-kernel`、`XagaForge/android_kernel_xiaomi_mt6895`、`JuanArton/xiaomi_peridot_kernel`、`degas-developers/android_device_xiaomi_degas-kernel`、`xiaomi-mediatek-devs/android_kernel_xiaomi_mt6877`
+- 缺口调研（[GAP_RESEARCH.md](../project/GAP_RESEARCH.md)）：`MiCode/Xiaomi_Kernel_OpenSource`（`mist-w-oss`/`dada-v-oss`/`dash-w-oss`）、`MiCode/MTK_kernel_device_modules`（`dash-w-oss` UFS 37 文件）、`MiCode/MTK_kernel_modules`、`android-kernels/xiaomi-dash-w-oss`、`Content-Creation-Club/android_kernel_xiaomi_dash`、`donyanchen/android_kernel_xiaomi_sm8850`、`hgn284/xiaomi_17pro_max_sm8850`、`Apr-YT/gg-rwproc33-driver`、`wfqefwqf/share-poc-XRing-O1`、`YuKongA/ghostlock-app`、`oss-dash/poco_dash_dump`、`xiaomi-mt6991/poco_dash_dump`、`HexaUnion/redmi_dash_dump`
+- 运行/生态：[Asterisk4Magisk/AsteriskMETA](MIHOMO_ANDROID.md)（mihomo 客户端）；`tiann/KernelSU`、`5ec1cff/KernelSU`、`Dominium-Apum/kernel_xiaomi_chime`（DEV_NOTES 内附带的第三方 README 署名，非我们主动研究）
+- 自建：[NuoFang6/dash-kernel](https://github.com/NuoFang6/dash-kernel)（本仓库 CI/Release）
+
+### 7.4 已确认无价值 / 仅一次性查证
+
+- `piano-LAB/android_kernel_xiaomi_sm8750-modules`、`lrqtech/android_kernel_xiaomi_warsaw_lineage24`：本轮搜索命中但无所需特性源码（仅 extmem 无关文件），未采用。
+- `NikoRurQwQRuaaMeow` 名下其余 30+ 仓库（ROM 移植/SM8250 老内核/Action）与本机 MT6991/6.6 无关，未展开。
+
+### 7.5 2026-11-28 最后一轮全关键词搜索新增来源
+
+> 7 轮关键词族搜索（`gh search code`/`repos`/`commits`/`issues`，详见
+> [FEATURES_SURVEY.md §2026-11-28 最后一轮](FEATURES_SURVEY.md)）。结论：**XRING
+> 源码面无遗漏，无需新增子模块**；新增以下**只读/取码**来源。
+
+**取码（唯一公开的 XRING 补全源码）**
+
+- `Pzqqt/android_kernel_xiaomi_marble`（Melt Kernel，Redmi Note 12 Turbo / MT6878）—
+  **唯一同时带 XRING `lib/lz4p/`（12 文件，含 `lz4p_encode.S`/`lz4p_decode.S`）与
+  `drivers/staging/kshrink_slabd/` 完整源码的公开树**；`lib/lz4p/lz4p.h` 头注明
+  `X-Ring technologies Inc.`。按需 `gh api` 取单文件，不整仓克隆（2.4 GB）。
+- `ShriHari33/mt6991-ufs-gear-lane`（MT6991 UFS gear/lane 实机工程，4.7 MB）—
+  `power_mode` debugfs + W-LUN 唤醒修复（Linux 5.14 起 W-LUN 独立 resume）+ G5 时钟分析；
+  `current_vs_proposed/proposed/000{1,2,3}*.patch` 附源码副本与 PDF。
+
+**交叉验证（证明 XRING 是小米专有）**
+
+- `OnePlusOSS/android_kernel_oneplus_mt6991`（`oneplus/mt6991_b_16.0.0_oneplus_ace5_ultra`，
+  6.6.118，2.3 GB）与 `oppo-source/android_kernel_oppo_mt6991`（6.6.30，2.2 GB）—
+  `drivers/block/zram` 均为纯 AOSP（无 XRING/lz4p）。
+- MiCode `Xiaomi_Kernel_OpenSource` 的 `yili-w-oss`（6.12.38）/`piano-w-oss`（6.6.57）—
+  zram 均为上游形态，无 XRING。旁证：MiCode issue **#41194**（2026-11-21）仍在请求
+  公开 `turner-w-oss`（K Pad，MT6991/OS4），**尚未发布**。
+- 字节核验：`third_party/mtk-device-modules-hikari/drivers/ufs/ufs-mediatek.c` 与
+  MiCode `MTK_kernel_device_modules` `dash-w-oss` 分支 **`diff -q` 完全一致** →
+  我们的 XRING/UFS 源码是官方 stock，非逆向重实现。
+
+**读思路（非 dash 适用）**
+
+- `bocchi810/mt6991-kernel-ci` — OnePlus Ace 5 Ultra MT6991 6.6.118 CI；
+  `hybridswap_lpc` NULL-deref 的 kprobe 守卫思路（OPLUS hybridswap 后端，dash 不适用）。
+- `dongyanchen-dev/android_kernel_xiaomi_sm8850` — 小米 17/K90 Pro Max GKI 构建器，
+  含约 60 个 f2fs/ufs/fscrypt/erofs/mglru 安全 backport 补丁（SM8850 6.12，非 dash）。
+- `liudaoziwa/mainline-mt6991`（Linux 7.3 主线 MT6991）、
+  `localhosts-A/UniXNU-MT6991-Common`（MT6991 硬件输入 + dtsi，XNU 方向）、
+  `SHuiTU68/android_kernel_oplus_common`（OPLUS f2fs `DEDUP`/`COMPRESS_FIXED_OUTPUT`/
+  `lz4armv8`，6.6.114）— 均观察，暂不使用。

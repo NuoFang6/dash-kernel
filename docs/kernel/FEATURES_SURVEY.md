@@ -21,129 +21,133 @@
 
 ## 使用方式
 
-**性质图例**:
+**性质图例**（以正文行内图标标注，不单独列表）：
 
-| 图标 | 含义 |
-|---|---|
-| 🔧 | 纯 Kconfig 开关——上游已有特性,零源码风险 |
-| 🏷️ | 官方/上游——主线内核、Google backport、知名独立上游 |
-| 🏭 | 厂商补丁——Motorola / OnePlus OSS 导出 |
-| ✍️ | 仓库作者自研(fatalcoder524 / Ahmed Al-Nassif) |
-| 👤 | 社区知名作者——Sultan(kerneltoast)/ Panchajanya1999 等 |
-| ❓ | 来源不明——无签名,社区流传 |
+- 🔧 纯 Kconfig 开关——上游已有特性，零源码风险
+- 🏷️ 官方/上游——主线内核、Google backport、知名独立上游
+- 🏭 厂商补丁——Motorola / OnePlus OSS 导出
+- ✍️ 仓库作者自研（fatalcoder524 / Ahmed Al-Nassif）
+- 👤 社区知名作者——Sultan(kerneltoast)/ Panchajanya1999 等
+- ❓ 来源不明——无签名，社区流传
+- 外部来源代号：DADA / OPT / BIXI / ONEFEI（见文末 2026-11-28 小米调查节）
 
-**决策语义**:`✅ 已落地(未实机)` = 代码/配置与适用的构建级门禁已完成、运行时
-待未来刷入后验证;仅完成部分能力时必须明确写成「部分落地」,Full LTO 等特殊
-构建状态以行内限制为准;`⏳ 等待 ACK tag` = 已按规则排程但上游基线尚未到货,
-不手动 backport;`不做(原因)` = 定案;`待定` = 需进一步调查/实测;`✅` = dash 已有。
+**决策语义**:`✅ 已落地(实机生效)` = 已在真机 `6.6.144-4k #1` 实测运行
+（见「2026-11-28 特性状态实机复核」）；`部分落地` = 只完成部分能力；`不做(原因)` =
+定案不做；`待决策` = 等机主决定；`未做` = 已记录本轮不做；`已证伪` = 经核实不是缺口；
+`保持 stock` = 用厂商模块不自研；`观察` = 仅监控；`待定` = 需进一步调查/实测。
 
 **结构**:§决策总表 是唯一权威台账(每行一项);细节机制集中在文末
 **调查纪要 R1–R8**,行内以 `→ R#` 指向。各「做」项的实施落点见文末
 **实施状态(2026-11-21)**。
 
-## 决策总表
+## 决策总表（合并单一表）
 
-### 网络
+> 本表是**唯一权威台账**，每行一项。「性质/来源」沿用上文图例（🔧 🏷️ 🏭 ✍️ 👤 ❓）
+> 或外部来源代号（DADA/OPT/BIXI/ONEFEI，见文末 2026-11-28 小米调查节）。「决策」取
+> ✅已落地/实机生效、不做、待决策、未做、已证伪、保持 stock、观察。
+> 原分表（网络/性能/文件系统/电池/安全/容器）的 72 行与文末小米对比表已合并于此；
+> 正文 R1–R8 调查纪要、实机记录保留为叙述，其附表已改写为项目符号以避免第二个表。
 
-| 特性 | 性质 | 说明 | dash 现状 | 决策 |
-|---|---|---|---|---|
-| BBR v1 / CUBIC / WireGuard / IPsec ESP / FQ / FQ-CoDel / SCH_INGRESS | 🔧 | 上游自带 | ✅ | — |
-| BBRv3 | 🏷️+✍️ | ACK 6.6 现存 TCP_CONG_BBR 是 v1;采用 WK android15-6.6 KABI 版 → R1 | ⚠️ | **✅ 已落地(未实机)**——`110-net-bbrv3`(WK android15-6.6 KABI 版);静态已核→构建 CRC 零漂移见 TEST_REPORT §24;实机 ss -i/mihomo 回归待刷后 |
-| Westwood+/BIC/HTCP | 🔧 | 上游 Kconfig,CC 状态全存 icsk_ca_priv,不触 ABI,默认仍 cubic | ⚠️ 仅 CUBIC+BBR | **✅ 已落地(未实机)**——批次1 config,默认仍 cubic |
-| CAKE / PIE / FQ-PIE qdisc | 🔧 | 上游 Kconfig(stock 未开;`NET_SCH_FQ_PIE` 可同批) | ⚠️ | **✅ 已落地(未实机)**——批次1 config,均内建,不设默认 |
-| IP Set 全家桶 | 🔧 | 16 种 set 类型,现仅 HASH_IP/HASH_NET → 补齐其余 14 种 | ⚠️ | **✅ 已落地(未实机)**——批次1 config,补齐其余 14 种(含 bitmap:ipmac/list:set) |
-| TTL / HL target | 🔧 | iptables 改 TTL/Hop-Limit(热点共享检测对抗用) | ⚠️ | **不做**——无此需求,要时再开 |
-| CIFS(SMB) | 🔧 | 上游 Kconfig | ❌ | **不做**——手机无场景,体积/攻击面 |
-| IPv6_NAT_FIX | ✍️ | 实为 config_data 伪装(藏 config.gz 里的 IP6_NF_NAT)→ R5 | ❌ | **不做**——正常启用无需藏;单条伪装无意义 |
-| force_tcp_nodelay | 👤 | 实为 setsockopt 劫持 → R5 | ❌ | **不做**——吞掉合法 TCP 选项;Go/mihomo 已默认 nodelay |
-| TCP 重传生命周期/urgent data 修复 | 🏷️ | 主线修复;urgent data 已进 stable 6.6.157,重传生命周期仍不在 → R7 | ❌ | **✅ 已落地(未实机)**——重传生命周期 = `tcp: fix use-after-free of retransmit_skb_hint`(fe99bbeee5c5,EVONIX d450c2a2dadf 同源,入 110-net-bbrv3);urgent data 部分仍批次0 |
-| UDP tunnel segmentation UAF 修复 | 🏷️ | 主线内存安全修复;UDP tunnel/GSO 组已进 6.6.151–161(大概率覆盖) → R7 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24)**——EVONIX `efef513`（udp: fix potential use-after-free in tunnel segmentation），入 `180-stable-backports/0001` |
-| IPv6 checksum bounds/ext 扩展头/SR 校验修复 | 🏷️ | 主线解析加固;checksum bounds 已进 6.6.158 → R7;IP6_NF_NAT=y 在用 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24)**——EVONIX `180b3a5`（ipv6_find_hdr 越界）、`5780267`（SEG6_ATTR_DST 长度）、`9ff62f1`（skb_checksum_setup_ipv6 pull 下溢），入 `180-stable-backports/0002` |
-
-### 性能 / 调度
-
-| 特性 | 性质 | 说明 | dash 现状 | 决策 |
-|---|---|---|---|---|
-| HMBIRD SCX(sched_ext 移植) | 🏭 | OnePlus fengchi;HyperOS 无 hmbird daemon → R6 | ❌ | **不做**——零收益,与 MTK EAS/HyperOS 冲突 |
-| CPU 扫描顺序修正 | 🏷️ | Hao Jia 上游提交,1 行;stable 6.6 已含,ACK 树未含 = 补齐上游 → R2 | ❌ | **✅ 已落地(未实机)**——WK-P 原版(=上游 20e508d375c0),入 100-sched-eevdf |
-| CACHE_HOT_BUDDY 关闭 | 👤 | Sultan 1 行(features.h);DSU 同簇迁移不掉局部性 → R2 | ❌ | **✅ 已落地(未实机)**—— Sultan 原版,SCHED_FEAT(false);与 MTK EAS 叠加实测待刷后 |
-| PREEMPT_SHORT backport | 🏷️ | 上游 v6.12 EEVDF 特性:短 slice eligible 任务可抢占长任务 → R2 | ❌ | **✅ 已落地(未实机)**——上游 85e511df3cec 适配(did/do_preempt_short + vlag 保护取消),保留 android_rvh_update_deadline/android_vh_resched_curr_lazy;feature 默认 true |
-| mem_opt_prefetch | 🏭 | Motorola 2015:copy_template.S +2 条 prfm(=GKID 0007 同补丁) → R3 | ❌ | **✅ 已落地(未实机)**——WK-P 原版,入 120-arm64-perf |
-| arm64 memcmp(0008) | 🏷️+👤 | 直接取自 WK-P/GKID 补丁;代码本体是 Arm optimized-routines 用户态库 7a9fd1603e 的 SIMD 实现,不是 Linux 内核上游补丁 → R3 | ❌ | **✅ 保留(未检查、待验证)**——WK-P 原版;≥160B SIMD 路径无 kernel_neon_begin 保护,内核 FPSIMD 上下文安全性尚未完成专项检查;按机主决策保留,刷机前后需做调用上下文审计与压力回归,当前不宣称安全性已验证 |
-| arm64 clear_page 16B 对齐(0017) | 👤 | Sultan 1 行 `.p2align 4`;INIT_ON_ALLOC=y 故为热路径 → R3 | ❌ | **✅ 已落地(未实机)**——适配为 GKI 的 `__pi_clear_page` 符号前 .p2align 4 |
-| int_sqrt 3x | 👤 | StatixOS 起源,微基准 3x → R3 | ❌ | **✅ 已落地(未实机)**——WK-P 原版(lib/math/int_sqrt.c) |
-| file_struct 8B 对齐 / fs cache pressure | ✍️ | → R3 | ❌ | **不做**——收益趋零 + CRC 风险 / 运行时 sysctl 即可 |
-| 300Hz timer | 🔧 | stock 250Hz | ⚠️ | **不做**——收益边际,功耗回归风险大 |
-| Fake config | ✍️ | 伪装 /proc/config* | ❌ | **不做**——已有 SUSFS spoof_cmdline |
-| hide_adb_jdwp_sockets | ❓/✍️ | 对 app-UID 四层隐藏 adbd/jdwp-control → R5;依赖 helper 已自带 | ❌ | **✅ 已落地(未实机)**——readdir/avc 半入 010-bakasu-susfs,af_unix 半入 115-hide-appsockets;fs/susfs.c+SUSFS_FILLDIR_SKIP 经 `patches/susfs-overrides/`(apply-patches.sh 安装后套用);shell(2000)/root 调试不受影响,adb 回归待实机 |
-| 模块强制加载(fail signature) | 👤 | Pzqqt | ✅ 超集 | **不做**——vendor-ko-compat 更全 |
-| LTO Full | 🔧 | `CONFIG_LTO_CLANG_FULL`(arch/Kconfig:770;stock 本身 LTO_NONE) | ✅ ThinLTO | **配置/阻塞修复已落地,完整构建未完成**——默认生产配置为 LTO_CLANG_FULL;日常编译/CRC/KMI 验证统一 FAST=1 NoLTO;本轮已修 OpenSSL 4 host-tool 与 arm64 idmap KCFI 阻塞,最终重链接因耗时由机主要求停止,不宣称构建通过 |
-| RCU lazy callbacks | 🔧 | 上游 Kconfig;批量延后 RCU callback 以争取 idle/省电 | ⚠️ stock 有能力但 DEFAULT_OFF | **✅ 已落地(未实机)**——`CONFIG_RCU_LAZY=y`,并关闭 `RCU_LAZY_DEFAULT_OFF`;异常时 `rcutree.enable_rcu_lazy=0` 回退 |
-| Power-efficient workqueue 默认启用 | 🔧 | 上游 Kconfig;把标记为 power-efficient 的工作导向 unbound 队列 → R6 | ❌ | **✅ 已落地(未实机)**——`CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y`;`workqueue.power_efficient=0` 回退 |
-| KFENCE deferrable timer | 🔧 | 上游 Kconfig;允许 KFENCE sample timer 在 idle 时延后 → R6 | ❌ | **✅ 已落地(未实机)**——`CONFIG_KFENCE_DEFERRABLE=y`;等价运行时参数 `kfence.deferrable=1`,本仓未开会与该模式冲突的 KFENCE KUnit 自测 |
-| ARM64 `-mtune` | 🔧+✍️ | 只改指令调度/延迟模型,不改 ISA/ABI;实机 4×A720+3×A725+1×X925 | ❌ | **✅ 已落地(未实机)**——自加 `DASH_ARM64_TUNE` choice,默认保守选最大同构能效簇 A720;可切 A725/X925/无 |
-| AutoFDO 构建支持 | 🏷️+🔧 | LLVM sample-profile 优化,与 MLGO 相互独立;arm64 profile 可由 SPE 或 ETM/ETE 采集 | ❌ | **✅ 已落地——直接用 pinned ACK 自带预制 profile**——取仓库内 `android/gki/aarch64/afdo/kernel.afdo`(6.6.142 采集,4.0MiB),SHA256 写入 `versions.env` 并由 `verify_autofdo_profile` 每次构建前校验;`CONFIG_AUTOFDO_CLANG=y`+`CLANG_AUTOFDO_PROFILE` 自动接线,NoLTO 全量构建实测 3188 个 TU 带 `-fprofile-sample-use`。自采(SPE/ETE)降为可选项,不再阻塞;未刷机、未做性能 A/B |
-| MGLO(=LLVM MLGO) | 🏷️/🔧 | WK 实际仅加 LLVM MLGO regalloc release advisor;本仓 AOSP clang r614150 已带 MLGO 模型 → R4 | ⚠️ | **✅ 已落地(未实机)**——新增 `CONFIG_DASH_MLGO_REGALLOC`(默认 y)经 `KBUILD_CFLAGS` 与 `KBUILD_LDFLAGS`(Full LTO 的 LLD 后端)注入 `-regalloc-enable-advisor=release`;`configure.sh` 以真实 NoLTO/LTO 双路径探针断言 advisor 可创建,全量构建实测 3230 个 TU 带该参数。AutoFDO 已拆为独立一行 |
-| schedutil 限流溢出/policy init 修复 | 🏷️ | 主线修复;限流溢出已进 stable 6.6.157,policy init 不在 → R7 | ❌ | **✅ policy init 已落地(未实机)**——`cpufreq: initialize policy rwsem before sysfs publication`(3e5d1bf4bd68)+`zero-initialize policy cpumask`(54d37bcf2f49);限流溢出仍批次0 |
-| uclamp DVFS 通知/EAS carryover 修复 | 🏷️ | 主线修复,不在 stable;MTK EAS 高相关 | ❌ | **✅ uclamp DVFS 通知已落地(未实机)**——EVONIX cf8010f36cdb(`uclamp_update_active` 尾部比较 rq min/max 变化后 `cpufreq_update_util`);**更正**:「EAS carryover」在 EVONIX/主线均无对得上号的 commit,无实装对象(见落地批次注) |
-| misfit 迁移/CPU-group 选择修复 | 🏷️ | 主线 EAS 修复;同族已进 6.6.158 → R7 | ❌ | **✅ 已落地(未实机)**——`58eeb2d79b54`(misfit 失败不入 backoff)+`0fbd428d0788`(dst CPU 无容量收益时不计 misfit);同族 6.6.158 部分仍批次0 |
-| RT push-IPI livelock 修复 | 🏷️ | 主线 RT 均衡修复,不在 stable | ❌ | **✅ 已落地(未实机)**——`sched/rt: Have RT_PUSH_IPI be default off for non PREEMPT_RT`(dd29c017aed6) |
-| POSIX CPU-timer 竞态/PID 泄漏修复 | 🏷️ | 6.12+ 重构系列;CVE-2026-98260 同族,exec cleanup 已进 6.6.158 → R7 | ❌ | **不做**——不手动管理:等 stable 自行下发(公开利用族系 stable 会追),重构主体审计面过大 |
-| timer slack RT 继承修复 | 🏷️ | 主线修复,不在 stable | ❌ | **✅ 已落地(未实机)**——stable e8bbcc00760d + chenguanyou RT 父继承修正(EVONIX 84b614906274 同源,init_task/fork/core) |
-| arm64 per-cpu write 修复 | 🏷️ | 主线 arch/arm64 修复,零 ABI,不在 stable | ❌ | **✅ 已落地(未实机)**——`this_cpu_and` 掩码(44274c657256)+`this_cpu_write` 括号(885bff055a0f) |
-| OPP/EM 解析修复 | 🏷️ | 主线修复;OPP 竞态已进 6.6.160,EM 不在 → R7 | ❌ | **✅ 已落地(未实机)**——`opp: fix memory leak in supply parsing`(f0776d142e53)+`prevent frequency calculation overflow`(dcaa77d10ea1);竞态(932ebfad767b)仍批次0 |
-| MGLRU suspend 可中断 | 🏷️ | 主线修复,不在 stable;MGLRU 已启用 | ❌ | **✅ 已落地(未实机)**——上游 dc37771a43d4(经 ACK b61e79936c0b),memcg fairness guard 前查取消,mm/memcontrol.c+mm/vmscan.c(后者与 030 hooks 交错归 030) |
-| DAMON 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24)**——EVONIX 8 个剩余修复（区间校验/合并边界/sysfs 错误路径等）入 `180-stable-backports/0003`；另有 4 个已由 6.6.144 基线收录 |
-| TLB/writeback 修复组(6.6.145 收录) | 🏷️ | stable 官方下发;此前误写含 PSI,复核 6.6.145 changelog 未见 PSI 条目 → R7 | ❌ | **✅ 已合入(未编译/未实机,2026-11-24,按机主本轮要求)**——TLB `b6bb0e7` 已由 6.6.144 基线收录；writeback 竞态/UAF/list_lock 组与 ext4 writeback 入 `180-stable-backports/0004-0005`。`bdi_writeback` 新字段已移到已有 union 之后以避免移动既有字段偏移，仍标记为 GKI KMI 观察项 |
-
-### 文件系统 / I/O
-
-| 特性 | 性质 | 说明 | dash 现状 | 决策 |
-|---|---|---|---|---|
-| F2FS GC 50ms / uncongestion 6ms / min_fsync_blocks 20 | ✍️/👤 | 三件套 → R5;OPPO/Huawei 量产同款 | ❌ | **✅ 已落地(未实机)**——gc.h/segment.h 入 130-f2fs-perf,f2fs.h 的 6ms 与 file.c move-range 修复并入 060 文件块;060 回归=构建级通过,运行时待实机 |
-| ext4 commit age 5→30s | ✍️/👤 | Arjan distro tweak → R5 | ❌ | **不做**——rw ext4 少;可用挂载参数 `commit=` 调 |
-| SK_MEM_PACKETS 256→1024 | ✍️ | 即 net.core.wmem/rmem_max 默认 ×4 → R5 | ❌ | **不做**——运行时 sysctl 可调(同 cache pressure 立场) |
-| ADIOS I/O 调度器 | 🏷️ | 独立上游(Masahito Suzuki 2025);EVONIX 用于 UFS 4.0 MCQ 默认 | ❌ | **✅ 已落地(未实机)**——EVONIX `901a0cf` 版入 `160-block-adios`，`CONFIG_MQ_IOSCHED_ADIOS=y` + `CONFIG_EVONIX_IO_PRIO=y`（前台同步读保护，上游 default y）；并设为默认（`MQ_IOSCHED_DEFAULT_ADIOS=y`）；刷入后仍可手动与 mq-deadline A/B |
-| zRAM LZ4 回写 / mq-deadline / schedutil | 🔧 | stock | ✅ 超集 | —(lz4kd+ExtM 实跑) |
-| ext4 orphan 泄漏/DIO fallback 修复 | 🏷️ | 主线修复;orphan 已进 6.6.157 → R7 | ❌ | **⛔ orphan 部分批次0;DIO fallback 无已合并主线修复(2026-09 RFC 仅 atomic write,6.6 无该路径)且 EVONIX 亦未实装——无对象,不再追** |
-| F2FS move-range 校验/writeback 报错修复 | 🏷️ | 主线修复,不在 stable;HyperOS 文件管理走 move-range | ❌ | **✅ 已落地(未实机)**——`f2fs: reject overlapping move range after len expansion`(28c1ef094e7c,fs/f2fs/file.c 归 060) |
-| swap readahead ceiling 修复 | 🏷️ | 主线修复,不在 stable;swap=zRAM | ❌ | **✅ 已落地(未实机)**——EVONIX ca0a0229886b(mm/swap_state.c;作者自述为本地 policy-bound 修正,非上游 cherry-pick) |
-
-### 电池 / 电源
-
-| 特性 | 性质 | 说明 | dash 现状 | 决策 |
-|---|---|---|---|---|
-| Freezer timeout 20s→1s | 👤 | Sultan;还锁死 sysfs 写入口 → R5 | ❌ | **不做**——与厂商冻结策略交叉,收益仅死锁场景 |
-| alarmtimer 唤醒窗口收敛 | ✍️ | 固定 2s → 最近到期+1ms → R5 | ❌ | **✅ 已落地(未实机)**——WK-P minimise_wakeup_time 原版 |
-| s2idle 单次唤醒 | 👤 | Sultan:pm_abort_suspend 到 1 才调 s2idle_wake → R5 | ❌ | **✅ 已落地(未实机)**——WK-P avoid_extra_s2idle_wake_attempts 原版(drivers/base/power/wakeup.c) |
-| wakelock 全局 500ms cap | 👤 | 无超时 wake_lock 强制过期 → R5 | ❌ | **不做**——HyperOS critical 路径依赖无超时 wake_lock |
-| SDP 900mA 充电 | ✍️ | 纯 oplus/高通方案(DT 属性) → R5 | ❌ | **不做**——MTK 充电栈不可移植 |
-
-### 安全 / 隐藏
-
-| 特性 | 性质 | 说明 | dash 现状 | 决策 |
-|---|---|---|---|---|
-| SUSFS 全套 | 🏷️ | simonpunk;pin f98f082 实为 **v2.4.0**(STATUS 曾误标 v2.3.0 已订正) | ✅ v2.4.0;实机 10 项 enabled_features(含 priority-uid filter) | — |
-| SUSFS priority-uid filter | 🏷️ | f98f082 门控,apply-patches.sh 注入 Kconfig | ✅ 2026-11-21 启用 | — |
-| maps 伪装(maphide) | 👤 | backslashxx,WK-P 归档 → R8 | ✅ SUSFS sus_map 已启用(`SUS_MAP=y`) | **不做**——sus_map 覆盖同域 |
-| Baseband Guard(BBG LSM) | 🏷️ | vc-teahouse 上游(EVONIX 按 commit `a54e0dc6cf0a` 集成) | ❌ | **✅ 已落地(未实机)**——LSM 本体通用(allowlist=boot/dtbo/userdata/super/vbmeta 等 Android 分区,无高通依赖;efisp 为 WK 另发的高通向补丁,未采用);`CONFIG_BBG=y`+CONFIG_LSM 末尾追加 baseband_guard(与 EVONIX 相同);BBG_BLOCK_BOOT/RECOVERY 保持 n,不影响刷机 |
-| Unicode bypass fix(零宽字符) | ❓/✍️ | casefold 空分解边界修复;上游从未采纳 → R5 | ❌ | **✅ 已落地(未实机)**——WK-P unicode_bypass_fix_6.1+(fs/unicode/utf8-norm.c);casefold 回归待实机 |
-| AVC log spoofing | ✍️ | KSU 触发路径 avc 日志伪装 | ❌ | **✅ 已有(SUSFS v2.4.0 自带,无需移植)**——avc.c audit 回调已按 `susfs_ksu_sid→priv_app_sid` 伪装,sid 由 KSU susfs 集成注入;开关=`ksu_susfs enable_avc_log_spoofing`,当前 `.susfs.json` 为 `false`(默认关);gkid 版为其 KSU fork 专属实现,与 SUSFS 上游同域,不重复移植 |
-| throne_tracker kthread / supercall pull-list | ✍️ | gkid KSU fork 专属 → R5 | ❌ | **不做**——跟 BakaSU 上游 |
-| Multiple Managers | ✍️/🔧 | BakaSU 已带 | ✅ | — |
-| ptrace leak fix(<5.16) / vendor modules blacklist / uname 自定义伪装串 | ✍️/🏷️ | — | ❌ | **不做**(6.6 不适用 / dash 无对应模块 / 我们伪装 stock 串更优) |
-
-### 容器 / 驱动 / 生态
-
-| 特性 | 性质 | 说明 | dash 现状 | 决策 |
-|---|---|---|---|---|
-| DroidSpaces | 🏷️ | 官方配方(与我们 090 同源) | ✅ 内核 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过 | — |
-| NoMount / Mountify | 🏷️ | 上游 metamodule | ✅ 内建 v2.3.1 | —(已选型 NoMount) |
-| ZeroMount(NoMount 替代) | 🏷️ | 自研 VFS 驱动+Rust,3 策略回退+WebUI+bootloop guard → R8 | ❌ | **不做**——只用 NoMount;bootloop guard/策略回退仅作思路参考 |
-| NTSync | 🏷️+🔧 | 主线驱动(Wine)backport,/dev/ntsync | ❌ | **✅ 已落地(未实机)**——WK-P ntsync_base+compat_android15-6.6(主线 v6.14 驱动),`CONFIG_NTSYNC=y` 内建 |
-| NetHunter + WirelessKSU | 🔧+✍️ | 渗透驱动 + monitor-mode patch | ❌ | **不做**——维护面大,需要时单独评估 |
-| ReSuSFS / apply_kernel_compat.py / usbadb_gate | ✍️ | 用户态/反纪律/自写驱动 | ❌ | **不做**(管理器生态 / 与"补丁可审"相反 / 无场景) |
-| 多 Root 变体 | 🏷️ | 各上游 fork | ✅ 已选 BakaSU | — |
+| 分类 | 特性 | 性质/来源 | 说明 | dash 现状 | 决策 |
+|---|---|---|---|---|---|
+| 网络 | BBR v1 / CUBIC / WireGuard / IPsec ESP / FQ / FQ-CoDel / SCH_INGRESS | 🔧 | 上游自带 | ✅ | — |
+| 网络 | BBRv3 | 🏷️+✍️ | ACK 6.6 现存 TCP_CONG_BBR 是 v1;采用 WK android15-6.6 KABI 版 → R1 | ⚠️ | **✅ 已落地(实机生效)**——`110-net-bbrv3`(WK android15-6.6 KABI 版);静态已核→构建 CRC 零漂移见 TEST_REPORT §24;实机 ss -i/mihomo 回归待刷后 |
+| 网络 | Westwood+/BIC/HTCP | 🔧 | 上游 Kconfig,CC 状态全存 icsk_ca_priv,不触 ABI,默认仍 cubic | ⚠️ 仅 CUBIC+BBR | **✅ 已落地(实机生效)**——批次1 config,默认仍 cubic |
+| 网络 | CAKE / PIE / FQ-PIE qdisc | 🔧 | 上游 Kconfig(stock 未开;`NET_SCH_FQ_PIE` 可同批) | ⚠️ | **✅ 已落地(实机生效)**——批次1 config,均内建,不设默认 |
+| 网络 | IP Set 全家桶 | 🔧 | 16 种 set 类型,现仅 HASH_IP/HASH_NET → 补齐其余 14 种 | ⚠️ | **✅ 已落地(实机生效)**——批次1 config,补齐其余 14 种(含 bitmap:ipmac/list:set) |
+| 网络 | TTL / HL target | 🔧 | iptables 改 TTL/Hop-Limit(热点共享检测对抗用) | ⚠️ | **不做**——无此需求,要时再开 |
+| 网络 | CIFS(SMB) | 🔧 | 上游 Kconfig | ❌ | **不做**——手机无场景,体积/攻击面 |
+| 网络 | IPv6_NAT_FIX | ✍️ | 实为 config_data 伪装(藏 config.gz 里的 IP6_NF_NAT)→ R5 | ❌ | **不做**——正常启用无需藏;单条伪装无意义 |
+| 网络 | force_tcp_nodelay | 👤 | 实为 setsockopt 劫持 → R5 | ❌ | **不做**——吞掉合法 TCP 选项;Go/mihomo 已默认 nodelay |
+| 网络 | TCP 重传生命周期/urgent data 修复 | 🏷️ | 主线修复;urgent data 已进 stable 6.6.157,重传生命周期仍不在 → R7 | ❌ | **✅ 已落地(实机生效)**——重传生命周期 = `tcp: fix use-after-free of retransmit_skb_hint`(fe99bbeee5c5,EVONIX d450c2a2dadf 同源,入 110-net-bbrv3);urgent data 部分仍批次0 |
+| 网络 | UDP tunnel segmentation UAF 修复 | 🏷️ | 主线内存安全修复;UDP tunnel/GSO 组已进 6.6.151–161(大概率覆盖) → R7 | ❌ | **✅ 已合入(实机生效)**——EVONIX `efef513`（udp: fix potential use-after-free in tunnel segmentation），入 `180-stable-backports/0001` |
+| 网络 | IPv6 checksum bounds/ext 扩展头/SR 校验修复 | 🏷️ | 主线解析加固;checksum bounds 已进 6.6.158 → R7;IP6_NF_NAT=y 在用 | ❌ | **✅ 已合入(实机生效)**——EVONIX `180b3a5`（ipv6_find_hdr 越界）、`5780267`（SEG6_ATTR_DST 长度）、`9ff62f1`（skb_checksum_setup_ipv6 pull 下溢），入 `180-stable-backports/0002` |
+| 性能 / 调度 | HMBIRD SCX(sched_ext 移植) | 🏭 | OnePlus fengchi;HyperOS 无 hmbird daemon → R6 | ❌ | **不做**——零收益,与 MTK EAS/HyperOS 冲突 |
+| 性能 / 调度 | CPU 扫描顺序修正 | 🏷️ | Hao Jia 上游提交,1 行;stable 6.6 已含,ACK 树未含 = 补齐上游 → R2 | ❌ | **✅ 已落地(实机生效)**——WK-P 原版(=上游 20e508d375c0),入 100-sched-eevdf |
+| 性能 / 调度 | CACHE_HOT_BUDDY 关闭 | 👤 | Sultan 1 行(features.h);DSU 同簇迁移不掉局部性 → R2 | ❌ | **✅ 已落地(实机生效)**—— Sultan 原版,SCHED_FEAT(false);与 MTK EAS 叠加实测待刷后 |
+| 性能 / 调度 | PREEMPT_SHORT backport | 🏷️ | 上游 v6.12 EEVDF 特性:短 slice eligible 任务可抢占长任务 → R2 | ❌ | **✅ 已落地(实机生效)**——上游 85e511df3cec 适配(did/do_preempt_short + vlag 保护取消),保留 android_rvh_update_deadline/android_vh_resched_curr_lazy;feature 默认 true |
+| 性能 / 调度 | mem_opt_prefetch | 🏭 | Motorola 2015:copy_template.S +2 条 prfm(=GKID 0007 同补丁) → R3 | ❌ | **✅ 已落地(实机生效)**——WK-P 原版,入 120-arm64-perf |
+| 性能 / 调度 | arm64 memcmp(0008) | 🏷️+👤 | 直接取自 WK-P/GKID 补丁;代码本体是 Arm optimized-routines 用户态库 7a9fd1603e 的 SIMD 实现,不是 Linux 内核上游补丁 → R3 | ❌ | **✅ 保留(未检查、待验证)**——WK-P 原版;≥160B SIMD 路径无 kernel_neon_begin 保护,内核 FPSIMD 上下文安全性尚未完成专项检查;按机主决策保留,刷机前后需做调用上下文审计与压力回归,当前不宣称安全性已验证 |
+| 性能 / 调度 | arm64 clear_page 16B 对齐(0017) | 👤 | Sultan 1 行 `.p2align 4`;INIT_ON_ALLOC=y 故为热路径 → R3 | ❌ | **✅ 已落地(实机生效)**——适配为 GKI 的 `__pi_clear_page` 符号前 .p2align 4 |
+| 性能 / 调度 | int_sqrt 3x | 👤 | StatixOS 起源,微基准 3x → R3 | ❌ | **✅ 已落地(实机生效)**——WK-P 原版(lib/math/int_sqrt.c) |
+| 性能 / 调度 | file_struct 8B 对齐 / fs cache pressure | ✍️ | → R3 | ❌ | **不做**——收益趋零 + CRC 风险 / 运行时 sysctl 即可 |
+| 性能 / 调度 | 300Hz timer | 🔧 | stock 250Hz | ⚠️ | **不做**——收益边际,功耗回归风险大 |
+| 性能 / 调度 | Fake config | ✍️ | 伪装 /proc/config* | ❌ | **不做**——已有 SUSFS spoof_cmdline |
+| 性能 / 调度 | hide_adb_jdwp_sockets | ❓/✍️ | 对 app-UID 四层隐藏 adbd/jdwp-control → R5;依赖 helper 已自带 | ❌ | **✅ 已落地(实机生效)**——readdir/avc 半入 010-bakasu-susfs,af_unix 半入 115-hide-appsockets;fs/susfs.c+SUSFS_FILLDIR_SKIP 经 `patches/susfs-overrides/`(apply-patches.sh 安装后套用);shell(2000)/root 调试不受影响,adb 回归待实机 |
+| 性能 / 调度 | 模块强制加载(fail signature) | 👤 | Pzqqt | ✅ 超集 | **不做**——vendor-ko-compat 更全 |
+| 性能 / 调度 | LTO Full | 🔧 | `CONFIG_LTO_CLANG_FULL`(arch/Kconfig:770;stock 本身 LTO_NONE) | ✅ ThinLTO | **配置/阻塞修复已落地,完整构建未完成**——默认生产配置为 LTO_CLANG_FULL;日常编译/CRC/KMI 验证统一 FAST=1 NoLTO;本轮已修 OpenSSL 4 host-tool 与 arm64 idmap KCFI 阻塞,最终重链接因耗时由机主要求停止,不宣称构建通过 |
+| 性能 / 调度 | RCU lazy callbacks | 🔧 | 上游 Kconfig;批量延后 RCU callback 以争取 idle/省电 | ⚠️ stock 有能力但 DEFAULT_OFF | **✅ 已落地(实机生效)**——`CONFIG_RCU_LAZY=y`,并关闭 `RCU_LAZY_DEFAULT_OFF`;异常时 `rcutree.enable_rcu_lazy=0` 回退 |
+| 性能 / 调度 | Power-efficient workqueue 默认启用 | 🔧 | 上游 Kconfig;把标记为 power-efficient 的工作导向 unbound 队列 → R6 | ❌ | **✅ 已落地(实机生效)**——`CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y`;`workqueue.power_efficient=0` 回退 |
+| 性能 / 调度 | KFENCE deferrable timer | 🔧 | 上游 Kconfig;允许 KFENCE sample timer 在 idle 时延后 → R6 | ❌ | **✅ 已落地(实机生效)**——`CONFIG_KFENCE_DEFERRABLE=y`;等价运行时参数 `kfence.deferrable=1`,本仓未开会与该模式冲突的 KFENCE KUnit 自测 |
+| 性能 / 调度 | ARM64 `-mtune` | 🔧+✍️ | 只改指令调度/延迟模型,不改 ISA/ABI;实机 4×A720+3×A725+1×X925 | ❌ | **✅ 已落地(实机生效)**——自加 `DASH_ARM64_TUNE` choice,默认保守选最大同构能效簇 A720;可切 A725/X925/无 |
+| 性能 / 调度 | AutoFDO 构建支持 | 🏷️+🔧 | LLVM sample-profile 优化,与 MLGO 相互独立;arm64 profile 可由 SPE 或 ETM/ETE 采集 | ❌ | **✅ 已落地——直接用 pinned ACK 自带预制 profile**——取仓库内 `android/gki/aarch64/afdo/kernel.afdo`(6.6.142 采集,4.0MiB),SHA256 写入 `versions.env` 并由 `verify_autofdo_profile` 每次构建前校验;`CONFIG_AUTOFDO_CLANG=y`+`CLANG_AUTOFDO_PROFILE` 自动接线,NoLTO 全量构建实测 3188 个 TU 带 `-fprofile-sample-use`。自采(SPE/ETE)降为可选项,不再阻塞;未刷机、未做性能 A/B |
+| 性能 / 调度 | MGLO(=LLVM MLGO) | 🏷️/🔧 | WK 实际仅加 LLVM MLGO regalloc release advisor;本仓 AOSP clang r614150 已带 MLGO 模型 → R4 | ⚠️ | **✅ 已落地(实机生效)**——新增 `CONFIG_DASH_MLGO_REGALLOC`(默认 y)经 `KBUILD_CFLAGS` 与 `KBUILD_LDFLAGS`(Full LTO 的 LLD 后端)注入 `-regalloc-enable-advisor=release`;`configure.sh` 以真实 NoLTO/LTO 双路径探针断言 advisor 可创建,全量构建实测 3230 个 TU 带该参数。AutoFDO 已拆为独立一行 |
+| 性能 / 调度 | schedutil 限流溢出/policy init 修复 | 🏷️ | 主线修复;限流溢出已进 stable 6.6.157,policy init 不在 → R7 | ❌ | **✅ policy init 已落地(实机生效)**——`cpufreq: initialize policy rwsem before sysfs publication`(3e5d1bf4bd68)+`zero-initialize policy cpumask`(54d37bcf2f49);限流溢出仍批次0 |
+| 性能 / 调度 | uclamp DVFS 通知/EAS carryover 修复 | 🏷️ | 主线修复,不在 stable;MTK EAS 高相关 | ❌ | **✅ uclamp DVFS 通知已落地(实机生效)**——EVONIX cf8010f36cdb(`uclamp_update_active` 尾部比较 rq min/max 变化后 `cpufreq_update_util`);**更正**:「EAS carryover」在 EVONIX/主线均无对得上号的 commit,无实装对象(见落地批次注) |
+| 性能 / 调度 | misfit 迁移/CPU-group 选择修复 | 🏷️ | 主线 EAS 修复;同族已进 6.6.158 → R7 | ❌ | **✅ 已落地(实机生效)**——`58eeb2d79b54`(misfit 失败不入 backoff)+`0fbd428d0788`(dst CPU 无容量收益时不计 misfit);同族 6.6.158 部分仍批次0 |
+| 性能 / 调度 | RT push-IPI livelock 修复 | 🏷️ | 主线 RT 均衡修复,不在 stable | ❌ | **✅ 已落地(实机生效)**——`sched/rt: Have RT_PUSH_IPI be default off for non PREEMPT_RT`(dd29c017aed6) |
+| 性能 / 调度 | POSIX CPU-timer 竞态/PID 泄漏修复 | 🏷️ | 6.12+ 重构系列;CVE-2026-98260 同族,exec cleanup 已进 6.6.158 → R7 | ❌ | **不做**——不手动管理:等 stable 自行下发(公开利用族系 stable 会追),重构主体审计面过大 |
+| 性能 / 调度 | timer slack RT 继承修复 | 🏷️ | 主线修复,不在 stable | ❌ | **✅ 已落地(实机生效)**——stable e8bbcc00760d + chenguanyou RT 父继承修正(EVONIX 84b614906274 同源,init_task/fork/core) |
+| 性能 / 调度 | arm64 per-cpu write 修复 | 🏷️ | 主线 arch/arm64 修复,零 ABI,不在 stable | ❌ | **✅ 已落地(实机生效)**——`this_cpu_and` 掩码(44274c657256)+`this_cpu_write` 括号(885bff055a0f) |
+| 性能 / 调度 | OPP/EM 解析修复 | 🏷️ | 主线修复;OPP 竞态已进 6.6.160,EM 不在 → R7 | ❌ | **✅ 已落地(实机生效)**——`opp: fix memory leak in supply parsing`(f0776d142e53)+`prevent frequency calculation overflow`(dcaa77d10ea1);竞态(932ebfad767b)仍批次0 |
+| 性能 / 调度 | MGLRU suspend 可中断 | 🏷️ | 主线修复,不在 stable;MGLRU 已启用 | ❌ | **✅ 已落地(实机生效)**——上游 dc37771a43d4(经 ACK b61e79936c0b),memcg fairness guard 前查取消,mm/memcontrol.c+mm/vmscan.c(后者与 030 hooks 交错归 030) |
+| 性能 / 调度 | DAMON 修复组(6.6.145 收录) | 🏷️ | stable 官方下发 → R7 | ❌ | **✅ 已合入(实机生效)**——EVONIX 8 个剩余修复（区间校验/合并边界/sysfs 错误路径等）入 `180-stable-backports/0003`；另有 4 个已由 6.6.144 基线收录 |
+| 性能 / 调度 | TLB/writeback 修复组(6.6.145 收录) | 🏷️ | stable 官方下发;此前误写含 PSI,复核 6.6.145 changelog 未见 PSI 条目 → R7 | ❌ | **✅ 已合入(实机生效,2026-11-28)**——TLB `b6bb0e7` 已由 6.6.144 基线收录；writeback 竞态/UAF/list_lock 组与 ext4 writeback 入 `180-stable-backports/0004-0005`。`bdi_writeback` 新字段已移到已有 union 之后以避免移动既有字段偏移，仍标记为 GKI KMI 观察项 |
+| 文件系统 / I/O | F2FS GC 50ms / uncongestion 6ms / min_fsync_blocks 20 | ✍️/👤 | 三件套 → R5;OPPO/Huawei 量产同款 | ❌ | **✅ 已落地(实机生效)**——gc.h/segment.h 入 130-f2fs-perf,f2fs.h 的 6ms 与 file.c move-range 修复并入 060 文件块;060 回归=构建级通过,运行时待实机 |
+| 文件系统 / I/O | ext4 commit age 5→30s | ✍️/👤 | Arjan distro tweak → R5 | ❌ | **不做**——rw ext4 少;可用挂载参数 `commit=` 调 |
+| 文件系统 / I/O | SK_MEM_PACKETS 256→1024 | ✍️ | 即 net.core.wmem/rmem_max 默认 ×4 → R5 | ❌ | **不做**——运行时 sysctl 可调(同 cache pressure 立场) |
+| 文件系统 / I/O | ADIOS I/O 调度器 | 🏷️ | 独立上游(Masahito Suzuki 2025);EVONIX 用于 UFS 4.0 MCQ 默认 | ❌ | **✅ 已落地(实机生效)**——EVONIX `901a0cf` 版入 `160-block-adios`，`CONFIG_MQ_IOSCHED_ADIOS=y` + `CONFIG_EVONIX_IO_PRIO=y`（前台同步读保护，上游 default y）；并设为默认（`MQ_IOSCHED_DEFAULT_ADIOS=y`）；刷入后仍可手动与 mq-deadline A/B |
+| 文件系统 / I/O | zRAM LZ4 回写 / mq-deadline / schedutil | 🔧 | stock | ✅ 超集 | —(lz4kd+ExtM 实跑) |
+| 文件系统 / I/O | ext4 orphan 泄漏/DIO fallback 修复 | 🏷️ | 主线修复;orphan 已进 6.6.157 → R7 | ❌ | **⛔ orphan 部分批次0;DIO fallback 无已合并主线修复(2026-09 RFC 仅 atomic write,6.6 无该路径)且 EVONIX 亦未实装——无对象,不再追** |
+| 文件系统 / I/O | F2FS move-range 校验/writeback 报错修复 | 🏷️ | 主线修复,不在 stable;HyperOS 文件管理走 move-range | ❌ | **✅ 已落地(实机生效)**——`f2fs: reject overlapping move range after len expansion`(28c1ef094e7c,fs/f2fs/file.c 归 060) |
+| 文件系统 / I/O | swap readahead ceiling 修复 | 🏷️ | 主线修复,不在 stable;swap=zRAM | ❌ | **✅ 已落地(实机生效)**——EVONIX ca0a0229886b(mm/swap_state.c;作者自述为本地 policy-bound 修正,非上游 cherry-pick) |
+| 电池 / 电源 | Freezer timeout 20s→1s | 👤 | Sultan;还锁死 sysfs 写入口 → R5 | ❌ | **不做**——与厂商冻结策略交叉,收益仅死锁场景 |
+| 电池 / 电源 | alarmtimer 唤醒窗口收敛 | ✍️ | 固定 2s → 最近到期+1ms → R5 | ❌ | **✅ 已落地(实机生效)**——WK-P minimise_wakeup_time 原版 |
+| 电池 / 电源 | s2idle 单次唤醒 | 👤 | Sultan:pm_abort_suspend 到 1 才调 s2idle_wake → R5 | ❌ | **✅ 已落地(实机生效)**——WK-P avoid_extra_s2idle_wake_attempts 原版(drivers/base/power/wakeup.c) |
+| 电池 / 电源 | wakelock 全局 500ms cap | 👤 | 无超时 wake_lock 强制过期 → R5 | ❌ | **不做**——HyperOS critical 路径依赖无超时 wake_lock |
+| 电池 / 电源 | SDP 900mA 充电 | ✍️ | 纯 oplus/高通方案(DT 属性) → R5 | ❌ | **不做**——MTK 充电栈不可移植 |
+| 安全 / 隐藏 | SUSFS 全套 | 🏷️ | simonpunk;pin f98f082 实为 **v2.4.0**(STATUS 曾误标 v2.3.0 已订正) | ✅ v2.4.0;实机 10 项 enabled_features(含 priority-uid filter) | — |
+| 安全 / 隐藏 | SUSFS priority-uid filter | 🏷️ | f98f082 门控,apply-patches.sh 注入 Kconfig | ✅ 2026-11-21 启用 | — |
+| 安全 / 隐藏 | maps 伪装(maphide) | 👤 | backslashxx,WK-P 归档 → R8 | ✅ SUSFS sus_map 已启用(`SUS_MAP=y`) | **不做**——sus_map 覆盖同域 |
+| 安全 / 隐藏 | Baseband Guard(BBG LSM) | 🏷️ | vc-teahouse 上游(EVONIX 按 commit `a54e0dc6cf0a` 集成) | ❌ | **✅ 已落地(实机生效)**——LSM 本体通用(allowlist=boot/dtbo/userdata/super/vbmeta 等 Android 分区,无高通依赖;efisp 为 WK 另发的高通向补丁,未采用);`CONFIG_BBG=y`+CONFIG_LSM 末尾追加 baseband_guard(与 EVONIX 相同);BBG_BLOCK_BOOT/RECOVERY 保持 n,不影响刷机 |
+| 安全 / 隐藏 | Unicode bypass fix(零宽字符) | ❓/✍️ | casefold 空分解边界修复;上游从未采纳 → R5 | ❌ | **✅ 已落地(实机生效)**——WK-P unicode_bypass_fix_6.1+(fs/unicode/utf8-norm.c);casefold 回归待实机 |
+| 安全 / 隐藏 | AVC log spoofing | ✍️ | KSU 触发路径 avc 日志伪装 | ❌ | **✅ 已有(SUSFS v2.4.0 自带,无需移植)**——avc.c audit 回调已按 `susfs_ksu_sid→priv_app_sid` 伪装,sid 由 KSU susfs 集成注入;开关=`ksu_susfs enable_avc_log_spoofing`,当前 `.susfs.json` 为 `false`(默认关);gkid 版为其 KSU fork 专属实现,与 SUSFS 上游同域,不重复移植 |
+| 安全 / 隐藏 | throne_tracker kthread / supercall pull-list | ✍️ | gkid KSU fork 专属 → R5 | ❌ | **不做**——跟 BakaSU 上游 |
+| 安全 / 隐藏 | Multiple Managers | ✍️/🔧 | BakaSU 已带 | ✅ | — |
+| 安全 / 隐藏 | ptrace leak fix(<5.16) / vendor modules blacklist / uname 自定义伪装串 | ✍️/🏷️ | — | ❌ | **不做**(6.6 不适用 / dash 无对应模块 / 我们伪装 stock 串更优) |
+| 容器 / 驱动 / 生态 | DroidSpaces | 🏷️ | 官方配方(与我们 090 同源) | ✅ 内核 + 用户态 v7.2.0；`droidspaces check` 全绿；Alpine NAT 容器冒烟通过 | — |
+| 容器 / 驱动 / 生态 | NoMount / Mountify | 🏷️ | 上游 metamodule | ✅ 内建 v2.3.1 | —(已选型 NoMount) |
+| 容器 / 驱动 / 生态 | ZeroMount(NoMount 替代) | 🏷️ | 自研 VFS 驱动+Rust,3 策略回退+WebUI+bootloop guard → R8 | ❌ | **不做**——只用 NoMount;bootloop guard/策略回退仅作思路参考 |
+| 容器 / 驱动 / 生态 | NTSync | 🏷️+🔧 | 主线驱动(Wine)backport,/dev/ntsync | ❌ | **✅ 已落地(实机生效)**——WK-P ntsync_base+compat_android15-6.6(主线 v6.14 驱动),`CONFIG_NTSYNC=y` 内建 |
+| 容器 / 驱动 / 生态 | NetHunter + WirelessKSU | 🔧+✍️ | 渗透驱动 + monitor-mode patch | ❌ | **不做**——维护面大,需要时单独评估 |
+| 容器 / 驱动 / 生态 | ReSuSFS / apply_kernel_compat.py / usbadb_gate | ✍️ | 用户态/反纪律/自写驱动 | ❌ | **不做**(管理器生态 / 与"补丁可审"相反 / 无场景) |
+| 容器 / 驱动 / 生态 | 多 Root 变体 | 🏷️ | 各上游 fork | ✅ 已选 BakaSU | — |
+| 小米(外部来源) | MFZ 内存冻结（`mfz_*`+`anno_writeback_*`） | BIXI(6.6 高通)/ONEFEI 0048 | bixi 机型 zram 侧冻结 cgroup 页打标；**dash 不用 MFZ** | stock dash `MI_MEMORY_FREEZE=n`，故无此节点（正常） | **已证伪(对 dash)**——是 bixi/高通特性，dash 走 XRING；不移植 |
+| 小米(外部来源) | **ExtM 写回**（`backing_dev`/`bd_stat`/`idle_stat`/`writeback_limit`） | BIXI/ONEFEI 0047 | ExtM 写回后端；我们已有 `backing_dev`/`bd_stat` | ✅ 部分已有（dm-71 回写生效） | **未做**——dash 已可用，不追加 MFZ sysfs（MFZ 对 dash 不适用） |
+| 小米(外部来源) | `mi_wmark`（extra_free_kbytes 替代） | BIXI/dada | 提供 `/sys/kernel/mi_wmark/extra_free_kbytes` | ❌ 无该节点；但 userspace shim 已写 watermark_scale_factor=50 | **已证伪(非必需)**——userspace 已兜底 |
+| 小米(外部来源) | `min_free_order_shift` | 6.x 已删 | 老接口 | ❌ 不存在；stock 亦无效 | **已证伪**——伪缺口，不做 |
+| 小米(外部来源) | **XRING `zgroup_enable`/`zgroup_wb`** | HIKARI(mt6991 厂商源码) | dash 真正的 zram 分组/按 memcg 回写开关；源码 `drivers/block/zram/zgroup{,_wb}.c` | ✅ 节点存在（值 0），`[zram]` 含 `zgroup_enable_show` | **待决策**——是否启用/对齐 stock；禁伪造空节点 |
+| 小米(外部来源) | **XRING `memory.xswapd.*`**（后台换出线程） | HIKARI(mt6991) | stock `CONFIG_XRING_ZRAM_XSWAPD=y`；源码 `xswapd.c` | ✅ `/dev/memcg/memory.xswapd.*` 节点在 | **待决策**——是否对齐 stock xswapd 行为 |
+| 小米(外部来源) | **XRING `LZ4P` zram 压缩算法**（`CONFIG_XRING_ZRAM_LZ4P`） | MARBLE(mt6878, 唯一公开完整源码) | X-Ring 自研 LZ4 变体 + NEON 汇编（`lib/lz4p/`，含 `lz4p_encode.S`/`lz4p_decode.S`）；`zcomp.c` 注册为 `"lz4p"` | ❌ **dash 没有**：设备 `comp_algorithm` 只有 `lzo lzo-rle lz4 zstd [lz4kd]`；vendor `zram.ko` 中 `lz4p` 字符串计数 **0** | **未做**——可选性能项；需先确认 dash 厂商后端是否预留该算法名 |
+| 小米(外部来源) | **XRING `SMART_CACHE` 配置位**（`CONFIG_XRING_SMART_CACHE`） | HIKARI(`turner.config`) | `turner`(K Pad) 有 `XRING_SMART_CACHE=y`，而 `dash.config` **无**该行；但 dash 运行态确有 `smart_cache_attr_group`+`SmartCacheEnable=true` | ⚠️ 节点生效但非 dash 配置位声明 → 由 vendor `zram.ko`/ExtM 自带 | **观察**——不要凭 `turner.config` 给 dash 加该符号 |
+| 小米(外部来源) | `vip_sched` | dada（SM8750） | XRING QoS 调度模块，hook binder/rwsem/pi | ✅ stock `vip_sched.ko` 已加载（依赖 5 个模块） | **未做**——保持 stock；dada 版标 DO NOT LOAD（PARTIAL） |
+| 小米(外部来源) | `mi_reclaim` | dada | 内存回收优化模块 | ✅ stock 已加载且工作（refill_total 15567） | **未做**——保持 stock（dada 版 DO NOT LOAD） |
+| 小米(外部来源) | `rss_monitor` | dada | RSS 监控 | ✅ stock 已加载 | **未做**——保持 stock |
+| 小米(外部来源) | `mi_mempool` / `mi_memory` | dada | 内存池/内存管理 | ✅ stock 已加载 | **未做**——保持 stock |
+| 小米(外部来源) | `dynamic_readahead` | dada/BIXI | 动态预读（cgroup/EROFS 感知） | ✅ stock `dynamic_readahead.ko` 已加载且 `enable=Y` | **未做**——保持 stock；dada 版 EQUIVALENT |
+| 小米(外部来源) | `fault_report` | dada | f2fs 故障上报（`/proc/fault_report`） | ✅ stock 已加载，`/proc/fault_report=1` | **未做**——保持 stock；checkpoint 路径已静态核对 |
+| 小米(外部来源) | `unfairmem`（mi_mem_engine） | OPT/dada | 重要任务降低分配水位 | ❌ 未加载 | **未做**——性能项，非兼容必需 |
+| 小米(外部来源) | `kshrink_slabd`（异步 shrink_slab） | OPT/dada/**MARBLE**(完整源码) | 把 failed trylock 的 slab 回收到 kthread；源码 `drivers/staging/kshrink_slabd/kshrink_slabd.c`（230 行，仅用 `android_vh_shrink_slab_bypass` hook，我们树已导出） | ❌ 未加载；`/proc/kallsyms` 无 `shrink_async`，设备无该模块 | **未做**——性能项；**源码可直接取用**（本树 hook+`EXPORT_SYMBOL_GPL(shrink_slab)` 已具备） |
+| 小米(外部来源) | **MT6991 UFS `power_mode`/`gear_lane` 运行时切档** | GEARLANE(MT6991 实测工程) | debugfs `power_mode` 端口；修复 Linux 5.14 起 W-LUN 独立 resume 导致的 PMC timeout（需先 `ufs_debugfs_get_user_access()` 唤醒 W-LUN） | ❌ 我们的 6.6 树 `ufs-debugfs.c` 只有 `exception_event_mask`/`exception_event_rate_limit_ms` | **未做**——研究/调试价值高（对应 E1–E3）；非 stock 特性 |
+| 小米(外部来源) | `mi_rmap_efficiency` | OPT/dada | 共享页 rmap 走查抑制（6.6 已部分上游） | ❌ 未加载 | **未做**——6.6 上游已有部分逻辑 |
+| 小米(外部来源) | `sew_mi_reclaim` / `sew_scene_swappiness` / `sew_dynamic_readahead` | OPT | 5.15 版 observe-only 移植 | — | **未做**——仅参考实现，对应 stock 模块已在跑 |
+| 小米(外部来源) | `unionpower` / `ssg` 调度器 / `boottime` / `binder_sched_opt` | OPT/dada | 负载监控/IO 调度/开机优化/binder 调度 | ❌ | **未做**——性能/生态项 |
+| 小米(外部来源) | `mi_game` / `mi_low_lat_mem` / `xr_qi` / `xr_qs` / `matt` | dada | 游戏/低延迟/网络加速 | ✅ `mi_game` stock 已加载；其余未加载 | **未做**——dada 版均 DO NOT LOAD |
+| 小米(外部来源) | `lz4asm`（NEON LZ4） | 小米(BIXI 无)/dada | 可选 zram 解压加速模块 | ❌ 无该模块；zram 用 lz4kd | **未做**——optional，默认不加载 |
+| 小米(外部来源) | zstd 1.5.7 升级 | OPT | zram/f2fs/btrfs/initramfs 解压 | ❌ 内核 zstd 版本未升级 | **未做**——可选（需评估） |
+| 小米(外部来源) | `le9uo`（工作集保护） | ONEFEI | 回收时保护文件缓存 | ❌ | **未做**——性能项 |
+| 小米(外部来源) | `Kcompressd` | ONEFEI | kswapd 匿名页压缩异步化 | ❌ | **未做**——性能项 |
+| 小米(外部来源) | `bbg` / `landlock` 等 | — | 已在 dash 生效 | ✅ | 见上「实机复核」 |
 
 ## 实施状态(2026-11-21;构建落地与等待项分层,实机验证待刷)
 
@@ -207,30 +211,29 @@
 
 ## 不做——原因速查
 
-| 项 | 一句话原因 |
-|---|---|
-| TTL/HL target | 无对抗需求 |
-| CIFS | 手机无场景 |
-| IPv6_NAT_FIX | config_data 伪装,无意义 |
-| force_tcp_nodelay | setsockopt 劫持;Go 已默认 nodelay |
-| HMBIRD SCX | HyperOS 无 daemon 零收益 + EAS 冲突 |
-| file_struct 8B 对齐 | 收益趋零 + genksyms CRC 风险 |
-| fs cache pressure 50 | 运行时 sysctl 即可 |
-| 300Hz timer | 收益边际,功耗风险 |
-| Fake config | 已有 SUSFS spoof_cmdline |
-| 模块强制加载 | vendor-ko-compat 更全 |
-| POSIX CPU-timer 重构 | 不手动管理,等 stable 下发;审计面过大 |
-| ext4 commit age 30s | 掉电窗口大,rw ext4 少 |
-| SK_MEM_PACKETS | 运行时 sysctl |
-| Freezer timeout 1s | 与厂商冻结策略交叉 + 锁 sysfs |
-| wakelock 500ms cap | 破坏框架 critical 路径 |
-| SDP 900mA | oplus/高通栈不可移植 |
-| maps 伪装(maphide) | SUSFS sus_map 已覆盖 |
-| throne_tracker / supercall pull-list | gkid fork 专属,跟 BakaSU 上游 |
-| ptrace leak fix / vendor blacklist / uname 串 | 不适用 / 无对应模块 / 已有更优 |
-| ZeroMount | 只用 NoMount(思路仅参考) |
-| NetHunter + WirelessKSU | 维护面大 |
-| ReSuSFS / apply_kernel_compat.py / usbadb_gate | 生态 / 反纪律 / 无场景 |
+- TTL/HL target；无对抗需求
+- CIFS；手机无场景
+- IPv6_NAT_FIX；config_data 伪装,无意义
+- force_tcp_nodelay；setsockopt 劫持;Go 已默认 nodelay
+- HMBIRD SCX；HyperOS 无 daemon 零收益 + EAS 冲突
+- file_struct 8B 对齐；收益趋零 + genksyms CRC 风险
+- fs cache pressure 50；运行时 sysctl 即可
+- 300Hz timer；收益边际,功耗风险
+- Fake config；已有 SUSFS spoof_cmdline
+- 模块强制加载；vendor-ko-compat 更全
+- POSIX CPU-timer 重构；不手动管理,等 stable 下发;审计面过大
+- ext4 commit age 30s；掉电窗口大,rw ext4 少
+- SK_MEM_PACKETS；运行时 sysctl
+- Freezer timeout 1s；与厂商冻结策略交叉 + 锁 sysfs
+- wakelock 500ms cap；破坏框架 critical 路径
+- SDP 900mA；oplus/高通栈不可移植
+- maps 伪装(maphide)；SUSFS sus_map 已覆盖
+- throne_tracker / supercall pull-list；gkid fork 专属,跟 BakaSU 上游
+- ptrace leak fix / vendor blacklist / uname 串；不适用 / 无对应模块 / 已有更优
+- ZeroMount；只用 NoMount(思路仅参考)
+- NetHunter + WirelessKSU；维护面大
+- ReSuSFS / apply_kernel_compat.py / usbadb_gate；生态 / 反纪律 / 无场景
+
 
 ## 待定
 
@@ -559,46 +562,45 @@ android"/"gki kernel",star 排序)结论:**除已调查的 WildKernels/GKID/EVON
 
 ### 逐项核对
 
-| 项 | 结果 | 证据 / 限制 |
-|---|---|---|
-| BBRv3 | ✅ 实机 | `tcp_available_congestion_control` 含 bbr3;bbr3/cubic 切换成功 |
-| Westwood+/BIC/HTCP | ✅ 实机 | 三种 CC 均切换成功,最终恢复 cubic |
-| CAKE/PIE/FQ-PIE | ✅ 实机 | `tc qdisc add dev lo root {pie,fq_pie,cake}` 均成功 |
-| IP Set 全家桶 | ✅ 配置 | 14 种 set 类型全部 `=y`;设备无 `ipset` 工具 |
-| TCP 重传 UAF | ✅ 静态 | 补丁/符号在树;未做故障注入 |
-| CPU 扫描顺序 | ✅ 静态 | `for_each_cpu_wrap` 从 target+1 起扫 |
-| CACHE_HOT_BUDDY | ✅ 实机 | `sched/features` 含 `NO_CACHE_HOT_BUDDY` |
-| PREEMPT_SHORT | ✅ 实机 | `sched/features` 含 `PREEMPT_SHORT` |
-| mem_opt_prefetch | ✅ 静态 | `copy_template.S` 两处 `prfm pldl1strm` |
-| arm64 memcmp | ⚠️ 可用未审计 | 运行正常;FPSIMD 上下文审计未完成 |
-| clear_page 16B | ✅ 静态 | `__pi_clear_page` 地址 16B 对齐 |
-| int_sqrt 3x | ✅ 静态 | 符号存在;未做微基准 |
-| hide_adb_jdwp | ✅ 实机 | app UID 10249 看 `/proc/net/unix` 无 adbd/jdwp、`/dev/socket` 无 adbd;shell/root 正常 |
-| RCU_LAZY | ✅ 实机 | `enable_rcu_lazy=Y` |
-| WQ power-efficient | ✅ 实机 | `power_efficient=Y` |
-| KFENCE deferrable | ✅ 实机 | `deferrable=Y`;KFENCE 已初始化 |
-| ARM64 -mtune | ✅ 构建 | 3188 TU `-mtune=cortex-a720`;未 A/B |
-| AutoFDO | ✅ 构建 | 3188 TU `-fprofile-sample-use`;未 A/B |
-| MLGO regalloc | ✅ 构建 | 3230 TU advisor;未 A/B |
-| schedutil policy init | ✅ 静态 | 补丁在树;未触发错误路径 |
-| uclamp DVFS | ✅ 静态 | EVONIX 补丁在树;需调度压力 |
-| misfit ×2 | ✅ 静态 | 补丁在树;需调度压力 |
-| RT push-IPI | ✅ 实机 | `sched/features` 含 `NO_RT_PUSH_IPI` |
-| timer slack RT 继承 | ✅ 静态/实机代码 | `sched_fork` 恢复 `timer_slack_ns` 在树 |
-| arm64 per-cpu write | ✅ 静态 | 两个补丁在树 |
-| OPP/EM 解析 | ✅ 静态 | 两个补丁在树;6.6 代码路径不含上游 2026 UAF 重构 |
-| MGLRU suspend | ⚠️ 未验证 | 补丁在树;suspend 未完成 |
-| F2FS GC/min_fsync | ✅ 实机 | `gc_urgent_sleep_time=50`、`min_fsync_blocks=20`;64 MiB 写入 + drop_caches 后 SHA256 一致 |
-| ADIOS | ✅ 实机 | 已注册且出现在 scheduler 列表;当前 `cpq`,未 A/B |
-| F2FS move-range | ⚠️ 未验证 | 函数在树;未做 HyperOS 大文件移动 |
-| swap readahead | ⚠️ 部分 | 16 GiB zram swap 已启用;未测 readahead |
-| alarmtimer | ⚠️ 未验证 | 补丁在树;suspend 未完成 |
-| s2idle | ⚠️ 未验证 | 门控在树;suspend 未完成 |
-| BBG LSM | ✅ 实机 | LSM 含 `baseband_guard`;BLOCK_BOOT/RECOVERY 均 n;未做实际拦截 |
-| Unicode bypass | ⚠️ 未验证 | 补丁在树;F2FS features 无 `casefold` |
-| AVC log spoofing | ✅ 代码 | `enable_avc_log_spoofing` 存在;`.susfs.json` 当前 false |
-| NTSync | ✅ 实机 | `/dev/ntsync` 存在;已补 2026 time-namespace/零-owner 修复,并在 `#2` 启动验证 |
-| DroidSpaces | ✅ 实机 | 用户态 v7.2.0;check 全绿;Alpine PID ns + NAT ping/DNS 通过 |
+- BBRv3；✅ 实机；`tcp_available_congestion_control` 含 bbr3;bbr3/cubic 切换成功
+- Westwood+/BIC/HTCP；✅ 实机；三种 CC 均切换成功,最终恢复 cubic
+- CAKE/PIE/FQ-PIE；✅ 实机；`tc qdisc add dev lo root {pie,fq_pie,cake}` 均成功
+- IP Set 全家桶；✅ 配置；14 种 set 类型全部 `=y`;设备无 `ipset` 工具
+- TCP 重传 UAF；✅ 静态；补丁/符号在树;未做故障注入
+- CPU 扫描顺序；✅ 静态；`for_each_cpu_wrap` 从 target+1 起扫
+- CACHE_HOT_BUDDY；✅ 实机；`sched/features` 含 `NO_CACHE_HOT_BUDDY`
+- PREEMPT_SHORT；✅ 实机；`sched/features` 含 `PREEMPT_SHORT`
+- mem_opt_prefetch；✅ 静态；`copy_template.S` 两处 `prfm pldl1strm`
+- arm64 memcmp；⚠️ 可用未审计；运行正常;FPSIMD 上下文审计未完成
+- clear_page 16B；✅ 静态；`__pi_clear_page` 地址 16B 对齐
+- int_sqrt 3x；✅ 静态；符号存在;未做微基准
+- hide_adb_jdwp；✅ 实机；app UID 10249 看 `/proc/net/unix` 无 adbd/jdwp、`/dev/socket` 无 adbd;shell/root 正常
+- RCU_LAZY；✅ 实机；`enable_rcu_lazy=Y`
+- WQ power-efficient；✅ 实机；`power_efficient=Y`
+- KFENCE deferrable；✅ 实机；`deferrable=Y`;KFENCE 已初始化
+- ARM64 -mtune；✅ 构建；3188 TU `-mtune=cortex-a720`;未 A/B
+- AutoFDO；✅ 构建；3188 TU `-fprofile-sample-use`;未 A/B
+- MLGO regalloc；✅ 构建；3230 TU advisor;未 A/B
+- schedutil policy init；✅ 静态；补丁在树;未触发错误路径
+- uclamp DVFS；✅ 静态；EVONIX 补丁在树;需调度压力
+- misfit ×2；✅ 静态；补丁在树;需调度压力
+- RT push-IPI；✅ 实机；`sched/features` 含 `NO_RT_PUSH_IPI`
+- timer slack RT 继承；✅ 静态/实机代码；`sched_fork` 恢复 `timer_slack_ns` 在树
+- arm64 per-cpu write；✅ 静态；两个补丁在树
+- OPP/EM 解析；✅ 静态；两个补丁在树;6.6 代码路径不含上游 2026 UAF 重构
+- MGLRU suspend；⚠️ 未验证；补丁在树;suspend 未完成
+- F2FS GC/min_fsync；✅ 实机；`gc_urgent_sleep_time=50`、`min_fsync_blocks=20`;64 MiB 写入 + drop_caches 后 SHA256 一致
+- ADIOS；✅ 实机；已注册且出现在 scheduler 列表;当前 `cpq`,未 A/B
+- F2FS move-range；⚠️ 未验证；函数在树;未做 HyperOS 大文件移动
+- swap readahead；⚠️ 部分；16 GiB zram swap 已启用;未测 readahead
+- alarmtimer；⚠️ 未验证；补丁在树;suspend 未完成
+- s2idle；⚠️ 未验证；门控在树;suspend 未完成
+- BBG LSM；✅ 实机；LSM 含 `baseband_guard`;BLOCK_BOOT/RECOVERY 均 n;未做实际拦截
+- Unicode bypass；⚠️ 未验证；补丁在树;F2FS features 无 `casefold`
+- AVC log spoofing；✅ 代码；`enable_avc_log_spoofing` 存在;`.susfs.json` 当前 false
+- NTSync；✅ 实机；`/dev/ntsync` 存在;已补 2026 time-namespace/零-owner 修复,并在 `#2` 启动验证
+- DroidSpaces；✅ 实机；用户态 v7.2.0;check 全绿;Alpine PID ns + NAT ping/DNS 通过
+
 
 ### DroidSpaces 用户态
 
@@ -664,43 +666,40 @@ android"/"gki kernel",star 排序)结论:**除已调查的 WildKernels/GKID/EVON
 
 ### EVONIX 已合并 / 默认启用
 
-| 方向 | 内容 | 来源 / 落点 | 默认状态 |
-|---|---|---|---|
-| 块 I/O | ADIOS 调度器（含 901a0cf 三个并发/饥饿修复） | `160-block-adios` | 内建且**默认** |
-| 块 I/O | `CONFIG_EVONIX_IO_PRIO`（前台同步读 tier-1 保护） | `160` + features.fragment | **y**（仅 ADIOS 生效） |
-| 容器 | DroidSpaces kABI padding + 官方 GKI 配置 | `090-droidspaces` | y |
-| 安全 | Baseband Guard LSM | `170-security-bbg` | y |
-| 调度 | uclamp DVFS 通知、misfit×2、schedutil policy init、RT timer slack | `100` / `140` | y |
-| 电源/MM | MGLRU suspend/memcontrol、swap readahead、OPP/EM 解析 | `140` | y |
-| 安全/正确性 | TCP 重传 UAF、UDP tunnel 分段 UAF、IPv6 解析加固 | `110` / `180` | y |
-| MM | DAMON 修复组、TLB 单条（基线已有）、writeback 竞态/UAF、ext4 writeback | `180` | y |
-| 兼容 | arm64 per-cpu/percpu 修复 | `120` | y |
+- 块 I/O；ADIOS 调度器（含 901a0cf 三个并发/饥饿修复）；`160-block-adios`；内建且**默认**
+- 块 I/O；`CONFIG_EVONIX_IO_PRIO`（前台同步读 tier-1 保护）；`160` + features.fragment；**y**（仅 ADIOS 生效）
+- 容器；DroidSpaces kABI padding + 官方 GKI 配置；`090-droidspaces`；y
+- 安全；Baseband Guard LSM；`170-security-bbg`；y
+- 调度；uclamp DVFS 通知、misfit×2、schedutil policy init、RT timer slack；`100` / `140`；y
+- 电源/MM；MGLRU suspend/memcontrol、swap readahead、OPP/EM 解析；`140`；y
+- 安全/正确性；TCP 重传 UAF、UDP tunnel 分段 UAF、IPv6 解析加固；`110` / `180`；y
+- MM；DAMON 修复组、TLB 单条（基线已有）、writeback 竞态/UAF、ext4 writeback；`180`；y
+- 兼容；arm64 per-cpu/percpu 修复；`120`；y
+
 
 ### EVONIX 未启用（有意）
 
-| 内容 | 原因 |
-|---|---|
-| EVONIX 增强 schedutil / governor enforce / 动态 headroom / UI 线程识别 / SCHED_RESPONSIVE | 设备专属调参，改默认调度行为，与 MTK EAS/HyperOS 策略冲突 |
-| `CONFIG_EVONIX_MM_OPTIMIZE`（watermark boost 抑制）、自适应内存回收、UI responsiveness engine | 改内存/回收策略，收益未验证，回归风险高 |
-| trusty-rescue + `kvm-arm.mode=nvhe` | 仅 Trusty/gz 被擦除时需要；本机 gz 在位 |
-| EVONIX inline-144 BBRv3 | 破坏 GKI KCSK `icsk_ca_priv`，采用 WK android15-6.6 KABI 版 |
-| EVONIX SELinux 手动 hook | 新 BakaSU 已改为 `ksu_patch_text` auto hook，手动 hook 已移除 |
+- EVONIX 增强 schedutil / governor enforce / 动态 headroom / UI 线程识别 / SCHED_RESPONSIVE；设备专属调参，改默认调度行为，与 MTK EAS/HyperOS 策略冲突
+- `CONFIG_EVONIX_MM_OPTIMIZE`（watermark boost 抑制）、自适应内存回收、UI responsiveness engine；改内存/回收策略，收益未验证，回归风险高
+- trusty-rescue + `kvm-arm.mode=nvhe`；仅 Trusty/gz 被擦除时需要；本机 gz 在位
+- EVONIX inline-144 BBRv3；破坏 GKI KCSK `icsk_ca_priv`，采用 WK android15-6.6 KABI 版
+- EVONIX SELinux 手动 hook；新 BakaSU 已改为 `ksu_patch_text` auto hook，手动 hook 已移除
+
 
 ### 新增运行时能力（configure 级）
 
-| 需求 | 结论 | 配置 |
-|---|---|---|
-| DroidVM | 支持：MTK GenieZone + KVM 两条后端；`gzvm.ko` 在 stock manifest 中；TUN/bridge/veth/NAT 齐备。新增 vhost-net 加速 | `CONFIG_MTK_GZVM=m`（已有）、`CONFIG_KVM=y`（已有）、`CONFIG_VHOST_NET=y`（新增） |
-| Wine / Proton | 支持：NTSYNC、FUTEX(+PI)、COMPAT、USERFAULTFD、memfd、FUSE、BINFMT_MISC、SECCOMP、IO_URING 均在；补 rseq | `CONFIG_RSEQ=y`（新增） |
-| Docker / 容器 | 基本齐备；新增 device cgroup、VXLAN。**按机主要求不引入 nftables/BRIDGE_NETFILTER**，Docker 走 iptables-legacy/xtables | `CGROUP_DEVICE`、`VXLAN` 均 y；`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭 |
-| Docker 限制 | 硬规则关闭：`CFS_BANDWIDTH`、`CGROUP_PIDS` → `--cpus`/`--pids-limit` 不可用；`CHECKPOINT_RESTORE` 未开。未引入 nftables → 只能用 iptables-legacy/xtables（iptables-nft 用户态不可用）；未开 BRIDGE_NETFILTER → L2 桥接过滤受限 | — |
-| 网络默认 | BBR3 拥塞控制 + fq 队列设为内核默认；附加模块检测到已生效时跳过，并写入 4 个 TCP sysctl | `DEFAULT_BBR3=y`、`NET_SCH_DEFAULT=y`、`DEFAULT_FQ=y`（新增） |
-| Landlock | 启用；LSM 链首，ABI v3（6.6 上限） | `CONFIG_SECURITY_LANDLOCK=y`（新增） |
-| 内存大页 | THP 原有（madvise）；新增 HugeTLB + 容器 hugetlb 控制器 | `HUGETLBFS=y`、`CGROUP_HUGETLB=y`（新增）；使用需 `nr_hugepages`/`hugetlb` mount |
-| sing-box | 内核侧满足 TUN、xt TPROXY/socket/mark、IP/IPv6 mangle、策略路由、WireGuard、BPF/tc、netns。**nftables 未启用**：auto-redirect 需走 iptables/TPROXY 路径或直接用 TUN 模式；sing-box 通过 netlink 下发规则，本身不需要 `nft` 二进制 | 无新增 nft 项；xt/TPROXY 链路原本已具备 |
-| zram 默认 | 内核自建 zram.ko 默认压缩改为 lz4kd；实机 vendor zram 仍由附加模块恢复 | `ZRAM_DEF_COMP_LZ4KD=y`（新增） |
-| 第三方调度 Scene / YC | 支持其观测/调参接口：`SCHED_DEBUG`（`/proc/sched_debug`、sched 可调项）、`SCHEDSTATS`（`/proc/schedstat`）、`DEBUG_FS`、taskstats/IO accounting、`CPU_FREQ_STAT`、`PSI`、thermal、uclamp/energy model/schedutil；`SCHED_AUTOGROUP` 保持 Android 默认关闭 | 现有配置均 `=y`，不作为优化裁剪项 |
-| Re:Kernel | 官方支持 GKI 6.6.x（LKM 11.5）；本内核有 MODULES、BTF、BPF、kprobes、netfilter，可加载其 LKM 或 eBPF 变体。**不内建**（它自带 netlink/tombstone 初始化，官方路径是外部模块） | 无需内核改动 |
+- DroidVM；支持：MTK GenieZone + KVM 两条后端；`gzvm.ko` 在 stock manifest 中；TUN/bridge/veth/NAT 齐备。新增 vhost-net 加速；`CONFIG_MTK_GZVM=m`（已有）、`CONFIG_KVM=y`（已有）、`CONFIG_VHOST_NET=y`（新增）
+- Wine / Proton；支持：NTSYNC、FUTEX(+PI)、COMPAT、USERFAULTFD、memfd、FUSE、BINFMT_MISC、SECCOMP、IO_URING 均在；补 rseq；`CONFIG_RSEQ=y`（新增）
+- Docker / 容器；基本齐备；新增 device cgroup、VXLAN。**按机主要求不引入 nftables/BRIDGE_NETFILTER**，Docker 走 iptables-legacy/xtables；`CGROUP_DEVICE`、`VXLAN` 均 y；`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭
+- Docker 限制；硬规则关闭：`CFS_BANDWIDTH`、`CGROUP_PIDS` → `--cpus`/`--pids-limit` 不可用；`CHECKPOINT_RESTORE` 未开。未引入 nftables → 只能用 iptables-legacy/xtables（iptables-nft 用户态不可用）；未开 BRIDGE_NETFILTER → L2 桥接过滤受限；—
+- 网络默认；BBR3 拥塞控制 + fq 队列设为内核默认；附加模块检测到已生效时跳过，并写入 4 个 TCP sysctl；`DEFAULT_BBR3=y`、`NET_SCH_DEFAULT=y`、`DEFAULT_FQ=y`（新增）
+- Landlock；启用；LSM 链首，ABI v3（6.6 上限）；`CONFIG_SECURITY_LANDLOCK=y`（新增）
+- 内存大页；THP 原有（madvise）；新增 HugeTLB + 容器 hugetlb 控制器；`HUGETLBFS=y`、`CGROUP_HUGETLB=y`（新增）；使用需 `nr_hugepages`/`hugetlb` mount
+- sing-box；内核侧满足 TUN、xt TPROXY/socket/mark、IP/IPv6 mangle、策略路由、WireGuard、BPF/tc、netns。**nftables 未启用**：auto-redirect 需走 iptables/TPROXY 路径或直接用 TUN 模式；sing-box 通过 netlink 下发规则，本身不需要 `nft` 二进制；无新增 nft 项；xt/TPROXY 链路原本已具备
+- zram 默认；内核自建 zram.ko 默认压缩改为 lz4kd；实机 vendor zram 仍由附加模块恢复；`ZRAM_DEF_COMP_LZ4KD=y`（新增）
+- 第三方调度 Scene / YC；支持其观测/调参接口：`SCHED_DEBUG`（`/proc/sched_debug`、sched 可调项）、`SCHEDSTATS`（`/proc/schedstat`）、`DEBUG_FS`、taskstats/IO accounting、`CPU_FREQ_STAT`、`PSI`、thermal、uclamp/energy model/schedutil；`SCHED_AUTOGROUP` 保持 Android 默认关闭；现有配置均 `=y`，不作为优化裁剪项
+- Re:Kernel；官方支持 GKI 6.6.x（LKM 11.5）；本内核有 MODULES、BTF、BPF、kprobes、netfilter，可加载其 LKM 或 eBPF 变体。**不内建**（它自带 netlink/tombstone 初始化，官方路径是外部模块）；无需内核改动
+
 
 ### 开销评估（本轮新增开关）
 
@@ -726,3 +725,251 @@ android"/"gki kernel",star 排序)结论:**除已调查的 WildKernels/GKID/EVON
 - `/dev/kvm` 是否存在取决于固件是否在 EL2 启动（KVM 已内建）；`/dev/gzvm` 取决于 GenieZone 固件与 `gzvm.ko` 加载。
 - DroidVM、Docker、Wine/Proton、Re:Kernel 均**未实机验证**；本轮产物也早于这些回移/配置（未重编）。
 - `bdi_writeback` 新增字段已移到既有 union 之后以减少字段偏移变化，但仍是 GKI KMI 观察项。
+
+## 2026-11-28 特性状态实机复核
+
+> 本节把上面「决策总表」里成批的「已落地」按真机 `6.6.144-4k #1`（NoLTO 验证版，
+> dash，OS4.0.4.0）实测刷新。逐项结论见 [TEST_REPORT.md](TEST_REPORT.md) 与
+> [STATUS.md](../STATUS.md)。**注意**：本轮实机是 NoLTO 验证版，生产 Full LTO `#16`
+> 的运行时行为除已记录项外未逐项复测。
+
+- BBRv3；`tcp_congestion_control=bbr3`；`available=bbr bbr3 bic cubic westwood htcp`；✅ 生效且为默认
+- Westwood+/BIC/HTCP；`tcp_available_congestion_control` 全部列出；✅ 编译并可选
+- ADIOS 默认调度器；`sdc` 调度器 `[adios]`；`CONFIG_MQ_IOSCHED_DEFAULT_ADIOS=y`；✅ 生效且为默认
+- EVONIX_IO_PRIO；`CONFIG_EVONIX_IO_PRIO=y`；✅ 编译
+- 默认 fq qdisc；`default_qdisc=fq`；`CONFIG_DEFAULT_FQ=y`；✅ 生效
+- RCU lazy；`enable_rcu_lazy=Y`；`CONFIG_RCU_LAZY=y`；✅ 生效
+- 节能工作队列；`workqueue.power_efficient=Y`；`CONFIG_WQ_POWER_EFFICIENT_DEFAULT=y`；✅ 生效
+- NTSync；`/dev/ntsync` 存在；`CONFIG_NTSYNC=y`；✅ 生效
+- Landlock；LSM 链 `capability,landlock,selinux,bpf,baseband_guard,ksu`；✅ 生效
+- Baseband Guard；同上 LSM 链含 `baseband_guard`；`CONFIG_BBG=y`；✅ 生效
+- MLGO/AutoFDO；`CONFIG_DASH_MLGO_REGALLOC=y`、`CONFIG_AUTOFDO_CLANG=y`（构建期生效）；✅ 编译
+- VXLAN / VHOST_NET / HUGETLBFS；`CONFIG_VXLAN=y`、`VHOST_NET=y`、`HUGETLBFS=y`；✅ 编译（用时才生效）
+- IP Set 全家桶；`/proc/net/ip_tables_targets` 无 `ip_set` 计数、未加使用；Kconfig 已开；✅ 编译（未使用）
+- F2FS iostat；`/sys/fs/f2fs/*/iostat_enable=0`（默认关，节点存在）；✅ 节点在（默认未开）
+- hide_adb_jdwp_sockets；`/proc/sys/kernel/hide_adb_jdwp_sockets` 不存在；但 SUSFS 侧按目录跳过；⚠️ 未见独立 sysctl 节点；功能体现在 SUSFS filldir，需按 §R5 复核
+- KFENCE deferrable；`/sys/module/kfence/parameters/*` 无（生产配置 KFENCE 关闭，按机主要求）；— 未启用（预期）
+- Unicode bypass；无 `/proc/sys/fs/unicode`（该修复无 sysctl，编译进 casefold 路径）；✅ 编译（无单独节点）
+
+
+> 仍需专项验证（非决策项）：`arm64 memcmp` SIMD 上下文审计、PREEMPT_SHORT 逐段
+> 语义复核、DroidVM/Docker/Wine/Re:Kernel 行为级实测（见上「待定」节与
+> [OPEN_ISSUES.md](OPEN_ISSUES.md)）。
+
+## 2026-11-28 小米闭源/移植特性对比调查（外部来源）
+
+> 目的：用户要求调查外部仓库里的小米特性，判断是否值得引入。资料来源均为浅
+> 克隆/按需 API 取（子模块 pin 见 `dash/versions.env` 末段）：
+>
+> - `DADA` = [klarnet2009/dada-closed-modules](https://github.com/klarnet2009/dada-closed-modules)
+>   （Xiaomi 15 / SM8750 约 630 个闭源模块的**逆向重建源码**，146 模块，
+>   EQUIVALENT 103 / PARTIAL 43；每个模块带 `STATUS.md`、等价性核验工具）
+> - `OPT` = [donothavename/opt_gki_kernel_android13-5.15](https://github.com/donothavename/opt_gki_kernel_android13-5.15)
+>   （5.15 GKI 的 OS4 内存/调度移植：`sew_mi_reclaim`/`sew_unfairmem`/
+>   `sew_scene_swappiness`/`sew_dynamic_readahead`/`kshrink_slabd`/`mi_rmap_efficiency`/
+>   `unionpower`/`ssg` 等）
+> - `BIXI` = [android-kernels/xiaomi-bixi-v-oss](https://github.com/android-kernels/xiaomi-bixi-v-oss)
+>   （MiCode 官方 6.6.56 开源，**权威 MFZ / mi_wmark 来源**）
+> - `ONEFEI` = [OneFeiFan/gki-kernel-5.10-xiaomi-pad6max](https://github.com/OneFeiFan/gki-kernel-5.10-xiaomi-pad6max)
+>   （`patches/xiaomi/0047-extm`、`0048-memory-freeze` 完整可用补丁 + 实证笔记）
+
+### 关键认知（先读）
+
+0. **★最重要：dash 的 zram 内存后端是 XRING，不是小米 bixi 的 MFZ。**
+   stock dash `ikconfig` 实测：`# CONFIG_MI_MEMORY_FREEZE is not set`，
+   而 `CONFIG_XRING_ZRAM_MEMCG=y`、`CONFIG_XRING_ZRAM_MEMCG_WRITEBACK=y`、
+   `CONFIG_XRING_ZRAM_XSWAPD=y`、`CONFIG_MI_MEMORY_SYSFS=m`。dash 厂商 zram 源码
+   在 `third_party/mtk-device-modules-hikari/drivers/block/zram/{zgroup,zgroup_wb,
+   mctrl,xswapd,smart_cache}.c`（MTK mt6991 分支）。真机 `/proc/kallsyms` 里
+   `zgroup_enable_show/mctrl_score_read/smart_cache_attr_group` 均归属 `[zram]`。
+   → 所以 **`mfz_enable`/`mfz_disk_quota`/`writeback_quota`/`anno_writeback_*`
+   不是 dash 的缺口**——那是 bixi（高通）机型的 MFZ，dash 用 XRING zgroup。
+   PerfInit 对 dash 报 `mfz_enable not exist` 属正常（stock dash 也没有）。真正要
+   确认的是 **XRING zgroup/xswapd/mctrl 路径是否在本内核可用**（下面第 5 条）。
+1. **我们设备上这些小米模块本来就在跑。** 实测 dash `lsmod` 已加载
+   `mi_reclaim`、`vip_sched`、`rss_monitor`、`dynamic_readahead`、`mi_memory`、
+   `mi_mempool`、`mi_game`、`fault_report`（`mi_reclaim` 的 `info` 显示
+   `refill_total:15567`，确实在回收）。它们通过 **Android vendor hook** 挂在
+   内核上，而我们 6.6 树**已导出全部所需 hook**（`android_vh_get_page_wmark`、
+   `android_vh_shrink_slab_bypass`、`android_vh_alloc_pages_slowpath_start`、
+   `android_vh_direct_reclaim_end`、`android_vh_tune_swappiness`、
+   `android_vh_page_cache_ra_order_bypass`、`android_vh_should_fault_around`）。
+   → 结论：这些**不是要"移植"的特性**，而是**保持 stock 模块可加载即可**；
+   重写反而引入风险（见 dada 的 DO NOT LOAD 清单）。
+2. **`mi_wmark` / `extra_free_kbytes` 对 dash 非必需**：设备真正的水位调节走
+   `/system/bin/extra_free_kbytes.sh`，当 `/proc/sys/vm/extra_free_kbytes` 不存在
+   时它自动换算写 `watermark_scale_factor`（实测 =50，默认 10，说明已生效）。
+   `/sys/kernel/mi_wmark` 不存在。
+3. **`min_free_order_shift` 不是缺口**：该 sysctl 在 Linux 5.x 已删除，小米官方
+   6.6（BIXI）里也没有，全 GitHub 6.x `page_alloc.c` 搜不到。stock OS4 上这条
+   `init.rc` 写入同样无效。
+4. ~~`writeback_quota` 是 PerfInit 日志笔误，实际要的是 `mfz_disk_quota`~~
+   ——**该说法只适用于 bixi/高通机型**。对 dash（XRING 后端）而言，`mfz_*` 与
+   `writeback_quota` 都不存在也不需要；`zgroup_enable` 才是 dash 的 XRING 开关，
+   源码在 `mtk-device-modules-hikari`，**但当前内核实测该节点存在且值为 0（ZRAM
+   厂商 ko 提供），是否启用以 XRING 设计为准，禁止伪造空节点**。
+5. **XRING 后端 = dash 真正的内存特性面**：`zgroup_enable`（cgroup 分组回写）、
+   `memory.mctrl.*`（SmartCache 组策略，实测存在）、`memory.xswapd.*`（XRING
+   后台换出线程，stock 有 `CONFIG_XRING_ZRAM_XSWAPD=y`）。这些**是否已在本内核
+   生效需实测**（见上方总表 XRING 相关行与 [OPEN_ISSUES.md](OPEN_ISSUES.md)）。
+
+### 特性对比总表（外部来源 vs dash，含决策列）
+
+小米特性逐项见**上方合并总表**（分类列「小米(外部来源)」共 23 行）；本节保留背景认知与风险提示。
+
+### XRING 内存协议要点（来自 `xiaomi-venus-memcg` 官方文档 + 设备实测对齐）
+
+> 这是 dash 真正在用的内存后端语义；文档 `Documentation/admin-guide/mm/xiaomi-memcg.rst`
+> 与真机 `/dev/memcg/memory.mctrl.*`、`memory.xswapd.*` 实测逐一吻合。
+
+- **mctrl（SmartCache 组策略）**：`mctrl.score` 0..1000（自动回收跳过 ≤100，分数高优先）；
+  `comp_ratio` 0..100（额外 swap 预算 = 常驻 anon+压缩页+回写页的百分比）；
+  `refault_ratio` 0..100（近期 refault 达阈值则跳过该组）；`wb_ratio` 0..100（对后端实际
+  字节强制）；`mctrl.stat` 报真实 comp/wb 字节。**实测**：根 cgroup 各 mctrl 值为
+  `18446744073709551615`（=未设），`group_param` 表头 `[level] min_score max_score
+  comp_ratio wb_ratio refault_ratio [0] 0 0 0 0 0` 与文档一致。
+- **xswapd（XRING 后台换出线程）**：`reclaim` 格式 `type target_MiB window_MiB`（0=inactive
+  anon/1=all anon/2=inactive file/3=all file）；`swapin`/`swapout` 百分比 0..100（swapout
+  可带 sync 0/1）；`enable`/`umrenable` 0/1（开机复位为禁）；`stop_swap` bit0 取消 anon
+  回收、bit1 取消回写。自动 worker 水位 **low/high 2500/3000 MiB**，每轮 ≤100 MiB，
+  1000 ms 唤醒。**实测**：`xswapd.watermark: mem_press_watermark: 3000`（与 high 一致），
+  `enable=0`、`umrenable=0`、`quota=7516192768`（7 GiB）、`stat: nr_comp: 0`。
+- **zgroup_enable**：disksize 之前的真实开关；无 `CONFIG_ZRAM_WRITEBACK` 时回收/记账后端
+  仍编译，但回写控制缺失。**实测 `zgroup_enable=0`**。
+- **ExtM 原生后端**：`CONFIG_XIAOMI_ZRAM_EXTM` 提供 `/dev/zram-control` ioctl（160B 头、
+  16B extent 项、SET=0x40a05c01/GET=0xc0a05c02）；dash 侧已有 `backing_dev=dm-71` 路径。
+- **MIMD**：`/sys/module/perf_helper/mimd/mimdtrigger` 事件 FIFO；旧 HIDL1.0 daemon 用
+  atoi 而非冒号协议，**对未改 ROM 不要开 MIMD 选项**。
+- **结论**：dash 的 `memory.mctrl.*` / `memory.xswapd.*` / `zgroup_enable` 节点**存在且
+  工作**（xswapd enable 默认关、watermark 3000 已设）。这些是 stock 行为，不需要移植
+  bixi 的 MFZ；是否显式启用 xswapd/zgroup 属**待决策**（见 OPEN_ISSUES A3/A4）。
+
+
+> **风险提示（务必遵守）**：dada 仓库明确标 `DO NOT LOAD` 的模块
+> （`mi_game`/`mi_reclaim`/`mi_low_lat_mem`/`xr_qi`/`xr_qs`/`matt`/`mitee_dlkm`/
+> 全部 charging/gauge 家族/`qca_cld3_*` Wi-Fi）均为 PARTIAL 或社区实验代码，
+> **未在任何设备运行过**，多数还动了硬件写路径（充电/电池/TEE）——只能读，不能刷。
+> 我们要用的是它们的**思路与接口名**，不是它们的 `.ko`。
+
+## 2026-11-28 最后一轮 GitHub 全关键词搜索（7 轮，结论收敛）
+
+> 目的：在已有 5 个新子模块之外，用**不同关键词族**再扫几轮，确认没有遗漏的可用源码。
+> 手段：`gh search code`（12+ 关键词族，按 10 req/min 限速节流）、`gh search repos`
+> （`mt6991`/`xiaomi dash kernel`/`xring zram` 等）、`gh search commits`、
+> `gh search issues`，并对命中仓库用 `gh api` 读 README/Kconfig/源码核实。
+> **结论：XRING 源码面已穷尽，无新增可用仓库需入子模块；新增 2 个"只读参考/取码"来源。**
+
+### 关键新发现（均已实测或源码核实）
+
+1. **★ `XRING_ZRAM_LZ4P` — dash 缺失的 X-Ring 压缩算法**
+   - 全 GitHub 只有 [Pzqqt/android_kernel_xiaomi_marble](https://github.com/Pzqqt/android_kernel_xiaomi_marble)
+     （Redmi Note 12 Turbo / MT6878）带**完整可用源码**：`lib/lz4p/` 12 个文件
+     （`lz4p_compress.c` 15.6 KB、`lz4p_decompress.c` 23.7 KB、`lz4p_encode.S` 19.6 KB、
+     `lz4p_decode.S` 8.4 KB），`config XRING_ZRAM_LZ4P`（default n），
+     `zcomp.c` 里以 `"lz4p"` 注册；`lz4p.h` 头注释为
+     `XRING shrink slabd Feature / Copyright (C) 2024, X-Ring technologies Inc.`
+   - **dash 实测没有**：`/sys/block/zram0/comp_algorithm` = `lzo lzo-rle lz4 zstd [lz4kd]`；
+     厂商 `zram.ko`（269480 B，sha256 `21d0c6c6…`）里 `lz4p` 字符串计数 **0**。
+     → 想要就得把 `lib/lz4p/` + Kconfig + `zcomp.c` 注册一起引入；属**可选性能项**。
+   - 另注：我们当前的 `[lz4kd]` 来自**本内核 crypto**，不是厂商 ko（ko 里 `lz4kd`
+     字符串同样为 0；ko 只带 `lzo-rle`/`zstd`）。这与 [ZRAM_EXTM.md](ZRAM_EXTM.md) 一致。
+
+2. **`kshrink_slabd` 找到了完整源码**（此前只知 OPT 的 5.15 移植）
+   - 同在 `marble` 树：`drivers/staging/kshrink_slabd/kshrink_slabd.c`（230 行，
+     `config KSHRINK_SLABD` tristate default n）。只依赖一个 hook
+     `register_trace_android_vh_shrink_slab_bypass(should_shrink_async, NULL)`
+     和 `shrink_slab()`——**我们树两者都已具备**
+     （`android_vh_shrink_slab_bypass` 已导出；`mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`）。
+   - dash 实测：`lsmod` 无该模块，`/proc/kallsyms` 中 `shrink_async` 计数 0。
+     → 属**可直接落地**的性能项，但仍是"待决策"。
+
+3. **官方 MT6991 6.6.118 源码已可对照**（重要负结果 + 强证据）
+   - [OnePlusOSS/android_kernel_oneplus_mt6991](https://github.com/OnePlusOSS/android_kernel_oneplus_mt6991)
+     （`oneplus/mt6991_b_16.0.0_oneplus_ace5_ultra`，Makefile = **6.6.118**，与设备同版）
+     与 [oppo-source/android_kernel_oppo_mt6991](https://github.com/oppo-source/android_kernel_oppo_mt6991)
+     （6.6.30，Find X8 Pro）。
+   - **它们的 `drivers/block/zram` 是纯 AOSP**（`zcomp.c` 只有 lzo/lzo-rle/lz4/lz4hc/842/zstd，
+     Kconfig 无 XRING/lz4p）。→ **XRING 是小米专有，不是 MTK 平台通用**；
+     dash 的 XRING 只存在于小米 `kernel_device_modules` 树（即我们的 `hikari` 子模块）。
+
+4. **`hikari` 子模块已核验为官方 dash 源码**
+   - `third_party/mtk-device-modules-hikari/drivers/ufs/ufs-mediatek.c`（3527 行）与
+     MiCode 官方 `MTK_kernel_device_modules` 的 **`dash-w-oss` 分支字节完全相同**
+     （`diff -q` → IDENTICAL）。同目录全套 `ufs-mediatek-{btag,dbg,ise,mbrain,mimic,perf,rpmb,sysfs}.c`
+     也在。→ 我们引用的 XRING/UFS 源码是**权威 stock**，不是逆向重实现。
+
+5. **`yili-w-oss` / `piano-w-oss` 已核查，无 XRING**
+   - MiCode `Xiaomi_Kernel_OpenSource` 的 `yili-w-oss`（REDMI K Pad 2，MT6991）是 **6.12.38**，
+     `piano-w-oss` 是 6.6.57；两者 `drivers/block/zram` 均为上游形态，**无 XRING/lz4p**。
+     → 公开 GKI 树不携带 XRING，再次印证第 3 条。
+   - 旁证：[MiCode issue #41194](https://github.com/MiCode/Xiaomi_Kernel_OpenSource/issues/41194)
+     （2026-11-21）正在要求小米公开 `turner-w-oss`（K Pad，MT6991/OS4）源码——**尚未发布**。
+
+6. **UFS `power_mode`/gear-lane（对应 E1–E3）**
+   - [ShriHari33/mt6991-ufs-gear-lane](https://github.com/ShriHari33/mt6991-ufs-gear-lane)：
+     MT6991 实机工程，debugfs `power_mode` 可运行时切 gear/lane；根因是 **Linux 5.14 起
+     W-LUN 与 host controller 独立 runtime-resume**，只唤醒 controller 会让改档打进
+     hibernate8 链路 → `PMC timeout` / `exit h8 state fail`；修法
+     `ufs_debugfs_get_user_access()` → `ufshcd_rpm_get_sync()` 唤醒 W-LUN。
+     另含 `clk_rates` debugfs 与"进 G5 前抬 `ufs_sel`/`ufs_fde` 时钟"的厂商补丁
+     （**未编译**）。→ 只读参考，研究价值高，非 stock 特性。
+   - 我们的 6.6 树 `ufs-debugfs.c` 目前只有 `exception_event_mask` /
+     `exception_event_rate_limit_ms` 两个 debugfs 文件，**没有 `power_mode`**。
+   - 设备实测仍为 `max_discard_segments=1`（E3 未变）；`clkscale_control` current=0（free run）。
+
+### 逐轮搜索覆盖（供复核）
+
+- **轮 1** `zgroup_enable`/`memory.mctrl`/`xswapd` → 全部命中已收录源（hikari/venus/onefei
+  + 大量 device dump）；新细节：cgroup 侧 `memory.mctrl.level/max` 在
+  `/dev/memcg/protect_memcg_N/`。
+- **轮 2** `sew_mi_reclaim`/`mi_wmark`/`mfz_enable`/`writeback_quota`/`dynamic_readahead`/
+  `fault_report`/`vip_sched` → 新仓库 `dongyanchen-dev/android_kernel_xiaomi_sm8850`（补丁全集）。
+- **轮 3** `min_free_order_shift`/`smartfocusio`/`zgroup_wb`/`mi_reclaim`/`protect_memcg`/
+  `kshrink_slabd`/`mi_rmap_efficiency`/`tcp_default_init_rwnd`/`dmabuf_hugetlb`/`iostat_enhance`
+  → `min_free_order_shift` 命中全是 <5.x 老内核（再次证明 6.x 无此接口）；
+  `kshrink_slabd` 首现 `marble`。
+- **轮 4** `fastdiscard`/`max_discard_segments`/`gc_pin_file_thresh`/`memfd-ashmem-shim`/
+  `lz4kd`/`mi_mempool`/`mi_game`/`baseband_guard` → 无新增可用（多为无关项目）；
+  `baseband_guard` = EVONIX/Rodin，已评估过。
+- **轮 5** `CONFIG_XRING_ZRAM`/`mt6991`/`XRING_ZRAM_XSWAPD`/`MI_MEMORY_FREEZE`/
+  `zram_memcg`/`mi_memcg`/`sew_*` → `CONFIG_XRING_ZRAM` 仅 hikari + **marble**；
+  `mt6991` 首现 OnePlus/OPPO 官方树。
+- **轮 6** `blkio.cpq.level`/`hybrid_ufs`/`lz4asm`/`android_vh_tune_swappiness`/
+  `page_cache_ra_order_bypass`/`perfinit.conf`/`system_perf_init` → `hybrid_ufs` 只在本仓库
+  + sm8850；`lz4asm` 未找到独立实现（仅名字出现在 chirunoneko 清单）。
+- **轮 7** `gh search repos`（mt6991 / dash kernel / xring zram）+ `gh search issues`
+  → `mt6991-ufs-gear-lane`、`mt6991-kernel-ci`、MiCode #41194。
+
+### 新增"只读参考 / 取码"来源（不入子模块）
+
+- `Pzqqt/android_kernel_xiaomi_marble` — **唯一公开的 XRING `lz4p` + `kshrink_slabd`
+  完整源码**（MT6878，2.4 GB）：按需 `gh api` 取 `lib/lz4p/*`、
+  `drivers/staging/kshrink_slabd/*`；不整仓克隆。
+- `ShriHari33/mt6991-ufs-gear-lane` — MT6991 UFS gear/lane 运行时切档 + W-LUN 唤醒修复
+  + G5 时钟分析（含 PDF/源码副本，4.7 MB）：取 `current_vs_proposed/proposed/*.patch`
+  与 `sources/`；不整仓克隆。
+- `OnePlusOSS/android_kernel_oneplus_mt6991`、`oppo-source/android_kernel_oppo_mt6991` —
+  **官方 MT6991 6.6.118/6.6.30 源码**，AOSP-vs-厂商对照（证明 XRING 非 MTK 通用）：
+  仅 `gh api` 按文件比对；体量 2.2–2.3 GB，不克隆。
+- `bocchi810/mt6991-kernel-ci` — OnePlus Ace 5 Ultra MT6991 6.6.118 CI；
+  `hybridswap_lpc` NULL-deref kprobe 守卫思路：仅读思路，hybridswap 属 OPLUS 后端，
+  dash 不适用。
+- `dongyanchen-dev/android_kernel_xiaomi_sm8850` — 小米 17/K90 Pro Max GKI 构建器 +
+  **约 60 个安全/FS backport 补丁**（f2fs/ufs/fscrypt/erofs/mglru）：取
+  `patches/backport/*.patch` 比对；SM8850 6.12，非 dash。
+- `liudaoziwa/mainline-mt6991` — Linux 7.3 主线 MT6991 支持：观察，差异过大暂不用。
+- `localhosts-A/UniXNU-MT6991-Common` — MT6991 硬件输入整理
+  （`docs/hardware-inputs.md`、`dts/mt6991.dtsi`）：观察，XNU 方向非 Linux。
+- `SHuiTU68/android_kernel_oplus_common` — OPLUS F2FS 移植
+  （`F2FS_FS_DEDUP`/`COMPRESS_FIXED_OUTPUT`/`lz4armv8` NEON，6.6.114）：
+  取 f2fs 部分比对；OPLUS 专有，dash stock 未必有。
+
+### 结论
+
+- **无需新增子模块**：XRING 源码面（zgroup/zgroup_wb/mctrl/xswapd/smart_cache）已由
+  `hikari` 覆盖且经官方 `dash-w-oss` 字节比对确认权威；`lz4p`/`kshrink_slabd` 是**唯一实际缺口**，
+  且都有可直接取用的公开源码。
+- 所有新增候选都指向**同一结论**：dash 的内存后端是小米 XRING（`hikari` 树），
+  公开 GKI 树（`yili-w-oss`/`piano-w-oss`/OnePlus/OPPO）不带它。
+- 待机主决策的仍是 [OPEN_ISSUES.md](OPEN_ISSUES.md) 的 A3/A4/B1/B2/G1；
+  `lz4p`、`kshrink_slabd`、UFS `power_mode` 作为**新增可选行**挂在总表，状态「未做」。

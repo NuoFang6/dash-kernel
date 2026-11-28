@@ -696,7 +696,7 @@ QoS sysfs 与 stock 行为一致：
   纯增量、不动既有条目。
 - 结论：vendor `.ko` 依赖的 task_struct 偏移与导出符号 CRC 在构建级均已
   实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
-  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §5）。
+  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §4.4）。
 
 ## 22. r4 基线 + BakaSU/SUSFS bump + mihomo 模块移除 + 实机稳定性（2026-11-21）
 
@@ -995,7 +995,7 @@ AVB: original_image_size=18374656，vbmeta=18374656+2432，OEM 字节保留
 - 备份镜像解包后为 `6.6.143-4k #8`；但采集时设备 `uname -a` 仍为 stock
   `6.6.118-android15-8-...`，说明 #8 已写入 boot_a 但尚未重启生效。
 - 本轮未刷机。后续只写激活槽位 `_a`；刷入后重启并先记录 `dmesg`/模块加载
-  结果，再按 `OPEN_ISSUES.md` §5 清单执行。
+  结果，再按 `OPEN_ISSUES.md` §4.4 清单执行。
 
 ## 27. NoLTO 调试内核首刷实机启动（2026-11-21，真机）
 
@@ -2378,6 +2378,12 @@ panic（`panic_on_oops=1` 由 init.rc 写入，已实测生效）。
 
 ### 我们内核缺失的节点（会影响行为）
 
+> **2026-11-28 订正（见 §52）**：本表是 2026-11-27 的审计快照，保留原样。
+> 其中 `anno_writeback` 与 `min_free_order_shift` 的「影响」解读已被本轮纠正：
+> dash 用 XRING 内存后端、stock 即无 `mfz/anno_writeback`（`MI_MEMORY_FREEZE=n`），
+> 故不是缺口；`min_free_order_shift` 6.x 已删除、stock 亦无效。以 §52 与
+> [OPEN_ISSUES.md](OPEN_ISSUES.md) §3 为准。
+
 | 路径 | 触发条件 | 影响 |
 |---|---|---|
 | `/sys/kernel/dmabuf_hugetlb/enable` | `persist.sys.stability.dmabuf=true/false` | 本机该属性为空、触发不发射；能力不可用（stock 是否有未验证） |
@@ -2454,6 +2460,10 @@ watchdog；pstore 只能确认调用进程为 `reboot`（pid 13693），不能�
   格式错误。
 
 ### 仍可复现的 OS4 兼容缺口
+
+> **2026-11-28 订正（见 §52）**：`writeback_quota` 与 `anno_writeback` 对 dash 属正常
+> 缺失（dash 用 XRING，无 MFZ），不是缺口；`min_free_order_shift` 6.x 已删。
+> 本段保留为 2026-11-27 的历史观测，最终判定见 §52 与 OPEN_ISSUES §3。
 
 当前启动的 `PerfInit` 仍报告 `/proc/sys/vm/swappiness` 无法打开，以及
 `/sys/block/zram0/writeback_quota` 不存在。前者是 Android SELinux/节点访问契约
@@ -2571,3 +2581,136 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
 - `unshare -n` 建立两个独立网络命名空间，以 veth 连接，`iperf3 -n 8M`
   通过 IPv4 和 IPv6 分别传输 8 MiB。未改现有路由，不算 DroidSpaces 容器
   NAT 或 AsteriskMETA 转发测试。
+
+## 52. 外部来源调查与内存后端定论（2026-11-28，只读 + 离线）
+
+本轮按机主要求浅克隆/按需 API 拉取了若干小米特性源码仓库（子模块与 pin 见
+`dash/versions.env` 末段与 [NAVIGATION.md](../project/NAVIGATION.md) 子模块表），
+并对实机做了只读核对。目标：确认哪些「小米内存特性」是本机真缺口、哪些不是。
+
+### 关键定论：dash 的内存后端是 XRING，不是 bixi MFZ
+
+- **stock dash `ikconfig`**（`xiaomi-dash-dev/redmi_dash_dump/ikconfig`）实测：
+  `# CONFIG_MI_MEMORY_FREEZE is not set`，而
+  `CONFIG_XRING_ZRAM_MEMCG=y`、`CONFIG_XRING_ZRAM_MEMCG_WRITEBACK=y`、
+  `CONFIG_XRING_ZRAM_XSWAPD=y`、`CONFIG_MI_MEMORY_SYSFS=m`。
+- **运行态**（`/proc/kallsyms`，只读）：`zgroup_enable_show`、`mctrl_score_read`、
+  `smart_cache_attr_group` 均归属 `[zram]`；**无任何** `mfz*`/`anno_writeback`/
+  `writeback_quota` 符号。
+- **加载的是 vendor_boot ramdisk 的厂商 zram.ko（269480 B，sha256
+  `21d0c6c666c455645906943ef603f5cfc9081076dffdb5ad3169127826887429`）**，含
+  `zgroup_enable`/`mctrl`/`xswapd`（grep 命中 2/7/10），**无 `mfz_enable`/
+  `writeback_quota`**（0/0）。`/system_dlkm/lib/modules/zram.ko` 是 85 KB 的 AOSP
+  版（无 XRING），不是实际加载的那份——此前误以该文件判断，已纠正。见
+  [ZRAM_EXTM.md](ZRAM_EXTM.md) §3.1。
+- **结论**：`mfz_enable`/`mfz_disk_quota`/`writeback_quota`/`anno_writeback_*`
+  是 bixi（高通 sm8750 等）机型的 MFZ 实现，**dash 不用、也没有**；PerfInit 在
+  dash 上对这些节点报 not-exist 属正常，**不是缺口**。先前把它列为 P1「唯一明确
+  该做」是错的，已改判「已证伪(对 dash)」。
+
+### 设备只读采集（XRING 节点，与 venus 官方协议文档对齐）
+
+`xiaomi-venus-memcg` 子模块的 `Documentation/admin-guide/mm/xiaomi-memcg.rst` 精确
+描述了下述节点语义，实测值与之吻合：
+
+- `memory.mctrl.*`：`score`/`level`/`max`/`comp_ratio`/`wb_ratio`/`refault_ratio`
+  根值为 `18446744073709551615`（未设）；`group_param` 表头
+  `[level] min_score max_score comp_ratio wb_ratio refault_ratio [0] 0 0 0 0 0`；
+  `stat` 报 `memcg_id:1 nr_anon:690624`。
+- `memory.xswapd.*`：16 个节点全在；`enable=0`、`umrenable=0`、
+  `watermark: mem_press_watermark: 3000`（文档 low/high 2500/3000）、
+  `quota=7516192768`（7 GiB）、`stat: nr_comp: 0`；`reclaim/swapin/swapout`
+  为写接口（读报 Invalid argument 属正常）。
+- `zram0/zgroup_enable = 0`。
+
+### 与本机既有结论一致、无需改动
+
+- `min_free_order_shift`：6.x 已删除，stock 6.6 也无（原厂镜像 §49 亦无同名串）。
+- `mi_wmark`/`extra_free_kbytes`：`extra_free_kbytes.sh` 降级写
+  `watermark_scale_factor`（实测 50），非必需。
+- `memory.swappiness`：`/proc/sys/vm/swappiness=100` 正常；PerfInit 的
+  Permission denied 是 SELinux 域权限，不是缺 sysctl。
+
+### 结论与影响
+
+- `OPEN_ISSUES.md` 中 MFZ/`writeback_quota` 由「P1 待决策」改判「已证伪(对
+  dash)」；新增 XRING `zgroup_enable`/`xswapd` 两个真实待决策项。
+- `FEATURES_SURVEY.md` 合并总表新增 23 行小米来源对比（决策列均标 待决策/未做/
+  已证伪/保持 stock）。
+- 未向设备写入任何 sysfs/proc/property，未刷机。所有外部源码仅作只读参考。
+
+## 53. 最后一轮全关键词搜索与 XRING 源码面收敛（2026-11-28，只读 + 真机核对）
+
+目的：在 §52 之后，用**不同代码关键词族**再扫 7 轮 GitHub，确认是否还有遗漏的
+可用源码。手段与限速：`gh search code`（按 10 req/min 节流，间隔 7 s）、
+`gh search repos`、`gh search commits`、`gh search issues`；命中后用 `gh api`
+读 README/Kconfig/源码核实。**未向设备写入任何节点，未刷机。**
+
+### 新发现 1：XRING `lz4p`（`CONFIG_XRING_ZRAM_LZ4P`）——dash 确实没有
+
+- 全 GitHub 唯一完整源码在 `Pzqqt/android_kernel_xiaomi_marble`：
+  `lib/lz4p/` 12 文件（`lz4p_compress.c` 15647 B、`lz4p_decompress.c` 23722 B、
+  `lz4p_encode.S` 19580 B、`lz4p_decode.S` 8388 B），`config XRING_ZRAM_LZ4P`
+  `bool default n`；`drivers/block/zram/zcomp.c` 里
+  `#if IS_ENABLED(CONFIG_XRING_ZRAM_LZ4P) "lz4p",`。`lib/lz4p/lz4p.h` 头注释：
+  `XRING shrink slabd Feature / Copyright (C) 2024, X-Ring technologies Inc.`。
+- dash 实测缺失：
+  - 设备 `su -c cat /sys/block/zram0/comp_algorithm` → `lzo lzo-rle lz4 zstd [lz4kd]`
+    （**无 lz4p**）；
+  - 厂商 `handoff/dash-gap-handoff/modules/vendor_ramdisk/zram.ko`
+    （269480 B，sha256 `21d0c6c666c455645906943ef603f5cfc9081076dffdb5ad3169127826887429`）
+    `strings -a | grep -ic lz4p` → **0**；`grep -iE 'slabd|kshrink'` → 空；
+    含 `zgroup`/`xswapd`/`smart_cache`/`ExtM`。
+  - → 当前 `[lz4kd]` 由**本内核 crypto** 提供，不是厂商 ko（ko 内 `lz4kd` 字符串亦为 0，
+    只有 `lzo-rle`/`zstd`）。与 [ZRAM_EXTM.md](ZRAM_EXTM.md) 的既有结论一致。
+
+### 新发现 2：`kshrink_slabd` 完整源码已定位
+
+- `marble:drivers/staging/kshrink_slabd/kshrink_slabd.c`（230 行，`config KSHRINK_SLABD`
+  tristate default n，`Copyright (C) 2024 Xiaomi Ltd.`）。只依赖
+  `register_trace_android_vh_shrink_slab_bypass(should_shrink_async, NULL)` 与 `shrink_slab()`。
+- 本树依赖已满足：`android_vh_shrink_slab_bypass` 已导出；
+  `dash/src/aosp/common/mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`。
+- dash 实测：`lsmod` 无该模块；`su -c grep -c shrink_async /proc/kallsyms` → **0**。
+
+### 新发现 3：官方 MT6991 6.6.118 源码可对照（负结果，强化既有定论）
+
+- `OnePlusOSS/android_kernel_oneplus_mt6991` 分支
+  `oneplus/mt6991_b_16.0.0_oneplus_ace5_ultra`：`Makefile` = 6.6.118（与设备同版）；
+  `drivers/block/zram/zcomp.c` 仅 `lzo/lzo-rle/lz4/lz4hc/842/zstd`，Kconfig 无 XRING/lz4p。
+  `oppo-source/android_kernel_oppo_mt6991`（6.6.30）同样为纯 AOSP zram。
+- MiCode `Xiaomi_Kernel_OpenSource`：`yili-w-oss` = 6.12.38、`piano-w-oss` = 6.6.57，
+  zram 均为上游形态，**无 XRING**。MiCode issue #41194（2026-11-21）仍在请求公开
+  `turner-w-oss`（K Pad，MT6991/OS4），**尚未发布**。
+- → 结论：**XRING 是小米专有，不是 MTK 平台通用**；dash 的 XRING 只存在于小米
+  `kernel_device_modules` 树（我们的 `hikari` 子模块）。
+
+### 新发现 4：`hikari` 子模块经官方字节比对确认为 stock
+
+- `diff -q` 比较：`third_party/mtk-device-modules-hikari/drivers/ufs/ufs-mediatek.c`
+  （3527 行，`gh api` 取自 MiCode `MTK_kernel_device_modules` `dash-w-oss`）
+  → **IDENTICAL**。同目录 `ufs-mediatek-{btag,dbg,ise,mbrain,mimic,perf,rpmb,sysfs}.c`
+  与 `drivers/block/zram/{zgroup,zgroup_wb,mctrl,xswapd,smart_cache}.c` 均在。
+- → 我们引用的 XRING/UFS 源码是官方 stock，不是逆向重实现；此前 §52 的定论进一步加固。
+
+### 新发现 5：UFS `power_mode`/gear-lane（对应 E1–E3）
+
+- `ShriHari33/mt6991-ufs-gear-lane`（MT6991 实机工程）：debugfs `power_mode` 运行时切
+  gear/lane；根因是 **Linux 5.14 起 W-LUN 与 host controller 独立 runtime-resume**，
+  只唤醒 controller 时改档会打进仍处 hibernate8 的链路 → `PMC timeout` /
+  `exit h8 state fail`；修法 `ufs_debugfs_get_user_access()` → `ufshcd_rpm_get_sync()`。
+  另有 `clk_rates` debugfs 与"进 G5 前抬 `ufs_sel`/`ufs_fde`"厂商补丁（**作者未编译**）。
+- 我们 6.6 树 `drivers/ufs/core/ufs-debugfs.c` 只有 `exception_event_mask`、
+  `exception_event_rate_limit_ms`；**无 `power_mode`**。
+- 设备复测：`max_discard_segments=1`（E3 不变）；`clkscale_control` current=0（free run）。
+
+### 副作用与文档变更
+
+- `OPEN_ISSUES.md`：新增 E5（UFS `power_mode`）、F4（`lz4p`）、F5（`kshrink_slabd`）；
+  §3 补 3 条证据链；新增 §4.5 落地预案（建议先做 F5、F4 暂缓，理由：dash 的 `zcomp.c`
+  在厂商 ko 内，内核侧加 `lz4p` 不一定能被选中）。
+- `FEATURES_SURVEY.md`：合并总表新增 4 行（`lz4p`、`SMART_CACHE` 配置位、UFS gear_lane、
+  `kshrink_slabd` 补全源码）；新增末节「最后一轮全关键词搜索」含 8 个新增只读来源与
+  逐轮覆盖表。
+- `UPSTREAM_NOTES_REVIEW.md`：新增 §7.5。
+- **未新增子模块**（无遗漏的整仓入库需求）；`dash/versions.env`、`.gitmodules` 未改。
