@@ -17,7 +17,7 @@ index 7c061178f..d2f518d6a 100644
  	u32	chrono_stat[3];	/* Time in jiffies for chrono_stat stats */
  	u8	chrono_type:2,	/* current chronograph type */
 diff --git a/include/net/tcp.h b/include/net/tcp.h
-index a19203586..5226836f9 100644
+index a19203586..5ce8617fa 100644
 --- a/include/net/tcp.h
 +++ b/include/net/tcp.h
 @@ -375,6 +375,8 @@ static inline void tcp_dec_quickack_mode(struct sock *sk)
@@ -165,7 +165,18 @@ index a19203586..5226836f9 100644
  /* These functions determine how the current flow behaves in respect of SACK
   * handling. SACK is negotiated with the peer, and therefore it can vary
   * between different flows.
-@@ -2244,6 +2320,83 @@ void tcp_plb_update_state(const struct sock *sk, struct tcp_plb_state *plb,
+@@ -1448,6 +1524,10 @@ static inline void tcp_slow_start_after_idle_check(struct sock *sk)
+ 		tcp_cwnd_restart(sk, delta);
+ }
+ 
++#ifdef CONFIG_SYSCTL
++extern int sysctl_tcp_default_init_rwnd;
++#endif
++
+ /* Determine a window scaling and initial window to offer. */
+ void tcp_select_initial_window(const struct sock *sk, int __space,
+ 			       __u32 mss, __u32 *rcv_wnd,
+@@ -2244,6 +2324,83 @@ void tcp_plb_update_state(const struct sock *sk, struct tcp_plb_state *plb,
  void tcp_plb_check_rehash(struct sock *sk, struct tcp_plb_state *plb);
  void tcp_plb_update_state_upon_rto(struct sock *sk, struct tcp_plb_state *plb);
  
@@ -361,6 +372,29 @@ index b18ba8ef9..fd8a4cf3a 100644
  obj-$(CONFIG_TCP_CONG_BIC) += tcp_bic.o
  obj-$(CONFIG_TCP_CONG_CDG) += tcp_cdg.o
  obj-$(CONFIG_TCP_CONG_CUBIC) += tcp_cubic.o
+diff --git a/net/ipv4/sysctl_net_ipv4.c b/net/ipv4/sysctl_net_ipv4.c
+index 312981765..2a049b472 100644
+--- a/net/ipv4/sysctl_net_ipv4.c
++++ b/net/ipv4/sysctl_net_ipv4.c
+@@ -468,7 +468,18 @@ static int proc_fib_multipath_hash_fields(struct ctl_table *table, int write,
+ }
+ #endif
+ 
++static int tcp_default_init_rwnd_max = U16_MAX;
++
+ static struct ctl_table ipv4_table[] = {
++	{
++		.procname	= "tcp_default_init_rwnd",
++		.data		= &sysctl_tcp_default_init_rwnd,
++		.maxlen		= sizeof(int),
++		.mode		= 0644,
++		.proc_handler	= proc_dointvec_minmax,
++		.extra1		= SYSCTL_ZERO,
++		.extra2		= &tcp_default_init_rwnd_max,
++	},
+ 	{
+ 		.procname	= "tcp_max_orphans",
+ 		.data		= &sysctl_tcp_max_orphans,
 diff --git a/net/ipv4/tcp.c b/net/ipv4/tcp.c
 index a6d76b687..f1b960f73 100644
 --- a/net/ipv4/tcp.c
@@ -2912,10 +2946,36 @@ index 4b746261c..5372fc85f 100644
  		const struct tcp_congestion_ops *ca;
  
 diff --git a/net/ipv4/tcp_output.c b/net/ipv4/tcp_output.c
-index fc7cdd5e0..c68fa8e5b 100644
+index fc7cdd5e0..67c385e70 100644
 --- a/net/ipv4/tcp_output.c
 +++ b/net/ipv4/tcp_output.c
-@@ -344,9 +344,9 @@ static void tcp_ecn_send_syn(struct sock *sk, struct sk_buff *skb)
+@@ -196,6 +196,10 @@ static inline void tcp_event_ack_sent(struct sock *sk, u32 rcv_nxt)
+ 	inet_csk_clear_xmit_timer(sk, ICSK_TIME_DACK);
+ }
+ 
++#ifdef CONFIG_SYSCTL
++int sysctl_tcp_default_init_rwnd __read_mostly;
++#endif
++
+ /* Determine a window scaling and initial window to offer.
+  * Based on the assumption that the given amount of space
+  * will be offered. Store the results in the tp structure.
+@@ -233,8 +237,13 @@ void tcp_select_initial_window(const struct sock *sk, int __space, __u32 mss,
+ 	else
+ 		(*rcv_wnd) = min_t(u32, space, U16_MAX);
+ 
++#ifdef CONFIG_SYSCTL
++	/* Explicit route and BPF settings take precedence. */
++	if (!init_rcv_wnd && net_eq(sock_net(sk), &init_net))
++		init_rcv_wnd = READ_ONCE(sysctl_tcp_default_init_rwnd);
++#endif
+ 	if (init_rcv_wnd)
+-		*rcv_wnd = min(*rcv_wnd, init_rcv_wnd * mss);
++		*rcv_wnd = min_t(u64, *rcv_wnd, (u64)init_rcv_wnd * mss);
+ 
+ 	*rcv_wscale = 0;
+ 	if (wscale_ok) {
+@@ -344,9 +353,9 @@ static void tcp_ecn_send_syn(struct sock *sk, struct sk_buff *skb)
  	bool use_ecn = READ_ONCE(sock_net(sk)->ipv4.sysctl_tcp_ecn) == 1 ||
  		tcp_ca_needs_ecn(sk) || bpf_needs_ecn;
  
@@ -2927,7 +2987,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  		if (dst && dst_feature(dst, RTAX_FEATURE_ECN))
  			use_ecn = true;
  	}
-@@ -358,6 +358,9 @@ static void tcp_ecn_send_syn(struct sock *sk, struct sk_buff *skb)
+@@ -358,6 +367,9 @@ static void tcp_ecn_send_syn(struct sock *sk, struct sk_buff *skb)
  		tp->ecn_flags = TCP_ECN_OK;
  		if (tcp_ca_needs_ecn(sk) || bpf_needs_ecn)
  			INET_ECN_xmit(sk);
@@ -2937,7 +2997,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  	}
  }
  
-@@ -395,7 +398,8 @@ static void tcp_ecn_send(struct sock *sk, struct sk_buff *skb,
+@@ -395,7 +407,8 @@ static void tcp_ecn_send(struct sock *sk, struct sk_buff *skb,
  				th->cwr = 1;
  				skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
  			}
@@ -2947,7 +3007,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  			/* ACK or retransmitted segment: clear ECT|CE */
  			INET_ECN_dontxmit(sk);
  		}
-@@ -1561,7 +1565,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
+@@ -1561,7 +1574,7 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
  {
  	struct tcp_sock *tp = tcp_sk(sk);
  	struct sk_buff *buff;
@@ -2956,7 +3016,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  	long limit;
  	int nlen;
  	u8 flags;
-@@ -1636,6 +1640,30 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
+@@ -1636,6 +1649,30 @@ int tcp_fragment(struct sock *sk, enum tcp_queue tcp_queue,
  
  		if (diff)
  			tcp_adjust_pcount(sk, skb, diff);
@@ -2987,7 +3047,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  	}
  
  	/* Link BUFF into the send queue. */
-@@ -2939,6 +2967,7 @@ void tcp_send_loss_probe(struct sock *sk)
+@@ -2939,6 +2976,7 @@ void tcp_send_loss_probe(struct sock *sk)
  	if (WARN_ON(!skb || !tcp_skb_pcount(skb)))
  		goto rearm_timer;
  
@@ -2995,7 +3055,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  	if (__tcp_retransmit_skb(sk, skb, 1))
  		goto rearm_timer;
  
-@@ -3617,6 +3646,7 @@ EXPORT_SYMBOL_GPL(tcp_send_active_reset);
+@@ -3617,6 +3655,7 @@ EXPORT_SYMBOL_GPL(tcp_send_active_reset);
   */
  int tcp_send_synack(struct sock *sk)
  {
@@ -3003,7 +3063,7 @@ index fc7cdd5e0..c68fa8e5b 100644
  	struct sk_buff *skb;
  
  	skb = tcp_rtx_queue_head(sk);
-@@ -3634,6 +3664,8 @@ int tcp_send_synack(struct sock *sk)
+@@ -3634,6 +3673,8 @@ int tcp_send_synack(struct sock *sk)
  			if (!nskb)
  				return -ENOMEM;
  			INIT_LIST_HEAD(&nskb->tcp_tsorted_anchor);

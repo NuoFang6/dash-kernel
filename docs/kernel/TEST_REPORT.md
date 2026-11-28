@@ -696,7 +696,7 @@ QoS sysfs 与 stock 行为一致：
   纯增量、不动既有条目。
 - 结论：vendor `.ko` 依赖的 task_struct 偏移与导出符号 CRC 在构建级均已
   实证不变；kABI 补丁按设计工作。**实机验证缺口仍在**：586 模块加载、
-  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §3）。
+  `droidspaces check`、genksyms 抽查需刷机后复核（见 OPEN_ISSUES §5）。
 
 ## 22. r4 基线 + BakaSU/SUSFS bump + mihomo 模块移除 + 实机稳定性（2026-11-21）
 
@@ -995,7 +995,7 @@ AVB: original_image_size=18374656，vbmeta=18374656+2432，OEM 字节保留
 - 备份镜像解包后为 `6.6.143-4k #8`；但采集时设备 `uname -a` 仍为 stock
   `6.6.118-android15-8-...`，说明 #8 已写入 boot_a 但尚未重启生效。
 - 本轮未刷机。后续只写激活槽位 `_a`；刷入后重启并先记录 `dmesg`/模块加载
-  结果，再按 `OPEN_ISSUES.md` §3.1 清单执行。
+  结果，再按 `OPEN_ISSUES.md` §5 清单执行。
 
 ## 27. NoLTO 调试内核首刷实机启动（2026-11-21，真机）
 
@@ -2077,3 +2077,497 @@ OEM 3520 / `cgroup` 1920 / `bdi_writeback` 904 / `backing_dev_info` 1336），
 
 原始日志：`dash/out/evidence/20261124-6.6.144-final/`
 （`final-dmesg.txt`、`logcat-ef-top.txt`、`system.txt`、`extm-modules.txt`）。
+
+## 43. BBR3 实机有效性与收益测量（2026-11-27，真机 + 受控 netns 链路）
+
+对象：`6.6.144-4k #16`（`boot_a` `7e36a974…`），adbd 已获 `ksu` root。
+机主怀疑 BBR3 工作不佳但缺证据，本次用受控链路量化。
+
+### 结论（先看这张）
+
+| 场景 | bbr3 | bbr | cubic |
+|---|---|---|---|
+| 20 Mbit / 51 ms RTT，无丢包（15s） | 22.7 / 24.7 MB | 35.9 / 35.2 MB | 4.7 / 5.4 MB |
+| 同上，前向路径 1% 丢包（15s） | 28.9 / 25.8 MB | 32.8 / 33.3 MB | 7.4 / 6.7 MB |
+| 20 Mbit / 203 ms RTT，0.5% 丢包（15s） | 29.6 / 30.6 MB | 32.0 / 31.2 MB | **1.7 / 6.7 MB** |
+| 100 Mbit / 51 ms RTT，无丢包（12s） | 131 MB | 131 MB | 139 MB |
+| 满速时注入 RTT 探针（基线 51 ms） | **68 ms 平均 / 120 ms 最大** | 81 / 114 ms | **792 / 1824 ms** |
+
+BBR3 **工作正常且有实际收益**：长 RTT + 丢包链路吞吐是 cubic 的 5–18 倍，
+bufferbloat 下延迟比 cubic 低一个数量级，延迟表现略优于老 BBR。
+唯一确定的短板是**吞吐比老 BBR 低约 10–30%**，见“缺陷定位”。
+
+### 实验方法
+
+热点路径不可用作证据：PC 经 `ap0` 走的是**转发**，不产生手机本地 TCP，
+热点快慢完全测不到 BBR3（PC 侧 cc 是 `bbr`）。实测该 2.4 GHz/20 MHz 链路
+`tx retries` 从 4992 涨到 8717、`rx drop misc` 递增，同算法重复波动
+1.5→49 MB，噪声压过算法差异。
+
+改用内核自带 `veth` + `netem` 在手机内部建 netns 受控链路（不碰
+`ap0`/`ccmni4`，热点与电脑网络全程未受影响）：`ns1:veth1` ↔ `ns2:veth2`，
+双向 netem 设 delay/rate/loss，两侧关闭 veth GSO/TSO/GRO 使 netem 按
+真实报文丢包。每次 `iperf3 -C <cc>` 指定算法（非 root 也可，`ksu` 下验证
+`-C nosuchcc` 报错说明 `-C` 真实生效），交替执行多轮并取重复值。
+
+### 缺陷定位：bbr3 带宽估计被丢包压低且恢复不满
+
+20 Mbit / 51 ms / 1% 丢包下连续 36s 采样 `ss -tin`（`bw:` 为 BBR3 的
+`bw_lo` 上下界合成估计）：
+
+| 时刻 | bbr3 `bw` | bbr `bw` |
+|---|---|---|
+| 5s | 19.3 Mbit | 19.6 Mbit |
+| 10s | 19.4 | 19.4 |
+| 15s | **13.8** | 19.4 |
+| 20s | 17.3 | 19.5 |
+| 25s | 16.5 | 19.5 |
+| 30s | 14.9 | 19.6 |
+
+bbr3 反复被拉低到 13.8–17.3 后只部分爬回；bbr 钉在链路容量 19.4–19.6。
+同时 bbr3 的重传数反而更少（311–361 vs 424–455 包 / 15s），说明它是在
+丢包触发的 `inflight_lo`/`bw_lo` 乘法收缩（`bbr_loss_lower_bounds`，
+`bbr_beta=30%`）后**主动压低发送速率**，而非丢包自身造成。源码位置
+`common/net/ipv4/tcp_bbr3.c` 的 `bbr_adapt_lower_bounds()` /
+`bbr_loss_lower_bounds()`。
+
+已排除的干扰项：`tcp_plb_enabled=0`；`TCP_ECN_LOW` 只能由路由 metric
+`RTAX_FEATURE_ECN_LOW` 置位（`tcp_minisocks.c:437`、`tcp_output.c:363`），
+本机未设置，故 `bbr_can_use_ecn()` 恒假、ECN 收缩路径不会被误触发；
+netem 不做 CE 标记。
+
+### ECN：内核链路正常，但 bbr3 的 ECN 发送端逻辑默认不生效
+
+结论分三层，不要混为一谈。
+
+**① ECN 协商与 CE 投递正常（实测）**。`tcp_ecn=1` 时握手 SYN 为
+`Flags [SEW]`、SYN-ACK 为 `[S.E]`、后续数据 `tos 0x2 ECT(0)`（tcpdump 抓
+`veth` 验证）。netem `loss N% ecn` 标记的 CE 也能到对端并回显：24s 传输中
+发送端 `TCPDeliveredCE` 增量 26000+（注意该计数器是**发送端收 ECE ACK**
+的统计，读接收端会一直是 0，笔者第一轮就读错了）。
+
+**② bbr3 的 ECN 收缩逻辑在本机永不启用（代码 + 实测双向确认）**。
+`bbr_can_use_ecn()` 要求 `ecn_flags` 同时有 `TCP_ECN_OK` 和 `TCP_ECN_LOW`
+（`tcp_bbr3.c:301`，与 WK 上游补丁 707 行完全一致，非本仓改动）。
+`TCP_ECN_LOW` 的唯一置位点是 `tcp_set_ecn_low_from_dst()`，要求路由 metric
+带 `RTAX_FEATURE_ECN_LOW`（`tcp_output.c:363`、`tcp_minisocks.c:437`）；
+而 `iproute2` 的 `features` 只接受 `ecn`，`features ecn_low` 直接报
+`value not valid`，内核也无对应的 per-route 配置入口。因此 `ecn_eligible`
+恒为 0 → `ecn_alpha`/`bbr_ecn_lower_bounds()`/`bbr_ecn_cut()` 整条路径
+不执行（这也与 §43 前面「ECN 收缩不会误触发」的判读一致）。
+
+**③ 因 ②，实测中 bbr3 对 CE 不反应，HTCP 等价性也未受影响（实测）**。
+在 20 Mbit/51 ms 链路上把前向 netem 从 0% 改到 `loss 10% ecn`（只标 CE、
+不丢包），三条流 24s：
+
+| cc | 吞吐 | 发送端 CE 增量 | 末态 |
+|---|---|---|---|
+| cubic | 22.6 / 22.5 MB | 6132 / 6115 | `cwnd:2 ssthresh:2`，被 ECE 打到停摆 |
+| bbr3 | 53.4 / 52.1 MB | 26796 / 26881 | `cwnd:178`、`bw:19.5Mbps`，**不受影响** |
+| bbr | 52.0 / 53.5 MB | 26424 / 27646 | `cwnd:190`、`bw:19.4Mbps`，不受影响 |
+
+cubic 的 ECE 响应正常工作（窗口从 26 缩到 2），证明“CE 确实到了并被处理”；
+bbr3 与 bbr 表现一致（CE 增量相近，吞吐都在线速），说明 bbr3 把 CE 当噪声
+忽略——符合 ② 的判读，即 ECN 发送端逻辑未启用。
+
+**判断**：这是 **WK 上游的设计取舍**（`TCP_ECN_LOW` 需要网络侧配合下发
+路由 metric，典型是 Google 数据中心/部分 ISP），不是本仓引入的缺陷。
+对日常使用的实际影响是：**bbr3 不会利用 ECN 提前降速**，在支持 ECN 的
+AQM 链路上拿不到 ECN 相对丢包的优势；但同时也不会像 cubic 那样被 ECE
+打到 `cwnd:2`。若将来要让 ECN 生效，需要 L2/L3 下发 `RTAX_FEATURE_ECN_LOW`
+（本机无该入口），或改 `bbr_can_use_ecn()` 放宽到仅 `TCP_ECN_OK`——后者属
+行为变更，需重新评估并与上游偏离度一起记录。
+
+**补充：还有一道比 `TCP_ECN_LOW` 更硬的 5 ms 门槛（2026-11-27 静态核查）**。
+即使拿到 `TCP_ECN_LOW`，`ecn_eligible` 仍要求
+`(min_rtt_us <= bbr_ecn_max_rtt_us || !bbr_ecn_max_rtt_us)`，而
+`static const u32 bbr_ecn_max_rtt_us = 5000`（5 ms）。该值在**三份独立来源
+完全一致**：`gkid/kernel-patches/bbrv3/bbrv3.patch:2118`（Google 原始）、
+`wk-patches/.../android15-6.6.patch:598`（WK backport）、
+`.refs/evonix/net/ipv4/tcp_bbr.c:267`（EVONIX）。即 **Google 原始设计**，
+非 WK 改动、非本仓改动。手机到任何远端 RTT 均 ≥20 ms（本报告实测链路
+51/203 ms），恒不满足 → bbr3 的 ECN 拥塞响应在本机永远不启用。
+`bbr_param(sk,name)` 展开为 `static const` 且全文件无
+`module_param`/`proc_create`/`debugfs_create`，`TCP_CONG_BBR3=y` 内建，
+**没有任何运行时旋钮**可绕过。另经 PC netns 实测确认：`iproute2` 的
+`features` 只接受 `ecn`，但原始 netlink 写 `RTAX_FEATURES=0x20` 可成功下发
+（`ip route show` 显示 `features 0x20`），故 `TCP_ECN_LOW` 这一层可绕过、
+5 ms 这一层不可绕过。
+
+### Westwood 对比（2026-11-27，同链路实测）
+
+机主问「Westwood 会不会比 bbr3 更好」。用 `tbf`(20 Mbit, 32 KB burst,
+74 KB 队列) + `netem` 25 ms 建真实瓶颈，双向关 GSO/TSO/GRO，
+`iperf3 -t 16~20`：
+
+| 场景 | bbr3 | westwood | bbr | cubic |
+|---|---|---|---|---|
+| 51 ms RTT 干净 | 35.7–40.4 MB | 41.4–46.4 MB | 35.8–40.4 MB | 43.4 MB |
+| 51 ms + 0.5% loss | 37.8 MB | 25.7 MB | 40.3 MB | 11.1 MB |
+| 51 ms + 10% loss | 7.8 MB（retr 670） | **2.0 MB（retr 157）** | 44.2 MB（retr 3462） | — |
+| 203 ms + 0.5% loss | 30.2 MB | **7.8 MB** | 30.5 MB | 11.7 MB |
+| 满速时 ping（51 ms 基线） | 62–71 ms 平均 | **50.1–50.9 ms（几乎不增）** | 90–97 ms | 863–979 ms |
+
+判读：
+
+- **吞吐**：干净链路 westwood 与 bbr3 实为同一水平（约 18.7–18.9 Mbit/s，
+  都打满 20 Mbit 管道；`--json` 核对 westwood `retransmits=0` 且
+  `sum_sent==sum_received`）。**带丢包时 westwood 全面差于 bbr3**，
+  10% 丢包下只有 2.0 MB vs 7.8 MB，高 RTT 下 7.8 MB vs 30.2 MB。
+- **延迟**：westwood 的 `min_rtt`/`ping` 几乎不增长，是它最突出的优点；
+  但同一时刻 `ss` 显示 `rtt:1781ms`、`unacked:4039`、`cwnd:5930`，
+  说明它靠**极大窗口塞满队列**换取“采样 RTT 不变”，队列占用其实很高。
+  这个矛盾表明 westwood 的低延迟读数不能等同于低排队。
+- **结论**：**Westwood 不比 bbr3 好**。它的收益只在无损短 RTT 链路的
+  延迟读数上，代价是丢包和高 RTT 下吞吐塌陷（正是手机/跨境场景）。
+
+### 清理与当前状态
+
+netns 已删除（`e1`/`e2`/`w1`/`w2`）、`/data/local/tmp/` 测试脚本与 pcap 已清理、
+PC 侧 iperf3 已停止；手机 `tcp_congestion_control=bbr3`、
+`default_qdisc=fq`，`ap0`/`ccmni4` qdisc 未改动（`mq`+`fq` 原样），
+电脑热点连接全程未断。netns 内的 `tcp_ecn=1/2` 设置随 netns 删除一并
+消失，主命名空间 `tcp_ecn=1` 未改动。
+
+原始日志：`/tmp/bbr_*.sh`、`/tmp/hotspot_ab.sh`、`/tmp/hi_rtt.sh`、
+`/tmp/ecn*.sh`、`/tmp/cecnt.sh`
+（PC 侧脚本副本，手机侧 `/data/local/tmp/` 已清理）。
+
+## 44. 小米 SmartCache / MultiCache 与 MGLRU 的关系（2026-11-27，真机）
+
+对象：`6.6.144-4k #16`（`boot_a` `7e36a974…`），OS4.0.4.0，
+`adb root` 走 `ksu`。目的：判断 `persist.sys.stability.MultiCacheEnable`、
+`persist.sys.stability.SmartCacheEnable` 是否冲突、是否会让 MGLRU 失效。
+
+### 结论（先看这张）
+
+| 问题 | 结论 |
+|---|---|
+| 两个开关彼此冲突？ | **不冲突**。它们是同一个服务的两个子功能，各自独立生效 |
+| 会让 MGLRU「失效」？ | **是的，而且是故意的**：OS4 在开机与属性变化时把 `lru_gen/enabled` 写 0，MGLRU 默认就是关的 |
+| 有守护进程持续压回吗？ | **没有**。只有 init 的一次性 `write`，手动打开后可稳定保持（实测 120 s 不回退） |
+| 建议 | 在与厂商 SmartCache 共存时**不要开 MGLRU**（2.12） |
+
+### 机制
+
+两个属性都只被一个消费者读取：`miui-services.jar` 里的
+`com.miui.server.smartcache.SmartCacheService`（`dexdump` 证据，
+`<clinit>` 里 `SystemProperties.getBoolean`）：
+
+| 属性 | 落到哪个字段 | 实际作用 |
+|---|---|---|
+| `SmartCacheEnable` | `IS_ENABLED` | 按 `/product/etc/smart_cache.xml` 的 level 钉文件，写 `/dev/memcg/memory.mctrl.level`（`/dev/memcg/memory.mctrl.max` 为容量） |
+| `MultiCacheEnable` | `IS_CACHE_ENABLED` | 读写 `/sys/kernel/smart_cache/{enable,file,ratio}`，即 vendor zram 侧的 smart cache |
+| `PrereadEnable` / `XringPrereadEnable` | 另两个字段 | 读预取，与本次无关 |
+
+`SmartCacheService` 构造时按 `/sys/fs/cgroup/memory.mctrl.level` 是否存在
+在 `/sys/fs/cgroup/protect_memcg_` 与 `/dev/memcg/protect_memcg_` 之间选路径；
+本机两者都在（cgroup v1 的 `/dev/memcg` 挂载 + cgroup v2 的
+`protect_memcg_1..3`）。
+
+`/sys/kernel/smart_cache/` 由**当前加载的 vendor zram 模块**提供
+（`/proc/kallsyms` 里 `smart_cache_init/attr_group/enable_attr`
+全部标 `[zram]`；`/system_dlkm/lib/modules/zram.ko` 里**没有**这些符号，
+说明实机跑的是 vendor_boot ramdisk 里带 ExtM 的那份，与
+[ZRAM_EXTM.md](ZRAM_EXTM.md) 一致）。实机状态：`enable=1`、`ratio=50`、
+`file` 为只写（`--w------- system`），Metis/mmd 之外的这条链路正常。
+
+### MGLRU 相关的两处 init 写入
+
+| 文件:行 | 触发 | 动作 |
+|---|---|---|
+| `/vendor/etc/init/hw/init.mt6991.rc:188` | `on post-fs-data` | `write /sys/kernel/mm/lru_gen/enabled n` |
+| `/system/etc/init/hw/init.rc:1702` | `on property:persist.sys.stability.SmartCacheEnable=true` | `write /sys/kernel/mm/lru_gen/enabled 0` |
+
+`dmesg` 实证第二条真实触发：
+
+```text
+init: Command 'write /sys/kernel/mm/lru_gen/enabled 0'
+      action=persist.sys.stability.SmartCacheEnable=true
+      (/system/etc/init/hw/init.rc:1702) took 616ms and succeeded
+```
+
+### 实测（同一次开机内）
+
+| 操作 | `lru_gen/enabled` | 说明 |
+|---|---|---|
+| 开机后 | `0x0000` | OS4 主动关闭，`CONFIG_LRU_GEN=y` + `LRU_GEN_ENABLED=y` 但被运行时关掉 |
+| `echo 7 >` | `0x0003` | arm64 支持 MM_WALK（`cpu_has_hw_af`），NONLEAF 不支持 |
+| 连续采样 120 s | `0x0003` ×10 | **无任何组件把它压回**，不是持续冲突 |
+| `echo 0 >` | `0x0000` | |
+| `setprop …SmartCacheEnable false/true` | `0x0003` → `0x0002` → `0x0000` | init 的写入耗时约 600 ms，中间态可见（CORE 先关、MM_WALK 后关） |
+
+即：**冲突是「策略冲突」，不是「抢写冲突」**。厂商把 MGLRU 当作与
+SmartCache/mctrl 二选一的方案，而不是当作可以叠加的优化。
+
+### 一个必须知道的树内偏差
+
+`mm/readahead.c` 在 `forced` 预读后会遍历刚读入的 folio 并
+`set_bit(PG_oem_reserved_5, …)`，`mm/vmscan.c` 的
+`folio_check_references()` 在 `lru_gen_enabled()` 时把这个 bit 当成
+workingset、返回 `FOLIOREF_ACTIVATE`。也就是说：**开启 MGLRU 后，
+forced 预读的每一页都会获得一次「不回收、直接 activate」的机会。**
+
+这段代码：
+
+- 不在 `patches/` 的任何补丁里（`grep -ral oem_reserved_5 dash/patches/`
+  为空，`mm/readahead.c` 没有任何补丁头）；
+- 上游 `android15-6.6` 没有：`include/linux/page-flags.h` 上游只有
+  `PG_oem_reserved_1..4`，本树多了第 5 个；上游 `readahead.c`/`vmscan.c`
+  无此逻辑。
+
+后果是 `#16` 的构建输入无法由 `make patches` 复现——`apply-patches.sh`
+先 `git reset --hard`，下一次构建会静默丢掉这段行为。已记入
+[OPEN_ISSUES.md](OPEN_ISSUES.md) 2.12。
+
+## 45. OOM deadlock panic 复盘（2026-11-27 22:11，真机）
+
+上一轮开机运行约 33.7 h（panic 时 `uptime=121480 s`）后 panic：
+
+```text
+Out of memory and no killable processes...
+Kernel panic - not syncing: System is deadlocked on memory
+sys.boot.reason = kernel_panic,system_is_deadlocked_on_memory
+```
+
+现场（`/sys/fs/pstore/console-ramoops-0`，2 MB 环形缓冲只覆盖最后 ~3.4 min）：
+
+| 项 | 值 |
+|---|---|
+| 触发分配 | `VcodecProcess` `order=2`，`oom_score_adj=-1000` |
+| `active_file` / `inactive_file` | 4.2 GB / **9.2 GB**（合计 13.4 GB 文件页） |
+| `active_anon` / `inactive_anon` | 373 MB / 23 MB |
+| `Free swap` | **16.15 GB / 16.77 GB（几乎完全未用）** |
+| 空闲内存 | 33 MB；`all_unreclaimable? yes` |
+| 其它 OOM 触发者 | `com.android.nfc`、`m.android.phone`、`android.hardwar`，全部 `oom_score_adj=-1000`；期间已杀掉 `com.android.se`、`ek.voicecommand`、**`system_server`** |
+| 伴随噪声 | `mtk_dmabuf_page_pool_shrink: mutex_trylock busy` 刷了 24149 行（该消息在 `handoff/logs-20261030/` 同款出现，属既有厂商行为） |
+
+判读：内存不是被 anon 吃掉的（anon 只有 373 MB），也不是 swap 不够
+（16 GB 全空），而是**文件页回收失败**——9.2 GB inactive file 被判
+`all_unreclaimable`。OOM 域内的任务全是 `-1000`（Android 给关键/vendor
+进程的取值），选不出可杀进程，于是从 `vm.panic_on_oom=0` 走到 deadlock
+panic（`panic_on_oops=1` 由 init.rc 写入，已实测生效）。
+
+### 与本次 MGLRU 操作的时间相关（不能证明因果，但必须记录）
+
+本次会话在 panic 前约 30 分钟手动把 MGLRU 打开过（`echo 7`，随后一次
+`echo 1` 落在 `0x0001`），直到 panic 都没有恢复成 0。结合 §44 的
+`PG_oem_reserved_5` 逻辑，**开启 MGLRU 会让 forced 预读页被 activate 而非
+回收**，与「13.4 GB 文件页、回收全失败」的现象方向一致。
+
+同时必须承认另外两个事实：环形缓冲只剩 3.4 min，看不到文件页是何时涨上来的；
+`db_history` 里此前没有任何 `kernel_panic` 记录，说明这是**首次**，而之前
+33 h 的运行与本次唯一已知差异就是 MGLRU 被打开过。**结论按证据强度分开写**：
+
+- 真机实测：panic 事实、Mem-Info、swap 未使用、`-1000` 导致无法选杀；
+- 静态推断：`PG_oem_reserved_5` + MGLRU 会削弱文件页回收（代码可查）；
+- 未验证：这次 panic 是否由 MGLRU 触发（需要受控 A/B 才能定论）。
+
+处置：已把 `lru_gen/enabled` 恢复为 `0x0000`（厂商默认），本轮不再开启。
+若要验证，必须单独一轮、只改这一项、并在 `/proc/vmstat`/`meminfo` 上做
+文件页增长 A/B，不要与其它调参混在一起。
+
+## 46. OS4 init.rc 逐条 `write` 审计（2026-11-27，真机）
+
+方法：从 `/system/etc/init/hw/init.rc`（1891 行）与
+`/vendor/etc/init/hw/init.mt6991.rc`（1253 行）抽出全部 `write <path>`，
+去重 126 条，逐条在实机 `[ -e ]` 校验。
+
+> 注意：第一次抽路径时把行尾的 `"` 一起当成了路径的一部分，导致 39 条
+> 全部误报 MISS；本节数字是去掉引号后重跑的结果。
+
+### 我们内核缺失的节点（会影响行为）
+
+| 路径 | 触发条件 | 影响 |
+|---|---|---|
+| `/sys/kernel/dmabuf_hugetlb/enable` | `persist.sys.stability.dmabuf=true/false` | 本机该属性为空、触发不发射；能力不可用（stock 是否有未验证） |
+| `/dev/memcg/freeze-app/memory.anno_writeback_enable`<br>`/dev/memcg/protected-app/memory.anno_writeback_{protected,control}` | `sys.boot_completed=1`（**每次开机都写**） | 全机 `anno_writeback` 符号为 0、所有 `.ko` 里也没有；MIUI「冻结应用注解回写」在本内核**没有实现** |
+| `/proc/sys/vm/min_free_order_shift` | `on boot` | MTK 私有 sysctl，本树无；`4` 未生效，会影响高阶分配（含本次 panic 的 `order=2`）的回收策略 |
+| `/proc/sys/net/ipv4/tcp_default_init_rwnd` | `net.tcp_def_init_rwnd=*` | MTK 私有；属性有值（60）但无 sysctl，写入失败 |
+| `/proc/iostat_enhance/enable` | `persist.sys.stability.iostat=true` | 属性为空不触发；真实节点是 `/proc/io_monitor/iostat/iostat_enabled`（存在），与本仓库既有结论一致 |
+| `…/ufs_monitor/monitor_enable` | 同上 | 实际节点是 `…/16810000.ufshci/monitor/monitor_enable`（存在）；init 写的是 `ufs_monitor/`，路径本就对不上 |
+| `/sys/kernel/tracing/instances/bootreceiver/*` | `bootreceiver.enable=1` | 实例不存在（现有 btspi/hsuart/km/mmstat/wifi） |
+| `/dev/sys/fs/by-name/userdata/fault_report_enable` | `persist.sys.stability.fault_report=true`（当前为 true） | F2FS 缺该属性；`/proc/fault_report` 存在，属 OPEN_ISSUES 2.7 的一部分 |
+| `/sys/class/leds/vibrator/trigger` | `on init`（无条件） | 实际 LED 是 `aw21024_led`/`white:flash-*` |
+| `/dev/blkio/blkio.weight`、`background/blkio.weight`、`blkio.bfq.weight`、`blkio.group_idle`、`blkio.prio.class` | `on init` | 本内核 v1 blkio 只暴露 `blkio.bfq.*` 统计与 `blkio.prio.class`，没有 weight/group_idle；前后台 I/O 权重策略未生效 |
+
+### 与我们内核无关（stock 同款失败或无实际触发）
+
+`/dev/gauge2/*`（只存在 `/dev/gauge`）、`/sys/module/metis/*`（无 metis 模块，
+只有 vendor `scheduler` 里的 `metis_lb_cpu_array`）、`/sys/module/mt6375_charger/*`、
+`/sys/module/pd_dbg_info/*`、`/sys/module/mtk_imgsys_cmdq/*`、`/proc/cpu/alignment`
+（arm64 无）、`/linkerconfig/*`、`/mnt/rescue/*`、`/sys/block/mmcblk0/*`（UFS 无此设备）、
+`/proc/sys/kernel/sched_{latency_ns,tunable_scaling,wakeup_granularity_ns}`
+（6.6 EEVDF 已改 `sched_base_slice`，AOSP 与 MTK 都不再导出这三个）。
+这些要么属性未置、要么 stock 上同样缺失，不构成本内核偏差。
+
+### 与 MGLRU 无关但值得记的一条
+
+`init.rc:167` 有 `on property:persist.sys.stability.lz4asm=off →
+modprobe -r lz4asm`。本机 `/system/lib/modules/` 82 个模块里**没有**
+`lz4asm`，`/proc/kallsyms` 里也没有任何 `lz4asm` 符号——说明 OS4 预留了
+「LZ4 arm64 汇编加速」的模块位，但本机型未随包提供。这也解释了为什么
+现网 zram 只有 `lzo/lzo-rle/lz4/zstd/lz4kd` 五个纯 C 实现可选（向量化
+调研另行记录，本次未展开）。
+
+## 47. OS4 重启事件与重启后复核（2026-11-28，真机）
+
+对象：`6.6.144-4k #16`、OS4.0.4.0，`boot_a`。本轮调查期间设备在未执行
+刷写、写 sysfs、写 property、压力测试或 `reboot` 命令的情况下再次掉线重连，
+需确认是否为内核故障。
+
+### 重启原因判定
+
+pstore 的 `console-ramoops-0` 保留了完整关机尾部：
+
+```text
+Received sys.powerctl='reboot,shell' from pid: 13693 (reboot)
+init: Got shutdown_command 'reboot,shell'
+init: Entering shutdown mode
+F2FS-fs (dm-67): Stopped filesystem due to reason: 0
+mtdoops: mtdoops_do_dump() finish
+reboot reason: shell
+reboot: Restarting system with command 'shell'
+```
+
+同一尾部没有 `Kernel panic`、`Oops`、`BUG:`、`Call trace`、watchdog/lockup 或
+OOM deadlock。`ro.boot.crash_reason=Normal`、`vendor.minidump.crash_reason=Normal`，
+`persist.sys.boot.reason.history` 连续记录两次 `reboot,shell`。因此本次是
+Android init 接收到的用户空间显式 reboot 请求，不是已证实的 kernel panic 或
+watchdog；pstore 只能确认调用进程为 `reboot`（pid 13693），不能从现有日志确定
+更上游的调用者。调查所执行的命令均为读取命令，未包含 reboot/刷写操作，故不能把
+该请求归因于本次内核检查。
+
+### 重启后兼容性
+
+设备重新启动后再次进入系统，采集时 uptime 约 6 分钟：
+
+- 真实版本仍为 `6.6.144-4k #16`，`ro.boot.slot_suffix=_a`；
+- `/proc/modules` 为 584 个模块，`node_cache`、`os_cpu_qi`、`mtk_mbraink`、
+  `cam_fs`、`mi_game`、`task_turbo`、`fault_report`、`ufs_mediatek_mod_ise`、
+  `zram` 均为 Live；没有看到未知符号、CRC、vermagic 或 KCFI 拒载；
+- `/dev/block/dm-71` 存在；`/proc/swaps` 显示 16 GiB `/dev/block/zram0`，
+  `SwapFree=16777212 kB`；`/sys/kernel/mm/lru_gen/enabled=0x0000`，符合 OS4
+  SmartCache 默认策略；cgroup 仍为 stock 的 `cpuset/cpu/cpuacct/blkio/memory/freezer/net_prio`
+  七项，未引入会破坏 vendor ABI 的 device/hugetlb 控制器；
+- 当前启动日志未发现新的 panic/Oops/BUG、UFS/F2FS I/O error、未知符号或模块
+  格式错误。
+
+### 仍可复现的 OS4 兼容缺口
+
+当前启动的 `PerfInit` 仍报告 `/proc/sys/vm/swappiness` 无法打开，以及
+`/sys/block/zram0/writeback_quota` 不存在。前者是 Android SELinux/节点访问契约
+问题，后者是 vendor zram 私有 writeback quota ABI 缺失；它们没有阻止启动，但会
+使 OS4 对 zram 回写参数的调节不完整。与 §46 一起看，当前主要行为缺口仍是
+`memory.anno_writeback_*`、`vm/min_free_order_shift`、`tcp_default_init_rwnd` 和
+v1 blkio 权重节点，而非启动兼容性故障。
+
+## 48. OS4 私有节点与内存源码重放核对（2026-11-28，只读 + 离线）
+
+### 设备只读采集
+
+对象仍为 `6.6.144-4k #16`、OS4.0.4.0、`boot_a`。通过 USB `adb shell su -c`
+采集，未写入 sysfs、proc、property 或分区：
+
+- `/sys/kernel/mm/lru_gen/enabled` 为 `0x0000`；符合 OS4 SmartCache 默认策略。
+- `/dev/memcg/memory.swappiness` 存在，读值为 `100`；各类应用/system memcg
+  下也存在同名节点。`/proc/sys/vm/swappiness` 对当前 PerfInit 访问仍返回
+  `Permission denied`，因此目前只能确认访问契约问题，不能断言 sysctl 缺失。
+- `/dev/blkio/background/blkio.bfq.weight` 和
+  `/dev/blkio/background/blkio.prio.class` 存在；OS4 请求的
+  `/dev/blkio/*/blkio.weight`、`group_idle`、`cpq.level` 仍未发现。现有 BFQ
+  节点不等价于 OS4 私有权重 ABI，未做写入或 I/O 调度实验。
+- `/sys/block/zram0/writeback_quota`、`mfz_enable`、
+  `/sys/kernel/dmabuf_hugetlb/enable` 仍未形成可访问的兼容节点；zram ExtM
+  基础链路此前已确认正常，不能据此推断整体 zram 回写失效。
+- `/proc/io_monitor/iostat/iostat_enabled` 与 `/proc/fault_report` 的节点存在性
+  受 SELinux/proc 权限限制，但此前 §46 已记录实际路径；本轮没有创建别名或修改
+  权限。
+
+### `PG_oem_reserved_5` 来源核对
+
+当前活动 AOSP 树的 `a5c942b8` 基线本身包含 `PG_oem_reserved_5`：
+`include/linux/page-flags.h` 定义该 flag，`mm/readahead.c` 在 MGLRU 开启且
+forced readahead 时设置，`mm/vmscan.c` 在对应扫描路径清除。`git diff HEAD`
+显示这些代码不是当前工作树相对该基线的独立改动，且 `make gen-patches` 的
+文件归属约束不会把它们静默丢弃。此前“未纳入 dash/patches、下次 make patches
+会消失”的判断已纠正。
+
+### 结论
+
+本轮完成了节点事实核对和补丁来源核对，但没有实现任何未知厂商 ABI。剩余的
+`anno_writeback`、zram quota/MFZ、`min_free_order_shift`、TCP 初始窗口和
+blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试；继续保持缺失状态，
+不以同名空节点替代真实实现。
+
+## 49. OS4 TCP 兼容构建、原厂反汇编与 UFS 模块实验（2026-11-28）
+
+- **构建级**：实现 `net.ipv4.tcp_default_init_rwnd`，单位为 MSS 段，范围
+  `0..65535`，默认 `0` 不介入。仅初始网络命名空间使用，显式路由或 BPF
+  参数优先；仍受现有缓冲与窗口上限限制。工厂镜像没有同名字符串，故这是
+  兼容实现，不是已恢复的原厂语义。隔离索引重放 153 个文件成功；以
+  `FAST=1 DEVICE=os4-compat` 配置并编译，六项 ABI 硬门禁、KCFI 13/13、
+  638 个厂商模块静态符号全部通过（硬/弱缺失均为 0）。
+  `dash/out/os4-compat/boot.img` 64 MiB，SHA256
+  `4e61e9ca51cf876e2e96b1237327ea5a6e9d199ce26a2f7db48d94594cff7770`；
+  解包 kernel 与编译产物一致，未刷机，未实测属性写入或 TCP 握手。
+- **原厂静态**：从交接包 `boot_b.img`（SHA256 `b9991f92…8c32`，内核版本
+  与 OS4 stock 一致，但不是 §41 记录的同哈希镜像）提取 Image，通过
+  `vmlinux-to-elf` 恢复符号地址再以 `llvm-objdump` 核对。F2FS hybrid 经
+  `__blkdev_query_disk` 走 ioctl，使用 `0xfffc0000` 能力查询，容量查询用
+  `0xffff0000`、`0xfffe0000`，结果左移 18；尚未验证 ext LUN 地址和 GC。
+  原厂 `sd_setup_unmap_cmnd` 每个范围填 16 字节大端 descriptor，参数长度
+  `8 + 16*N`，另有 `android_vh_sd_setup_unmap_multi_segment` hook；设备边界和
+  失败回退尚未恢复。VIP 确认 `f2fs_iget` 查询、`f2fs_unlink` 移除，入选策略
+  尚未恢复。EROFS 大小阈值按 KiB 为 16/128/256/512，延迟边界为
+  1/5/10/50 ms；窗口输出和合并语义尚未全部恢复。
+- **原厂静态**：`f2fs_stop_checkpoint` 对非零 reason 上报类型 1，参数末项为
+  reason，未按 `end_io` 过滤上报；当前 `a5c942b8` 基线已有同类调用，未重复添加。
+  原厂模块回调查到 `stack_trace_save`、`kmalloc_trace`（`0x820`）及
+  `queue_work_on`；这不替代真机故障注入。原厂镜像也未找到
+  `min_free_order_shift`、`anno_writeback` 和 `dmabuf_hugetlb` 同名字符串。
+- **构建级**：以完整 `drivers/ufs` 副本在临时目录外部构建。完整选项遇到
+  vendor debug 的 `check_bus_status` 与 GKI API 布局不匹配，以及 vendor SCSI
+  头路径问题。精简变体用 `modules_prepare` 和原厂 `irq-dbg.ko` 导出的
+  `mt_irq_dump_status` CRC `0x14de1090` 通过 modpost，生成两个实验 `.ko`，
+  位于 `dash/out/os4-compat/ufs-experiment/`。没有替换 GKI core，也未加载模块。
+- **真机、只读**：DroidSpaces v7.2.0 `check` 必选全通过，`--cpus`、
+  `--pids-limit` 仍不可用；没有运行中的容器，未重测 NAT。KSU 域可读全局
+  swappiness 为 `100`，节点标签 `proc_swappiness`；PerfInit 日志仍为
+  `Permission denied`，未修改策略。vendor zram `writeback_limit=1835008`、
+  `writeback_limit_enable=0`、`zgroup_enable=0`、backing 为 `dm-71`；quota/MFZ
+  确认返回 ENOENT。`/proc/fault_report=1`、iostat 实际节点为 `1`，UFS monitor
+  为 `0`（控制器 `active`），通用 discard 的 `max_discard_segments=1`。
+  iostat、DMA-BUF 属性为空，fault_report 属性为 true，TCP 属性为 `60`。
+  RTC 已有唤醒预约，未覆盖；没有刷机、改设备系统设置或写分区。主机临时
+  128 MiB F2FS 镜像运行了 `fsck.f2fs --dry-run -f`，不算设备文件系统回归。
+
+## 50. OS4 TCP 初始接收窗口（2026-11-28，真机）
+
+- 完整备份 `boot_a`、`vbmeta_a` 到 `dash/out/os4-compat/rollback.bnJIRV/`。
+  以当前 `boot_a` 重封 NoLTO 内核，核对 64 MiB、header v4 和 OEM vbmeta
+  字节；只刷 `boot_a`。机主确认进入系统，分区回读 SHA256 与
+  `boot-a-test.img` 一致：`eae750b9b4f6c3b0302e3099312c2d76ae898aa4d82dfd8d2cf64e3bdcd8fff0`。
+- `6.6.144-4k #1`、`sys.boot_completed=1`、584 模块、ExtM backing 为
+  `dm-71`、MGLRU `0x0000`。启动后未手动写入前，OS4 属性和 sysctl 均为 `60`。
+- `tcpdump -i lo` 抓取 `nc` 建连的 SYN/SYN-ACK；MSS 为 65495。
+  sysctl 从 `1` 到 `60` 时，SYN 窗口从 65495 到 65535，SYN-ACK 从 65483
+  到 65535；`2` 也已顶到 16 位窗口上限。连接传输了测试文本，sysctl 已恢复 `60`。
+  这验证了窗口路径，不代表移动网吞吐收益或原厂实现逐字等价。
+
+## 51. 候选内核隔离存储与网络回归（2026-11-28，真机）
+
+- 私有 mount namespace + tmpfs 上的 loop 探针失败：SELinux 禁止 kernel 域
+  读取 `tmpfs` backing file，导致 loop superblock 读取报 I/O error；没有关闭
+  SELinux 或改变策略，失败的 loop 已拆除。
+- 改用通过 `zram-control/hot_add` 创建的独立 `zram1`，不是在用的 `zram0`。
+  F2FS 128 MiB 测试盘：10 轮各写 16 MiB、`dd conv=fsync`、重命名、卸载、
+  只读重挂载后校验 SHA256 一致，设备端 `fsck.f2fs --dry-run` 的结构检查为
+  `Ok`（私有 mount namespace 中缺 `/mnt/rescue`，厂商日志初始化有提示）。
+  EROFS 32 MiB 测试盘：8 MiB 样本只读挂载、`cmp`、卸载共 10 轮，
+  `fsck.erofs` 退出 0。另用 Android NDK 编译的最小探针调用 `F2FS_IOC_MOVE_RANGE`，
+  移动 16 MiB 并 fsync 目标；只读重挂载后 SHA256 与源文件一致。
+  临时设备已移除。这不是实际 UFS、全局 drop-caches、故障注入或断电验证。
+- `unshare -n` 建立两个独立网络命名空间，以 veth 连接，`iperf3 -n 8M`
+  通过 IPv4 和 IPv6 分别传输 8 MiB。未改现有路由，不算 DroidSpaces 容器
+  NAT 或 AsteriskMETA 转发测试。

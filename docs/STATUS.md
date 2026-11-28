@@ -3,7 +3,7 @@
 > 本文件是“当前构建/运行状态”的**唯一事实源**。其他 README、导航和功能文档
 > 只链接到这里，不再复制版本号、哈希、模块数和验证结论。
 >
-> 最后核对：2026-11-24。刷新方法见文末。
+> 最后核对：2026-11-28。刷新方法见文末。
 
 ## 1. 版本与产物
 
@@ -11,14 +11,14 @@
 |---|---|
 | 设备 | `dash` / REDMI Turbo 5 Max / MT6991，4K 页 |
 | 设备 stock | `6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` |
-| 当前内核 | `6.6.144-4k #16`（生产标准 Full LTO + MLGO + AutoFDO + A720 tune + ExtM f2fs 兼容补丁，本机 2026-11-24 05:39 CST 构建并实机启动；ExtM 回写已恢复 `dm-71`）。`uname` 被 SUSFS 伪装为 stock `6.6.118`，以 `/dev/kmsg` 启动行和 `/proc/config.gz` 为准 |
+| 当前内核 | `6.6.144-4k #1`（2026-11-28 `os4-compat` NoLTO 验证版，TCP 初始接收窗口兼容已实测，ExtM backing 为 `dm-71`）；发布版仍为下列 Full LTO `#16`。真实版本以 `/proc/version` 为准 |
 | AOSP 基线 | `android15-6.6` 开发分支，tip `a5c942b8c5be461264ec25e7893e53fda4144a3a`（2026-11-23，Merge `android15-6.6.144_r01`，6.6.144）；2026-11-24 起不再固定发布 tag |
-| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1，2026-11-24 刷新到 `main-kernel` 最新同版本快照（build 16836431，tree `9258d46`）；当前实机为 Full LTO 生产构建（`LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`，SHA256 已钉死）；日常验证仍统一 NoLTO，未做 A/B |
+| 工具链 | clang r614150（23.0.1）/ LLD 23.0.1，2026-11-24 刷新到 `main-kernel` 最新同版本快照（build 16836431，tree `9258d46`）；生产发布版使用 `LTO_CLANG_FULL` + MLGO regalloc advisor + ACK 预制 AutoFDO profile `kernel.afdo`；当前实机为 NoLTO 验证版，未做 A/B |
 | 本地生产构建（2026-11-24） | 基线 `a5c942b8c` + 34 补丁（含 `DASH-EXTM-COMPAT`）+ 原厂 ABI 对齐配置；`LTO_CLANG_FULL` + MLGO + AutoFDO + A720 tune；`Image` 47,626,752 B（`fdf3b294…`）/ `Image.lz4` 22,724,910 B（`206d66a3…`）/ `boot.img` 67,108,864 B（`7e36a974…`）；零 warning；ABI 六项硬校验通过（`kmem_cache` 240 为软偏差）、KCFI 13/13、638 模块 `unresolved_hard=0/unresolved_weak=0`；**已刷入 `boot_a`，正常开机，ExtM backing device 恢复 `/dev/block/dm-71`** |
-| 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §2.11） |
+| 运行时能力（2026-11-24） | Landlock（ABI v3）、HUGETLBFS、VXLAN、VHOST_NET、EVONIX_IO_PRIO `=y`；**ABI 硬约束：`CONFIG_RSEQ`/`SCHED_MM_CID`、`CONFIG_CGROUP_DEVICE`、`CONFIG_CGROUP_HUGETLB` 必须保持关闭**（前者改 `task_struct` 4800→4864、vendor data 3008→3064、OEM data 3520→3576；后两者改 `cgroup` 1920→1984 且使 `freezer`/`net_prio` 的 `cgroup_subsys_id` 后移，厂商预编译模块按 stock 常量内联访问会错位）。**按机主要求未引入 nftables，`NF_TABLES`/`BRIDGE_NETFILTER` 保持关闭**；默认 ADIOS / BBR3 / fq / zram lz4kd；`UBSAN`/`UBSAN_TRAP`/`INIT_ON_ALLOC_DEFAULT_ON`/`KFENCE`/`SLAB_FREELIST_HARDENED`/`SLUB_DEBUG` 按机主要求关闭；`CFS_BANDWIDTH`/`CGROUP_PIDS`/`MPTCP` 保持关闭；Scene/YC 依赖项保持开启。ABI 由 `scripts/check-abi.py` 在每次构建后硬校验；`DASH-EXTM-COMPAT` 补丁维持厂商 ExtM 的 dm 回写（移除条件见 OPEN_ISSUES §6） |
 | 发布 | Release `dash-6.6.144-prod`（2026-11-24，tag 指向 `5f2af7b`）：`Image` 47,626,752 B / `Image.lz4` 22,724,910 B / `boot.img` 67,108,864 B / `SHA256SUMS` + `dash_art_tune-AnyKernel3-v1.5.zip`（22,684,391 B）+ `dash_art_tune-v1.5.zip`（7,285 B）；发布页含 fastboot 与 AnyKernel3 刷入说明。旧版 `dash-6.6.143-prod`（tag `ebfc285`）保留用于回滚 |
-| 运行槽位 | `boot_a`（`ro.boot.slot_suffix=_a`，2026-11-22） |
-| `boot_a` SHA256 | `7e36a9747569bacda2e3571c3a050affe45694044466f72f21bed4b209e12a86`（6.6.144 生产 Full LTO + ExtM 兼容补丁，2026-11-24 刷入）；`e12ff624…`（同基线无兼容补丁版）；回滚备份 `221cad2d8ca79e60a1b2649e0e37b5a9a40eb3e0d93cc54ffced609a41c80030`（6.6.143 生产，2026-11-22）；生产 `d0cdd6ad…` 备份在 `dash/out/device-backup/20261122-154445-pre-nolto-perf-fp-slot_a/`；NoLTO perf `7db11d8f…` 备份在 `20261122-162106-pre-full-lto-perf-slot_a/` |
+| 运行槽位 | `boot_a`（`_a`，2026-11-28） |
+| `boot_a` SHA256 | `eae750b9b4f6c3b0302e3099312c2d76ae898aa4d82dfd8d2cf64e3bdcd8fff0`（NoLTO 验证版，分区回读一致）；原生产版 `7e36a974…` 已完整备份在 `dash/out/os4-compat/rollback.bnJIRV/boot_a.img` |
 | `init_boot_a` / `b` | a: `ded406b1cb63252f9bfbcaa74fa86817f7848b9d6a6e74d8477c7d551e001ebd`（OS4.0.4.0 官方，实机在用；与 OTA 包内 `init_boot.img` 完全一致）；b: `3d2062ae64992885cb4cfba19bac2699d1e07d7b7df91a8f0a770a493622b70a`（OS4.0.3.0，未随 OTA 更新） |
 | `boot_b` SHA256 | `0dc871a520c39aa6cf57a177d3a78dd833b79a3bcfa14a5cca01985dacedc06e`（历史自编 `#8`，非 stock；OTA 的 stock boot 为 `f8f0de69…f2b3c`） |
 | 安全 | SELinux `Enforcing`；BakaSU 内建（`CONFIG_KSU=y`）+ SUSFS v2.4.0（10 项特性，f98f082 即 v2.4.0）。SUSFS 伪装已按 OS4.0.4.0 OTA 官方 boot 校准：uname=`6.6.118-android15-8-gb9cc6ec16bc8-abogki536571621-4k` / `#1 SMP PREEMPT Mon Jul 20 11:15:20 UTC 2026`；`/proc/bootconfig` spoof 为 `verifiedbootstate=green`、`device_state=locked`；AVC log spoofing、SUS mount 隐藏开启，SUSFS 日志关闭；配置持久化在 `/data/adb/ksu/.susfs.json`。`/proc/version` 仍暴露 `6.6.143-4k`（SUSFS 无此 spoof 项） |
@@ -33,11 +33,50 @@
 完整交付哈希在 `dash/out/artifacts/SHA256SUMS`，构建输入在
 `dash/out/artifacts/BUILD_INFO`；本地 artifacts 仍是历史 #8 交付批次，
 生产 Full LTO 产物以 Release `dash-6.6.144-prod` 的 SHA256SUMS 为准。历史
-System.map 本地副本已缺失（清单保留目标哈希）。2026-11-24 的 6.6.144 NoLTO
-验证构建未发布 artifacts，只写 `dash/out/dash/`；它与实机运行的生产
-Full LTO 版本无关。
+System.map 本地副本已缺失（清单保留目标哈希）。当前 NoLTO 验证版只写入
+`dash/out/os4-compat/` 和实机 `boot_a`，未覆盖发布产物。真机证据见
+[TEST_REPORT.md](kernel/TEST_REPORT.md) §50–§51。
 
 ## 2. 最近验证
+
+- **2026-11-28（真机，OS4 重启事件与重启后复核）**：调查期间设备发生两次
+  `reboot,shell`。pstore 保留了 `init: Received sys.powerctl='reboot,shell'`、
+  `reboot reason: shell` 和完整正常 shutdown；没有 Kernel panic/Oops/BUG/Call trace、
+  watchdog/lockup 或 OOM deadlock。调查命令均为读取操作，未执行 reboot、刷写或写入
+  sysfs/property；调用进程可确认是 `reboot`，更上游调用者未从日志确定。重启后仍为
+  `6.6.144-4k #16`，584 个关键厂商模块加载，`/dev/block/dm-71`、16 GiB zram、
+  stock 七项 cgroup 控制器均恢复正常。OS4 `PerfInit` 仍报告
+  `/proc/sys/vm/swappiness` 无法打开和 `/sys/block/zram0/writeback_quota` 不存在，
+  详见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §47。
+
+- **2026-11-27（真机，MGLRU 与小米 SmartCache / OOM panic）**：
+  `persist.sys.stability.SmartCacheEnable=true` 与 `MultiCacheEnable=true`
+  **互不冲突**，它们是同一个 `SmartCacheService` 的两个子功能
+  （分别对应 `/dev/memcg/memory.mctrl.*` 钉文件与 `/sys/kernel/smart_cache/*`）。
+  但 OS4 在 `init.mt6991.rc:188` 和 `init.rc:1702` 把 `lru_gen/enabled`
+  写 0，**MGLRU 默认关闭是厂商刻意二选一**，不是故障；没有守护进程抢写，
+  手动打开可稳定保持。同日上一轮开机在 33.7 h 后出现
+  `Kernel panic - not syncing: System is deadlocked on memory`
+  （13.4 GB 文件页、16 GB swap 全空、`all_unreclaimable=yes`、
+  OOM 域内全是 `oom_score_adj=-1000` 选不出可杀进程）；该轮 panic 前
+  MGLRU 曾被手动开启、且树内 `PG_oem_reserved_5` 预读逻辑会削弱文件页
+  回收，但**因果未证实**，已恢复 `lru_gen/enabled=0x0000` 并将其保留为
+  需要隔离 A/B 的风险项；该逻辑属于当前 AOSP 基线，补丁重放不会丢失。见
+  [TEST_REPORT.md](kernel/TEST_REPORT.md) §44–§48 与
+  [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) §2.1。
+
+- **2026-11-27（真机，BBR3 有效性与收益）**：`bbr3` 实机确认工作正常且
+  有收益——受控 netns 链路（veth+netem）下，200 ms RTT + 0.5% 丢包吞吐
+  29.6–30.6 MB/15s，cubic 仅 1.7–6.7 MB；满速时 RTT 探针 68 ms 平均，
+  cubic 792 ms。确定性短板是**丢包下吞吐比老 `bbr` 低 10–30%**
+  （`bbr_loss_lower_bounds()` 收缩后恢复不满），已记入
+  [OPEN_ISSUES.md](kernel/OPEN_ISSUES.md) B 组。热点转发流量不经过手机
+  本地 TCP 栈，测不到 BBR3。同日另测 ECN：内核侧协商与 CE 投递正常
+  （SYN `[SEW]`、数据 `ECT(0)`、CE 可回显），但 **bbr3 的 ECN 发送端逻辑
+  默认不生效**——`bbr_can_use_ecn()` 要求 `TCP_ECN_LOW`，只能由路由 metric
+  `RTAX_FEATURE_ECN_LOW` 置位而本机无下发入口；实测 10% CE 下 bbr3 与 bbr
+  行为一致、cubic 被 ECE 打到 `cwnd:2`，属 WK 上游设计取舍。
+  见 [TEST_REPORT.md](kernel/TEST_REPORT.md) §43。
 
 - **2026-11-24（真机，#16 生产版 + ExtM 兼容补丁）**：刷入 `7e36a974…`
   后正常开机（`6.6.144-4k #16`）。`fs/f2fs/sysfs.c` 的

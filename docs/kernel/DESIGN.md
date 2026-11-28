@@ -1,4 +1,4 @@
-# dash 6.6 内核设计说明（当前 6.6.143）
+# dash 6.6 内核设计说明（当前 6.6.144）
 
 ## 1. 基线与交付边界
 
@@ -138,7 +138,9 @@ GKI dynamic task_struct 按 AOSP/OnePlus 公开实现接入：
 - 同步错误路径 `f2fs_handle_error()` 和 task-context 的
   `f2fs_handle_error_async()` 都会触发；原子 end_io 路径由 `in_task()` 过滤，
   避免 `fault_report.ko` 的 `stack_trace_save()`/`queue_work()` 在原子上下文
-  执行。`f2fs_stop_checkpoint()` 等路径仍未上报，见 OPEN_ISSUES §2.7。
+  执行。另有基线自带的 `f2fs_stop_checkpoint()` 上报：非 shutdown 时传入
+  `REPORT_FAULT_STOP_CP` 和停止原因，不按 `end_io` 过滤。见测试报告 §49；
+  尚未实测故障注入下的原子上下文行为。
 - `fault_report.ko` 通过 `for_each_kernel_tracepoint()` 找到事件，启动日志不再
   报 `tracepoint f2fs_fault_report not found`，`/proc/fault_report` 已出现。
 

@@ -113,7 +113,8 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 > 元数据写入每个 TU 的 bitcode,Full LTO 在编译期即应用,链接期不传该参数
 > 不构成功能缺口(2026-11-21 以最小 Full LTO 对照实验验证)。Full LTO 全量
 > 构建已于 2026-11-22 由 CI 通过（run 44923883114），Release
-> `dash-6.6.143-prod`；尚未刷机验证。
+> `dash-6.6.143-prod` 已发布并实机启动验证（当前发布版与实机状态见
+> [docs/STATUS.md](../STATUS.md)）。
 
 `CLANG_AUTOFDO_PROFILE=/path/to/other.afdo bash dash/scripts/build.sh` 可覆盖为
 自定义 profile;profile 与源码版本强相关,AOSP tag/补丁大改后应重新采集。
@@ -173,11 +174,11 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
 > 所有工作流**只保留手动 dispatch 触发**（push/PR/schedule 自动触发已按
 > 仓库主人的要求关闭）；跑到 Actions 页手动触发。
 
-- [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml)：轻量检查——
+- [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml)：轻量检查——
   `shellcheck -S warning`、补丁序列校验（浅克隆 pinned AOSP + `make patches`）。
   DEV_NOTES 的刷新/校验（`make notes`、`collect-notes.py --check`）只在本地
   做，不在 CI 里跑。
-- [`.github/workflows/kernel-build.yml`](../../../.github/workflows/kernel-build.yml)：
+- [`.github/workflows/kernel-build.yml`](../../.github/workflows/kernel-build.yml)：
   手动 dispatch 全量构建（工具链 cache 以 `CLANG_VERSION` 为 key）。默认
   `fast=false`：Full LTO + MLGO + ACK AutoFDO + A720 tune；`fast=true` 是
   NoLTO 测试路径，不发布 Release。构建前做内存扩展（16G swapfile + 8G
@@ -193,15 +194,15 @@ fs-discriminator 元数据,行为不变)。生产构建**默认直接使用 ACK 
   发布到 `tag` 指定的 GitHub Release。
   boot 打包和 `finalize.sh` 需要 gitignored 的 stock `boot_b.img` 与模块
   manifest，仍只在本机执行。
-- [`.github/workflows/storage-ram-test.yml`](../../../.github/workflows/storage-ram-test.yml)：
+- [`.github/workflows/storage-ram-test.yml`](../../.github/workflows/storage-ram-test.yml)：
   手动 dispatch 的存储/内存方案对比：基线探测、两个磁盘清理 action 实测
   （jlumbroso v2：28GiB/257s；endersonmenezes v4 rmz：26GiB/40s）、
   swap/zram/zswap 可用性与组合彩排。结论：zram/zswap 在 runner 上可用，
   清理 action 非必需。
-- [`.github/workflows/upstream-check.yml`](../../../.github/workflows/upstream-check.yml)：
+- [`.github/workflows/upstream-check.yml`](../../.github/workflows/upstream-check.yml)：
   手动 dispatch 对比子模块 pin 与远端分支头，漂移时报单条 issue；CC 系列仓库
   上游已不可达，会一直显示 (unreachable)。
-- [`.github/workflows/bump-submodule.yml`](../../../.github/workflows/bump-submodule.yml)：
+- [`.github/workflows/bump-submodule.yml`](../../.github/workflows/bump-submodule.yml)：
   手动 dispatch，把指定子模块 bump 到分支头并同步 `versions.env` pin，以
   `make source patches` 重放为门禁后自动开 PR；合并与刷机始终是人工决定。
 

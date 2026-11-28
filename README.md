@@ -10,12 +10,12 @@ GKI 源码为基线，叠加 BakaSU、SUSFS、厂商 `.ko` 兼容层和 stock pa
 
 ## 当前状态
 
-当前自编内核已完成 ThinLTO、BakaSU/SUSFS、厂商模块兼容、mihomo TUN/IPv6
-NAT、TCP Brutal 的实机验证；MPTCP 保持关闭。
+当前自编内核基于 AOSP `android15-6.6`（6.6.144），已完成 BakaSU/SUSFS、
+厂商模块兼容、mihomo TUN/IPv6 NAT、TCP Brutal 的实机验证；MPTCP 保持关闭。
 
 具体版本、产物哈希、模块数、最近验证和已知限制统一见
-[docs/STATUS.md](docs/STATUS.md)；文档索引、权威顺序和剩余缺口见
-[docs/README.md](docs/README.md)。
+[docs/STATUS.md](docs/STATUS.md)，本文件不复制状态；文档索引、权威顺序和
+剩余缺口见 [docs/README.md](docs/README.md)。
 
 ## 仓库结构
 

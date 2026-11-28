@@ -92,7 +92,7 @@ git clone --depth=1 --filter=blob:none --no-checkout \
 | [dash/Makefile](../../dash/Makefile) | `deps/toolchain/source/patches/config/build` 入口 |
 | [dash/scripts](../../dash/scripts) | 源码同步、补丁、配置、构建脚本 |
 | [dash/patches](../../dash/patches) | 按特性分目录的补丁系列（`series` 是唯一应用顺序；bakasu-susfs / vendor-ko-compat / vendor-hooks-os4 / memfd-shim / lz4kd-zram / f2fs / erofs / dash-misc）；SUSFS 文件 apply 时从 `third_party/susfs4ksu` 安装，仓库不存副本 |
-| [dash/out/artifacts](../../dash/out/artifacts) | 当前 6.6.143 构建产物：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS` |
+| [dash/out/artifacts](../../dash/out/artifacts) | 构建产物目录（本地生成，gitignored）：`Image`、`Image.lz4`、`boot.img`、`vmlinux`、`System.map`、`config`、`brutal.ko`、`BUILD_INFO`、`SHA256SUMS`；当前实际版本/哈希见 [docs/STATUS.md](../STATUS.md)，本页不固定版本 |
 
 当前产物版本、哈希和验证结论见 [docs/STATUS.md](../STATUS.md)；证据见
 [docs/kernel/TEST_REPORT.md](../kernel/TEST_REPORT.md)，本页不重复。

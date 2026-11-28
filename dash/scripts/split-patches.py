@@ -187,6 +187,7 @@ SERIES = [
             "net/ipv4/tcp_minisocks.c",
             "net/ipv4/tcp_output.c",
             "net/ipv4/tcp_rate.c",
+            "net/ipv4/sysctl_net_ipv4.c",
         ]),
     ]),
     ("115-hide-appsockets", "hide_adb_jdwp：app-UID 隐藏 adbd socket（readdir/fdinfo 半在 010-bakasu-susfs 的 fs 文件里；此处为 af_unix bind/connect/proc-net-unix）", [
