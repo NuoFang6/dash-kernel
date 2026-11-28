@@ -2,8 +2,8 @@
 
 <!-- 由 dash/scripts/collect-notes.py 自动生成；不要手改本文件。 -->
 
-> 生成时间（源文件最新 mtime）：2026-11-28 19:01:03 +0800
-> 覆盖 22 个源，423996 字节；脚本版本 1。
+> 生成时间（源文件最新 mtime）：2026-11-28 20:29:44 +0800
+> 覆盖 22 个源，439519 字节；脚本版本 1。
 > 重新生成：`make notes` 或 `python3 scripts/collect-notes.py`；
 > 校验是否过期：`python3 scripts/collect-notes.py --check`。
 > 源文件才是权威；本文件只做汇总，遇到冲突按下面的顺序判断。
@@ -195,15 +195,15 @@ VENUS_MEMCG_COMMIT=412a1fcc196a289f9d733f9aff5f4162a82d9e6b
 | 01 | 当前交付 | 当前状态：版本、产物哈希与实机结论 | [`docs/STATUS.md`](../STATUS.md) | 19630 | `65e4ef6dd79f8356` | 当前交付（优先相信） |
 | 02 | 当前交付 | dash 构建与交付入口 | [`docs/kernel/README.md`](README.md) | 19664 | `fc12a94baf8dc487` | 当前交付（优先相信） |
 | 03 | 当前交付 | boot / AVB 封装踩坑与硬规则 | [`docs/kernel/BOOT_PACKAGING.md`](BOOT_PACKAGING.md) | 9267 | `6dd251690dda2401` | 当前交付（优先相信） |
-| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 155591 | `75dde633d4b628a2` | 当前交付（优先相信） |
-| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 13901 | `44352dea7452bcc8` | 当前交付（优先相信） |
+| 04 | 当前交付 | 测试报告：静态检查、真机证据与 AVB 复盘 | [`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) | 165890 | `293c7d79f1d6fc9f` | 当前交付（优先相信） |
+| 05 | 当前交付 | 未完成项、风险与验证缺口 | [`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) | 17417 | `36f5324d394a62a1` | 当前交付（优先相信） |
 | 06 | 当前交付 | 实现路径、与 stock 的差异和回退 | [`docs/kernel/DESIGN.md`](DESIGN.md) | 13030 | `f120dae237de4ece` | 当前交付（优先相信） |
 | 07 | 当前交付 | 实机 vs stock 特性核对 | [`docs/kernel/STOCK_PARITY_AUDIT.md`](STOCK_PARITY_AUDIT.md) | 10216 | `ac49cd8995bf8a3d` | 当前交付（优先相信） |
-| 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 20192 | `d3afc05c2a0296d8` | 当前交付（优先相信） |
+| 08 | 当前交付 | 参考仓库工作笔记核对 | [`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) | 21445 | `5490c60de070d859` | 当前交付（优先相信） |
 | 09 | 当前交付 | UFS/hybrid/fastdiscard 缺口证据与安全边界 | [`docs/kernel/UFS_HYBRID_EVIDENCE.md`](UFS_HYBRID_EVIDENCE.md) | 5569 | `40b17b16dee1d3a2` | 当前交付（优先相信） |
 | 10 | 当前交付 | node_cache 源码评估与 stock 6.6.118 二进制差异 | [`docs/kernel/NODE_CACHE_SOURCE.md`](NODE_CACHE_SOURCE.md) | 17045 | `2afc71c0117a4772` | 用户提供的源码是 6.12 API 重实现，不是 stock 6.6.118 原始源码；当前仍运行 stock 模块，不要原样编译/加载。 |
 | 11 | 当前交付 | mihomo Alpha / TCP Brutal / MPTCP 实机结论 | [`docs/kernel/MIHOMO_ANDROID.md`](MIHOMO_ANDROID.md) | 20482 | `66cf8b49cf3b40a8` | MPTCP 实测启动失败未启用；tcp-brutal 是外部 GPL-3.0 模块；Android auto-redirect 仅本机 IPv4。 |
-| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 18854 | `2b48e8d980253233` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
+| 12 | 仓库上下文 | 仓库导航、子模块 pin 与资源索引 | [`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) | 19309 | `dccd4a5fc45b741e` | 这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。 |
 | 13 | 仓库上下文 | 缺口调研台账：公开源码/近似来源/结论 | [`docs/project/GAP_RESEARCH.md`](../project/GAP_RESEARCH.md) | 11213 | `a95c3f64dba715f0` | 这是检索台账，不是构建状态；2026-10-30 状态追加在文末，部分链接只记录未下载。 |
 | 14 | 仓库上下文 | node_cache / os_cpu_qi 的 stock 行为调查 | [`docs/project/DEVICE_MODULES.md`](../project/DEVICE_MODULES.md) | 6425 | `be88517535c69138` | 数值是 stock 运行态历史值；当前自编内核的实测值见 TEST_REPORT §8。 |
 | 15 | 需求 | 交接任务书与验收标准（历史输入） | [`docs/handoff/TASK_BRIEF.md`](../handoff/TASK_BRIEF.md) | 12697 | `6cc641eb2f82e514` | 任务书写于 2026-10-29 交接时（文中“当前 6.6.144/只生成 Image”是旧状态）；本仓库已完成 6.6.118 并实机启动。保留原文追溯，不作为当前执行指令。 |
@@ -956,7 +956,7 @@ vbmeta 与生产 boot 相同（sha256 `67fc0027…`）；footer
 <a id="src-04"></a>
 ## 4. 测试报告：静态检查、真机证据与 AVB 复盘
 
-> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 155591 字节 · SHA256 `75dde633d4b628a217a9233480dc2187952e8b17dbd4831df4ee52e27ffdc034`
+> 来源：[`docs/kernel/TEST_REPORT.md`](TEST_REPORT.md) · 165890 字节 · SHA256 `293c7d79f1d6fc9f40f361ee809e459962cbc56eb01dfd222667ee743f9dbd00`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是**证据日志**：按日期追加实测、构建和失败复盘，不维护“当前状态”。
@@ -3674,12 +3674,192 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
 - `UPSTREAM_NOTES_REVIEW.md`：新增 §7.5。
 - **未新增子模块**（无遗漏的整仓入库需求）；`dash/versions.env`、`.gitmodules` 未改。
 
+### 54. KylinKernel 调查 + lz4asm/unionpower/touch_boost 真机复核（2026-11-28，真机）
+
+对象：`6.6.144-4k #1`（NoLTO 验证版），OS4.0.4.0.XPLCNXM，585 个模块加载。
+外部来源：`DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public`
+（5.15.223，小米 13 系列；`--depth 1 --filter=blob:none` 克隆 2.6 MB，唯一 commit
+`6070aee add: drivers/module modules`）。本轮只读，未写设备节点、未刷机。
+
+#### 1. lz4asm 的真实身份（订正此前误记）
+
+**不是 zram 加速，是 EROFS LZ4 解压的 NEON 加速模块。**
+
+- 源码 `drivers/module/xiaomi/lz4asm/lz4.c`（547 行，`Copyright (c) 2024 Xiaomi`）+
+  依赖 `lib/lz4/lz4armv8/{lz4armv8.S(312 行),lz4accel.c,lz4accel.h}`；
+  `config LZ4ASM tristate depends on ARM64 && KERNEL_MODE_NEON && CFI_CLANG`（默认 n）。
+- 机制：注册 `android_vh_lz4_decompress_bypass`，在 EROFS 解压前用
+  `_lz4_decompress_asm` 解前 `size - 128` 字节（`LZ4_FAST_MARGIN=128`），尾部交回 C
+  `__lz4_decompress_safe_partial`；结果与 `outlen` 不符则 `*bypass=false` 交还 EROFS。
+  A53 用 `_lz4_decompress_asm_noprfm`。CFI 通过 `__cfi_*` 包装函数再入函数指针表
+  `lz4_decompress_asm_fn[NR_CPUS]`（汇编无 kCFI hash，直接入表会被拦）。
+
+#### 2. 前提条件真机核对（全部满足）
+
+- **hook 已在我们的内核**：`/proc/kallsyms` 有
+  `__traceiter_android_vh_lz4_decompress_bypass`、
+  `__probestub_android_vh_lz4_decompress_bypass`、
+  `__ksymtab___tracepoint_android_vh_lz4_decompress_bypass`；
+  源码侧 `drivers/android/vendor_hooks.c:221 EXPORT_TRACEPOINT_SYMBOL_GPL(...)`。
+- **已在实际解压路径调用**：`fs/erofs/decompressor.c:250`，参数序
+  `in,out,inlen,outlen,dip,ret,bypass`，与 Kylin 5.15 完全一致。
+- **EROFS 确实用 LZ4**：`/dev/block/dm-15`（/vendor）superblock 读
+  `available_compr_algs` = `0100 0000` → **bit0 = LZ4**；六个 erofs 挂载点：
+  `/`(dm-13)、`/mnt/vendor/mi_product`(dm-17)、`/mnt/vendor/mi_ext`(dm-18)、
+  `/system_ext`(dm-14)、`/vendor`(dm-15)、`/product`(dm-16)，均
+  `cache_strategy=readaround`。
+- **模块本机不存在**：`/system/lib/modules`(82 文件)、`/vendor/lib/modules`(289)、
+  `/vendor_dlkm/lib/modules`(289)、`/system_dlkm/lib/modules`(82) 中
+  `lz4asm` 文件名计数 **全 0**；`kallsyms` 无 `lz4asm` 符号。
+  ROM 侧只有 `init.rc:167 on property:persist.sys.stability.lz4asm=off →
+  modprobe -r lz4asm`，即"预留卸载口"，未随包提供模块。
+- **自包含可移植**：模块自带 `__lz4_decompress_safe_partial`，只 include `lib/lz4/*.h`；
+  我们 `lib/lz4/lz4_decompress.c:709-710` 已 `EXPORT_SYMBOL` 了
+  `LZ4_decompress_safe`/`LZ4_decompress_safe_partial`。
+  **但** 我们 `lib/lz4/` 无 `lz4armv8/`（stock AOSP 6.6 也没有），需连同
+  `lz4accel.c/h` + `lz4armv8.S` 与 `lib/lz4/Makefile` 一行一起引入。
+
+#### 3. 模块加载实况（纠错：unionpower/touch_boost 是已加载）
+
+`su -c lsmod | grep -iE '^(lz4asm|kshrink|unionpower|touch_boost|vip_sched|mi_rmap|lruvecd)'`：
+
+```
+unionpower             24576  0
+touch_boost            40960  0
+vip_sched              69632  5 mi_game,task_turbo,scheduler,os_cpu_qs,os_cpu_qi,[permanent]
+```
+
+- `unionpower.ko`（33056 B，vendor_dlkm）**已加载**；`/proc/unionpower/ioctl` 存在；
+  `/sys/module/unionpower/parameters/`：
+  `FRAME_MONITOR_ENABLE=0`、`JANK_LIMIT=0`、`JANK_TIMEOUT=83000`、
+  `NICE_MORE_LIMIT=3`、`VSYNC_GAP=10000`、`VSYNC_TIMEOUT=10`。
+  `FRAME_MONITOR_ENABLE=0` → 当前**不采集帧事件，惰性**。
+  `dash.config` 对应 `CONFIG_MI_UNION_POWER=m`。
+- `touch_boost.ko`（66536 B，vendor_dlkm）**已加载**；依赖 `__tracepoint_touch_boost`，
+  tracefs 有 `touch_boost_trace_event/touch_boost`（`/sys/kernel/tracing/instances/{wifi,km}`）。
+- **未加载**：`lz4asm`、`kshrink_slabd`、`mi_rmap_efficiency`、`mi_sw_sync`、
+  `kshrink_lruvecd`。
+
+#### 4. 文档变更
+
+- `FEATURES_SURVEY.md`：订正 `lz4asm` 行（zram → EROFS，并记机制/依赖/缺失状态）；
+  `unionpower` 行由"❌ 未加载"改为"已加载 + 参数实测"；新增 `touch_boost` 行；
+  新增「2026-11-28 KylinKernel(DreamLin114514) 调查」整节。
+- `OPEN_ISSUES.md`：F3 由「观察」升级为「未做」，并订正作用对象与前提齐备情况。
+- `UPSTREAM_NOTES_REVIEW.md` §7.5、`NAVIGATION.md` §1.1：登记该来源。
+
+#### 5. binder_prio 真机事实（Kylin 的 r3_audit 与我们相反）
+
+Kylin 自定义 early LSM `r3_audit` 按文件名拦截 `binder_prio.ko`；我们真机实测恰好
+相反——**该模块在 dash 上是必要且正在工作的**：
+
+- `lsmod`：`binder_prio            32768  0`
+- `/proc/kallsyms` 中 `binder_prio` 符号数：**146**
+- 文件：`/vendor/lib/modules`、`/vendor_dlkm/lib/modules` 各 1 个
+  `binder_prio.ko`；`/system_dlkm`、`/system` 无
+- `vendor_dlkm/lib/modules/modules.dep:223` 有
+  `/vendor_dlkm/lib/modules/binder_prio.ko:` 登记
+- **被系统服务使用**：`android.hardware.graphics.composer@3.3-service.rc:8` 写
+  `/proc/sys/binder_prio/composer_pid`；
+  `android.hardware.graphics.allocator-V2-service-mediatek.rc:9` 写
+  `/proc/sys/binder_prio/gallocator_pid`
+
+→ 结论：**不引入 `r3_audit`**。拦截 `binder_prio.ko` 会直接破坏本机图形栈的
+composer/gallocator 优先级通路。
+
+### 55. KylinKernel 提交历史逐 commit 判定（2026-11-28，只读 API）
+
+方法：`gh api repos/.../commits`（100 条）+ 逐 sha 取 patch；源码侧仅
+`--depth 1 --filter=blob:none` + 稀疏检出 `drivers/module lib/lz4 include/linux
+security block kernel/sched drivers/android`。**未下载 2.5 GB 全树。**
+
+#### 提交构成
+
+100 条中 **82 条是上游**（`UPSTREAM:`/`BACKPORT:`/`ANDROID:`，含 wrapfd 全集、
+DAMON、USB gadget UAF、f2fs、wifi/nl80211）；**18 条作者自写**，其中真正技术改动 6 条。
+
+#### 对我们有效的 3 项核查（源码对照）
+
+1. **rtmutex `__waiter_prio()` fair clamp — 我们缺**
+   - 我们 `dash/src/aosp/common/kernel/locking/rtmutex.c:327-336`：
+     ```c
+     trace_android_vh_rtmutex_waiter_prio(task, &waiter_prio);
+     if (waiter_prio > 0) return waiter_prio;
+     return task->prio;          /* ← 无 rt_prio() 判断 */
+     ```
+   - Kylin `050a782f1` 修法：`prio = task->prio; if (!rt_prio(prio)) return DEFAULT_PRIO;`
+   - 机理（作者原文）：不 clamp 时每个 CFS waiter 的 nice 派生 prio 互不相同，
+     每次入队都翻转 top-waiter，把无关任务拖进 `rt_mutex_adjust_prio_chain()`
+     与 PI reweight 路径。
+2. **EROFS EOF bound — 我们已有**：`fs/erofs/zdata.c:1852` 已是
+   `while ((cur >= end) && (cur < i_size_read(inode)))`（上游 936aa701d82d）。
+3. **MGLRU retry — 我们已有正确形态**：`mm/vmscan.c:4674-4686` 只有
+   `if (inc_min_seq(...)) continue;` + `goto restart`，无那个把 min_seq 推进两次的
+   `while (!inc_min_seq())` 遗留循环。
+4. **schedutil 对齐 — 我们已是 6.6 行为**（Kylin 的 `a51df2c44`/`bd43e30e2`
+   是把 5.15 拉向 6.6，我们本来就在 6.6）：
+   - `cpufreq_schedutil.c:204` 用 `cpu_util_cfs_boost()`
+   - `:398` `!uclamp_rq_is_capped(cpu_rq(...)) && sugov_cpu_is_busy(...) && next_f < sg_policy->next_freq && !sg_policy->need_freq_update`
+   - `:56 saved_idle_calls` + `:337 sugov_cpu_is_busy()`（`CONFIG_NO_HZ_COMMON` 内）
+   - `include/linux/sched/cpufreq.h` 的 `map_util_perf()` 两边定义完全相同
+     （`util + (util >> 2)`）
+
+#### HZ 核对（真机）
+
+- 我们：`dash/configs/stock.config:440 CONFIG_HZ_250=y`、`:443 CONFIG_HZ=250`；
+  真机 `su -c "zcat /proc/config.gz | grep ^CONFIG_HZ"` → `CONFIG_HZ_250=y`、
+  `CONFIG_HZ=250`。
+- Kylin：`3bcb468a6 perf(config): raise HZ to 300 after F1 boots on device`，
+  提交信息称 "HZ is the one compile-time constant that survives the prebuilt
+  vendor module ABI constraint"。
+
+#### ★ 作者的关键工程结论（原文，直接适用于我们）
+
+`c50ba91ca fix(config): revert ABI-breaking knobs, keep KASAN and drop UBSAN only`：
+
+> On-device single-variable bisect from the merge baseline shows that any config
+> which changes a struct layout or a compile-time constant bricks boot:
+> `/vendor/lib/modules` ships 300 prebuilt, signed modules compiled against the
+> OEM layout, so they misread fields and die on the boot path.
+
+被作者试过又回滚的项：`CONFIG_SLUB_DEBUG`（off→改 slab 布局）、`CPU_FREQ_TIMES`、
+`SCHEDSTATS`；最终只保留 `HZ_300`。这与我们的硬门禁（RSEQ/SCHED_MM_CID/
+CGROUP_DEVICE/CGROUP_HUGETLB 必关、task_struct 4800B 不可动）完全同源。
+
+#### `RMAP_RWSEM_HACK` 评估（不做）
+
+Kylin `8d95c18b1` 引入，`kernel/locking/rwsem.c` 内实现：
+- `struct rw_semaphore` 增加 `rmap_class` 字段，`task_struct` 增加 `rmap_rwsem_ctx`
+- rmap 读临界区走有界 `cpu_relax()` 自旋 + reader steal（`rmap_hack_spin_count=64`）
+- `/sys/kernel/rmap_rwsem_hack/{enabled,spin_count,defer_contended,stats}`，
+  每 CPU 计数器 `fast_ok/fast_fall/rsteal_ok/sleep_reader/sleep_writer/handoff_seen/...`
+- → **修改 struct 布局，直接破坏我们的 KABI 硬门禁**，不采用。
+
+#### 未公开模块清单（作者明确说 not published）
+
+`23ece6238 cleanup: drop kylin/moon-specific hooks and dead module references` 原文：
+> The `kylin_fas`, `kylin_lb`, `kylin_mm_opt`, `kylin_rust_opt`, `mi_qos`,
+> `mi_mem_engine`, `mi_wmark`, `dynamic_readahead` and `moon` modules are not published.
+
+该 commit 实际 revert 了 `kylin_fas` 的 per-task uclamp util-floor hook
+（`include/linux/sched.h`、`kernel/sched/core.c`）、
+`android_vh_filemap_map_pages_range` launch-boost hook
+（`mm/filemap.c`、`include/trace/hooks/mm.h`、`vendor_hooks.c`），并删除
+`include/linux/kylin_mm_opt.h`。`8604d8518` 再把 `drivers/block/zram` 与
+`mm/zsmalloc` 恢复为 vanilla 5.15.223。→ **这些代码在公开树里已不存在**。
+
+#### 另一条交叉印证
+
+Kylin `gki_defconfig` 保留 `CONFIG_MI_MEMORY_FREEZE=y` +
+`CONFIG_MEMORY_FREEZE_LEGACY=y` + `CONFIG_MIUI_ZRAM_MEMORY_TRACKING=y`
+—— 小米 13（SM8550/bixi 系）后端。**再次印证 MFZ 是 bixi 系特性，dash 用 XRING、用不到。**
+
 ---
 
 <a id="src-05"></a>
 ## 5. 未完成项、风险与验证缺口
 
-> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 13901 字节 · SHA256 `44352dea7452bcc8e0362110c8a3e2e6b140b31ec604ddb8108625b65079a8d3`
+> 来源：[`docs/kernel/OPEN_ISSUES.md`](OPEN_ISSUES.md) · 17417 字节 · SHA256 `36f5324d394a62a19201f9de93832055036a70db608e260b815d9c24a85f50fd`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 > 本文件是当前缺口、风险和可执行 todo 的唯一台账。当前版本与实机状态见
@@ -3733,9 +3913,9 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
 | E5 | UFS `power_mode`/gear-lane debugfs 运行时切档 | 否（非 stock） | 我们的 `ufs-debugfs.c` 只有 `exception_event_mask`/`exception_event_rate_limit_ms`；设备 `clkscale_control` current=0 | **未做**——研究/调试价值高；源码见 FEATURES_SURVEY 末节（MT6991 实机修复可用） |
 | F1 | iostat_enhance / UFS monitor 路径不匹配 | 否（property 门控） | 缺 `/proc/iostat_enhance`，但 `/proc/io_monitor` 已用 | **观察** |
 | F2 | `/sys/kernel/dmabuf_hugetlb/enable` | 否（property 门控） | 缺失 | **观察** |
-| F3 | `lz4asm`（NEON LZ4 加速模块） | 否（property 门控） | 无该模块；zram 用 lz4kd | **观察** |
+| F3 | `lz4asm`（**EROFS** LZ4 解压 NEON 加速，非 zram） | 否（ROM 仅留卸载口 `persist.sys.stability.lz4asm=off`） | 四个模块目录 `lz4asm=0`，`kallsyms` 无符号；但**依赖齐备**：`android_vh_lz4_decompress_bypass` 已导出、`fs/erofs/decompressor.c:250` 已调用、EROFS `available_compr_algs=0x01`(LZ4) | **未做**——可选性能项；完整源码 KylinKernel `drivers/module/xiaomi/lz4asm/` + `lib/lz4/lz4armv8/` |
 | F4 | **XRING `lz4p` zram 压缩算法**（`CONFIG_XRING_ZRAM_LZ4P`） | 否（stock dash 未编入） | 设备 `comp_algorithm` = `lzo lzo-rle lz4 zstd [lz4kd]`，无 `lz4p`；vendor `zram.ko` 中 `lz4p` 字符串 0 | **未做**——可选性能项；唯一公开源码在 `marble`（`lib/lz4p/` 12 文件 + `zcomp.c` 注册） |
-| F5 | **`kshrink_slabd`**（异步 shrink_slab） | 否 | `lsmod` 无；`/proc/kallsyms` 中 `shrink_async` 计数 0 | **未做**——性能项；完整源码 `marble:drivers/staging/kshrink_slabd/`，仅需本树已导出的 `android_vh_shrink_slab_bypass` + `shrink_slab` |
+| F5 | **`kshrink_slabd`**（异步 shrink_slab） | 否 | `lsmod` 无；`/proc/kallsyms` 中 `shrink_async` 计数 0 | **未做**——性能项；完整源码两处（`marble:drivers/staging/kshrink_slabd/` 230 行精简版；`KylinKernel:drivers/module/xiaomi/kshrink_slabd/` 634 行），仅需本树已导出的 `android_vh_shrink_slab_bypass` + `shrink_slab` |
 | G1 | MGLRU / SmartCache 与 OOM deadlock 因果 | 否（厂商默认关） | `lru_gen=0x0000`，SmartCache 默认开 | **待决策**（隔离 A/B 前保持关） |
 | H1 | 性能/功耗 A/B（stock vs 自编） | — | 缺数据 | **未做** |
 | H2 | suspend/resume ≥10 次 | — | 缺数据 | **未做** |
@@ -3744,6 +3924,10 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
 | H5 | KSU/SUSFS/BakaSU/DroidSpaces 独立回归 | — | 部分验证，未独立回归 | **未做** |
 | H6 | 隔离 FS 的 checkpoint/end-I/O 故障注入 | — | 静态核对过 | **未做** |
 | I1 | `zram.ko` 文件身份（已澄清） | — | **运行的是 vendor_boot ramdisk 的厂商 zram.ko（269480 B，含 zgroup/mctrl/xswapd，无 mfz；sha256 `21d0c6c6…`）**，不是 `/system_dlkm` 的 85 KB AOSP 版；见 [ZRAM_EXTM.md](ZRAM_EXTM.md) | **已澄清**（保持 vendor zram；不得替换） |
+| J1 | **rtmutex `__waiter_prio()` fair-task clamp** | 否（内核内部正确性） | 我们 `kernel/locking/rtmutex.c:335` 为裸 `return task->prio;`——每个 CFS waiter 的 nice 派生 prio 不同，每次入队翻转 top-waiter，牵连 `rt_mutex_adjust_prio_chain()` 与 PI reweight | **待决策**——纯逻辑修复、零 ABI 影响，**建议做**；来源 Kylin `050a782f1` |
+| J2 | **`CONFIG_HZ` 250 → 300** | 否（编译期常量） | stock 与真机 `/proc/config.gz` 均为 `HZ_250`；Kylin 作者实机 bisect 确认 **HZ 是唯一能改且不改 struct 布局的编译期常量**（改别的 struct 项直接起不来） | **待决策**——可试；需 A/B（帧率/输入延迟 vs 待机电流，tick 开销 +20%） |
+| J3 | `RMAP_RWSEM_HACK`（rmap rwsem 读快路径） | 否 | 我们完全没有；Kylin 自建：给 `struct rw_semaphore` 加 `rmap_class`、`task_struct` 加 `rmap_rwsem_ctx` | **不做**——**改 struct 布局 = 破坏 KABI**，与厂商模块硬约束直接冲突 |
+| J4 | `CONFIG_LOCK_EVENT_COUNTS` | 否 | stock 无 | **未做**——纯观测项，日常构建可不开 |
 
 > 「已证伪」的行是对先前台账的纠正，不要重新实现（详见 §3）。
 
@@ -3802,22 +3986,46 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
 - [ ] 逐项补实测；结果追加 TEST_REPORT，STATUS 只留摘要。
 - [x] BBR3 ECN 5ms 门槛属上游策略、丢包吞吐短板已有受控链路实测（TEST_REPORT §43），不作兼容缺陷。
 
-#### 4.5 新增可选性能项（F4/F5，2026-11-28 搜出的真实缺口）
-- **F5 `kshrink_slabd`**（建议优先，风险最低）：源码
-  `marble:drivers/staging/kshrink_slabd/{Kconfig,Makefile,kshrink_slabd.c}`（230 行）。
-  依赖已满足：本树 `android_vh_shrink_slab_bypass` 已导出、
+#### 4.5 新增可选性能项（F3/F4/F5，2026-11-28 搜出的真实缺口）
+- **F5 `kshrink_slabd`**（建议优先，风险最低）：完整源码两处可选——
+  `marble:drivers/staging/kshrink_slabd/{Kconfig,Makefile,kshrink_slabd.c}`（230 行，最精简）
+  或 `KylinKernel:drivers/module/xiaomi/kshrink_slabd/`（634 行，多 `/proc` 节点与 LRU 统计）。
+  **建议取 marble 版**。依赖已满足：本树 `android_vh_shrink_slab_bypass` 已导出、
   `mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`。落地步骤：拷 3 文件到
   `drivers/staging/kshrink_slabd/` → `drivers/staging/Kconfig` 加 source →
   `drivers/staging/Makefile` 加 `obj-$(CONFIG_KSHRINK_SLABD)` → `CONFIG_KSHRINK_SLABD=m`
   → 跑 `check-abi.py`（新增独立模块，理论上不动 KABI）→ 实机 insmod + `/proc` 节点核对。
-- **F4 `lz4p`**（收益不确定，优先级低）：需引 `lib/lz4p/`（12 文件，含 `.S` NEON 汇编）
+- **F3 `lz4asm`（EROFS 解压 NEON 加速，非 zram）**：源码 `KylinKernel:
+  drivers/module/xiaomi/lz4asm/lz4.c`（547 行）+ 依赖 `lib/lz4/lz4armv8/`
+  （`lz4armv8.S` 312 行 + `lz4accel.c/h`）。**前提全备**（hook 已导出且已调用、
+  EROFS 用 LZ4），但需同时引入 `lz4armv8` 与 `lib/lz4/Makefile` 一行，且我们树
+  `lib/lz4/` 目前无该目录。**收益**：EROFS 解压 CPU 降耗（只影响读压缩页，
+  不动 ABI）。风险：CFI 需保留 `__cfi_*` 包装；汇编质量需 A/B。
+  → 可与 F5 并列候选，但工作量大于 F5。
+- **F4 `lz4p`**（zram 压缩算法，优先级最低）：需引 `lib/lz4p/`（12 文件，含 `.S` NEON 汇编）
   + `lib/Kconfig`/`lib/Makefile` + `zcomp.c` 注册 `"lz4p"`。**风险**：dash 的 zram 是
   厂商 ko，`zcomp.c` 在 ko 内不在内核镜像里 → 内核侧加 `lz4p` 也**不一定**能被厂商
   zram 选中。落地前必须先确认 dash 厂商后端是否预留算法名（当前 `comp_algorithm`
-  无 `lz4p` 已说明未预留）。因此**建议先只做 F5，F4 暂缓**。
+  无 `lz4p` 已说明未预留）。因此**建议 F4 暂缓**。
 - **E5 UFS `power_mode`**：只读研究价值；`ShriHari33/mt6991-ufs-gear-lane` 的
   `proposed/0001`+`0002` 对 stock `android15-6.6` 干净应用（其对 stock 6.6 未编译验证）。
-  若要动 UFS，必须先在 stock 上 dry-run + 单独验证，不与 F5 混做。
+  若要动 UFS，必须先在 stock 上 dry-run + 单独验证，不与 F3/F5 混做。
+
+#### 4.6 KylinKernel 移植候选（J1/J2，2026-11-28 提交历史深挖）
+- **J1 rtmutex `__waiter_prio()` clamp（建议优先做）**：改动 13 行、单文件
+  `kernel/locking/rtmutex.c`。把 `return task->prio;` 换成
+  `prio = task->prio; if (!rt_prio(prio)) return DEFAULT_PRIO; return prio;`。
+  零 ABI 影响（不改任何 struct）。验证：`lockstat`/`perf lock` 看 PI 链长度与
+  `rt_mutex_adjust_prio_chain` 调用次数；A/B 桌面流畅度。
+- **J2 `CONFIG_HZ_300`（可试）**：仅改编译期常量，不改 struct——Kylin 作者在
+  MTK/高通双端 bisect 证实这是**唯一安全的 config 调优维度**。代价 tick 开销 +20%。
+  验证：待机电流、帧时间分布（`dumpsys gfxinfo`）、输入延迟。**与 J1 分开 A/B**。
+- **J3 `RMAP_RWSEM_HACK`：不做**（改 `struct rw_semaphore` + `task_struct`，
+  破坏 KABI 硬门禁）。
+- **不需要移植**：EROFS EOF bound、MGLRU retry、schedutil 三项对齐——我们
+  6.6 已全部具备（见 TEST_REPORT §55 源码对照）。
+- **拿不到**：`kylin_fas`/`kylin_lb`/`mi_qos`/`mi_mem_engine`/`mi_wmark`/`moon` 等
+  作者明确未公开，公开树代码已 revert 干净。
 
 ### 5. 必须保持的兼容约束（硬门禁，非决策项）
 
@@ -4292,7 +4500,7 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
 <a id="src-08"></a>
 ## 8. 参考仓库工作笔记核对
 
-> 来源：[`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) · 20192 字节 · SHA256 `d3afc05c2a0296d8f69ee00db4121991d5fcd25b41bf635681088ef7143b3563`
+> 来源：[`docs/kernel/UPSTREAM_NOTES_REVIEW.md`](UPSTREAM_NOTES_REVIEW.md) · 21445 字节 · SHA256 `5490c60de070d859c885eaba75c62a6bc03b189f9cb8f5b385bd606c7d583503`
 > 类别：当前交付 · 状态：当前交付（优先相信）
 
 范围：先读导航中每个带工作笔记/AGENTS 的仓库，再补读一批小米 MTK/OS3/OS4
@@ -4523,6 +4731,22 @@ F2FS/EROFS 功能。`node_cache`、`os_cpu_qi`、`fault_report`、`io_monitor`
 
 **读思路（非 dash 适用）**
 
+- `DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public`（Xiaomi 13 / 5.15.223）—
+  **唯一给出 `lz4asm` 完整实现的地方**：`drivers/module/xiaomi/lz4asm/lz4.c`（547 行）
+  + `lib/lz4/lz4armv8/{lz4armv8.S,lz4accel.c,lz4accel.h}`。该模块是 **EROFS LZ4 解压的
+  NEON 加速**（挂 `android_vh_lz4_decompress_bypass`），**不是 zram 加速**。我们树该 hook
+  已导出且已在 `fs/erofs/decompressor.c:250` 调用、EROFS 确实用 LZ4
+  （`available_compr_algs=0x01`），但模块本机四个模块目录均无 → 见
+  [OPEN_ISSUES.md](OPEN_ISSUES.md) F3。自建 `drivers/module/` 另有
+  `kshrink_slabd`(634)/`vip_sched`(1130)/`touch_boost`(661)/`unionpower`(605)/
+  `mi_sw_sync`(418)/`mi_rmap_efficiency`(239)/`kylin_used_engine`(827)/
+  `oplus/kshrink_lruvecd`(405) 与自定义 early LSM
+  `security/r3_audit_lsm.c`（按文件名拦截 `binder_prio.ko`）——**均不引入**
+  （stock 已有 / 后端不同 / 属 ROM 策略）。同一作者的
+  `Xiaomi-13-Series_AutoBuild_HyperOS_Public`（ROM 移植构建）、
+  `HyperOS_AOD_AON_Fix`（用户态亮度守护）、
+  `NonGKI_Kernel_Build_2nd`（JackA1ltman 项目 fork）、
+  `Alipay-vulnerability-test-DreamKylin` **与本机无关**。
 - `bocchi810/mt6991-kernel-ci` — OnePlus Ace 5 Ultra MT6991 6.6.118 CI；
   `hybridswap_lpc` NULL-deref 的 kprobe 守卫思路（OPLUS hybridswap 后端，dash 不适用）。
 - `dongyanchen-dev/android_kernel_xiaomi_sm8850` — 小米 17/K90 Pro Max GKI 构建器，
@@ -5369,7 +5593,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 <a id="src-12"></a>
 ## 12. 仓库导航、子模块 pin 与资源索引
 
-> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 18854 字节 · SHA256 `2b48e8d980253233a8a38fd60bae393cd15fc72d5877577244d38c9c30cf7dd1`
+> 来源：[`docs/project/NAVIGATION.md`](../project/NAVIGATION.md) · 19309 字节 · SHA256 `dccd4a5fc45b741e64085938d67df8ee5f88509308d6104566716fa70b8fddbf`
 > 类别：仓库上下文 · 状态：仓库上下文（可能有过时状态）
 > 注意：这是仓库地图，不是实时状态；若与 TEST_REPORT 冲突，以 TEST_REPORT 为准。
 
@@ -5424,6 +5648,7 @@ CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build \
 | [liudaoziwa/mainline-mt6991](https://github.com/liudaoziwa/mainline-mt6991) | Linux 7.3 主线 MT6991 支持（观察） | 382 GB 量级源码，不克隆 |
 | [localhosts-A/UniXNU-MT6991-Common](https://github.com/localhosts-A/UniXNU-MT6991-Common) | MT6991 硬件输入整理 `docs/hardware-inputs.md` + `dts/mt6991.dtsi`（XNU 方向） | 10 KB |
 | [SHuiTU68/android_kernel_oplus_common](https://github.com/SHuiTU68/android_kernel_oplus_common) | OPLUS F2FS 移植（`F2FS_FS_DEDUP`/`COMPRESS_FIXED_OUTPUT`/`lz4armv8` NEON），6.6.114 | 255 GB 量级，按文件比对 |
+| [DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public](https://github.com/DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public) | **唯一给出 `lz4asm`（EROFS LZ4 解压 NEON 加速）完整实现**：`drivers/module/xiaomi/lz4asm/` + `lib/lz4/lz4armv8/`；另有自建 kshrink_slabd/vip_sched/touch_boost/unionpower 与 `r3_audit` LSM | 2.5 GB；`--depth 1 --filter=blob:none` 仅 2.6 MB，稀疏取 `drivers/module lib/lz4` |
 
 > 详见 [FEATURES_SURVEY.md](FEATURES_SURVEY.md) 末节与
 > [UPSTREAM_NOTES_REVIEW.md](UPSTREAM_NOTES_REVIEW.md) §7.5。

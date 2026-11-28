@@ -51,9 +51,9 @@
 | E5 | UFS `power_mode`/gear-lane debugfs 运行时切档 | 否（非 stock） | 我们的 `ufs-debugfs.c` 只有 `exception_event_mask`/`exception_event_rate_limit_ms`；设备 `clkscale_control` current=0 | **未做**——研究/调试价值高；源码见 FEATURES_SURVEY 末节（MT6991 实机修复可用） |
 | F1 | iostat_enhance / UFS monitor 路径不匹配 | 否（property 门控） | 缺 `/proc/iostat_enhance`，但 `/proc/io_monitor` 已用 | **观察** |
 | F2 | `/sys/kernel/dmabuf_hugetlb/enable` | 否（property 门控） | 缺失 | **观察** |
-| F3 | `lz4asm`（NEON LZ4 加速模块） | 否（property 门控） | 无该模块；zram 用 lz4kd | **观察** |
+| F3 | `lz4asm`（**EROFS** LZ4 解压 NEON 加速，非 zram） | 否（ROM 仅留卸载口 `persist.sys.stability.lz4asm=off`） | 四个模块目录 `lz4asm=0`，`kallsyms` 无符号；但**依赖齐备**：`android_vh_lz4_decompress_bypass` 已导出、`fs/erofs/decompressor.c:250` 已调用、EROFS `available_compr_algs=0x01`(LZ4) | **未做**——可选性能项；完整源码 KylinKernel `drivers/module/xiaomi/lz4asm/` + `lib/lz4/lz4armv8/` |
 | F4 | **XRING `lz4p` zram 压缩算法**（`CONFIG_XRING_ZRAM_LZ4P`） | 否（stock dash 未编入） | 设备 `comp_algorithm` = `lzo lzo-rle lz4 zstd [lz4kd]`，无 `lz4p`；vendor `zram.ko` 中 `lz4p` 字符串 0 | **未做**——可选性能项；唯一公开源码在 `marble`（`lib/lz4p/` 12 文件 + `zcomp.c` 注册） |
-| F5 | **`kshrink_slabd`**（异步 shrink_slab） | 否 | `lsmod` 无；`/proc/kallsyms` 中 `shrink_async` 计数 0 | **未做**——性能项；完整源码 `marble:drivers/staging/kshrink_slabd/`，仅需本树已导出的 `android_vh_shrink_slab_bypass` + `shrink_slab` |
+| F5 | **`kshrink_slabd`**（异步 shrink_slab） | 否 | `lsmod` 无；`/proc/kallsyms` 中 `shrink_async` 计数 0 | **未做**——性能项；完整源码两处（`marble:drivers/staging/kshrink_slabd/` 230 行精简版；`KylinKernel:drivers/module/xiaomi/kshrink_slabd/` 634 行），仅需本树已导出的 `android_vh_shrink_slab_bypass` + `shrink_slab` |
 | G1 | MGLRU / SmartCache 与 OOM deadlock 因果 | 否（厂商默认关） | `lru_gen=0x0000`，SmartCache 默认开 | **待决策**（隔离 A/B 前保持关） |
 | H1 | 性能/功耗 A/B（stock vs 自编） | — | 缺数据 | **未做** |
 | H2 | suspend/resume ≥10 次 | — | 缺数据 | **未做** |
@@ -62,6 +62,10 @@
 | H5 | KSU/SUSFS/BakaSU/DroidSpaces 独立回归 | — | 部分验证，未独立回归 | **未做** |
 | H6 | 隔离 FS 的 checkpoint/end-I/O 故障注入 | — | 静态核对过 | **未做** |
 | I1 | `zram.ko` 文件身份（已澄清） | — | **运行的是 vendor_boot ramdisk 的厂商 zram.ko（269480 B，含 zgroup/mctrl/xswapd，无 mfz；sha256 `21d0c6c6…`）**，不是 `/system_dlkm` 的 85 KB AOSP 版；见 [ZRAM_EXTM.md](ZRAM_EXTM.md) | **已澄清**（保持 vendor zram；不得替换） |
+| J1 | **rtmutex `__waiter_prio()` fair-task clamp** | 否（内核内部正确性） | 我们 `kernel/locking/rtmutex.c:335` 为裸 `return task->prio;`——每个 CFS waiter 的 nice 派生 prio 不同，每次入队翻转 top-waiter，牵连 `rt_mutex_adjust_prio_chain()` 与 PI reweight | **待决策**——纯逻辑修复、零 ABI 影响，**建议做**；来源 Kylin `050a782f1` |
+| J2 | **`CONFIG_HZ` 250 → 300** | 否（编译期常量） | stock 与真机 `/proc/config.gz` 均为 `HZ_250`；Kylin 作者实机 bisect 确认 **HZ 是唯一能改且不改 struct 布局的编译期常量**（改别的 struct 项直接起不来） | **待决策**——可试；需 A/B（帧率/输入延迟 vs 待机电流，tick 开销 +20%） |
+| J3 | `RMAP_RWSEM_HACK`（rmap rwsem 读快路径） | 否 | 我们完全没有；Kylin 自建：给 `struct rw_semaphore` 加 `rmap_class`、`task_struct` 加 `rmap_rwsem_ctx` | **不做**——**改 struct 布局 = 破坏 KABI**，与厂商模块硬约束直接冲突 |
+| J4 | `CONFIG_LOCK_EVENT_COUNTS` | 否 | stock 无 | **未做**——纯观测项，日常构建可不开 |
 
 > 「已证伪」的行是对先前台账的纠正，不要重新实现（详见 §3）。
 
@@ -120,22 +124,46 @@
 - [ ] 逐项补实测；结果追加 TEST_REPORT，STATUS 只留摘要。
 - [x] BBR3 ECN 5ms 门槛属上游策略、丢包吞吐短板已有受控链路实测（TEST_REPORT §43），不作兼容缺陷。
 
-### 4.5 新增可选性能项（F4/F5，2026-11-28 搜出的真实缺口）
-- **F5 `kshrink_slabd`**（建议优先，风险最低）：源码
-  `marble:drivers/staging/kshrink_slabd/{Kconfig,Makefile,kshrink_slabd.c}`（230 行）。
-  依赖已满足：本树 `android_vh_shrink_slab_bypass` 已导出、
+### 4.5 新增可选性能项（F3/F4/F5，2026-11-28 搜出的真实缺口）
+- **F5 `kshrink_slabd`**（建议优先，风险最低）：完整源码两处可选——
+  `marble:drivers/staging/kshrink_slabd/{Kconfig,Makefile,kshrink_slabd.c}`（230 行，最精简）
+  或 `KylinKernel:drivers/module/xiaomi/kshrink_slabd/`（634 行，多 `/proc` 节点与 LRU 统计）。
+  **建议取 marble 版**。依赖已满足：本树 `android_vh_shrink_slab_bypass` 已导出、
   `mm/vmscan.c:1131 EXPORT_SYMBOL_GPL(shrink_slab)`。落地步骤：拷 3 文件到
   `drivers/staging/kshrink_slabd/` → `drivers/staging/Kconfig` 加 source →
   `drivers/staging/Makefile` 加 `obj-$(CONFIG_KSHRINK_SLABD)` → `CONFIG_KSHRINK_SLABD=m`
   → 跑 `check-abi.py`（新增独立模块，理论上不动 KABI）→ 实机 insmod + `/proc` 节点核对。
-- **F4 `lz4p`**（收益不确定，优先级低）：需引 `lib/lz4p/`（12 文件，含 `.S` NEON 汇编）
+- **F3 `lz4asm`（EROFS 解压 NEON 加速，非 zram）**：源码 `KylinKernel:
+  drivers/module/xiaomi/lz4asm/lz4.c`（547 行）+ 依赖 `lib/lz4/lz4armv8/`
+  （`lz4armv8.S` 312 行 + `lz4accel.c/h`）。**前提全备**（hook 已导出且已调用、
+  EROFS 用 LZ4），但需同时引入 `lz4armv8` 与 `lib/lz4/Makefile` 一行，且我们树
+  `lib/lz4/` 目前无该目录。**收益**：EROFS 解压 CPU 降耗（只影响读压缩页，
+  不动 ABI）。风险：CFI 需保留 `__cfi_*` 包装；汇编质量需 A/B。
+  → 可与 F5 并列候选，但工作量大于 F5。
+- **F4 `lz4p`**（zram 压缩算法，优先级最低）：需引 `lib/lz4p/`（12 文件，含 `.S` NEON 汇编）
   + `lib/Kconfig`/`lib/Makefile` + `zcomp.c` 注册 `"lz4p"`。**风险**：dash 的 zram 是
   厂商 ko，`zcomp.c` 在 ko 内不在内核镜像里 → 内核侧加 `lz4p` 也**不一定**能被厂商
   zram 选中。落地前必须先确认 dash 厂商后端是否预留算法名（当前 `comp_algorithm`
-  无 `lz4p` 已说明未预留）。因此**建议先只做 F5，F4 暂缓**。
+  无 `lz4p` 已说明未预留）。因此**建议 F4 暂缓**。
 - **E5 UFS `power_mode`**：只读研究价值；`ShriHari33/mt6991-ufs-gear-lane` 的
   `proposed/0001`+`0002` 对 stock `android15-6.6` 干净应用（其对 stock 6.6 未编译验证）。
-  若要动 UFS，必须先在 stock 上 dry-run + 单独验证，不与 F5 混做。
+  若要动 UFS，必须先在 stock 上 dry-run + 单独验证，不与 F3/F5 混做。
+
+### 4.6 KylinKernel 移植候选（J1/J2，2026-11-28 提交历史深挖）
+- **J1 rtmutex `__waiter_prio()` clamp（建议优先做）**：改动 13 行、单文件
+  `kernel/locking/rtmutex.c`。把 `return task->prio;` 换成
+  `prio = task->prio; if (!rt_prio(prio)) return DEFAULT_PRIO; return prio;`。
+  零 ABI 影响（不改任何 struct）。验证：`lockstat`/`perf lock` 看 PI 链长度与
+  `rt_mutex_adjust_prio_chain` 调用次数；A/B 桌面流畅度。
+- **J2 `CONFIG_HZ_300`（可试）**：仅改编译期常量，不改 struct——Kylin 作者在
+  MTK/高通双端 bisect 证实这是**唯一安全的 config 调优维度**。代价 tick 开销 +20%。
+  验证：待机电流、帧时间分布（`dumpsys gfxinfo`）、输入延迟。**与 J1 分开 A/B**。
+- **J3 `RMAP_RWSEM_HACK`：不做**（改 `struct rw_semaphore` + `task_struct`，
+  破坏 KABI 硬门禁）。
+- **不需要移植**：EROFS EOF bound、MGLRU retry、schedutil 三项对齐——我们
+  6.6 已全部具备（见 TEST_REPORT §55 源码对照）。
+- **拿不到**：`kylin_fas`/`kylin_lb`/`mi_qos`/`mi_mem_engine`/`mi_wmark`/`moon` 等
+  作者明确未公开，公开树代码已 revert 干净。
 
 ## 5. 必须保持的兼容约束（硬门禁，非决策项）
 

@@ -228,6 +228,22 @@
 
 **读思路（非 dash 适用）**
 
+- `DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public`（Xiaomi 13 / 5.15.223）—
+  **唯一给出 `lz4asm` 完整实现的地方**：`drivers/module/xiaomi/lz4asm/lz4.c`（547 行）
+  + `lib/lz4/lz4armv8/{lz4armv8.S,lz4accel.c,lz4accel.h}`。该模块是 **EROFS LZ4 解压的
+  NEON 加速**（挂 `android_vh_lz4_decompress_bypass`），**不是 zram 加速**。我们树该 hook
+  已导出且已在 `fs/erofs/decompressor.c:250` 调用、EROFS 确实用 LZ4
+  （`available_compr_algs=0x01`），但模块本机四个模块目录均无 → 见
+  [OPEN_ISSUES.md](OPEN_ISSUES.md) F3。自建 `drivers/module/` 另有
+  `kshrink_slabd`(634)/`vip_sched`(1130)/`touch_boost`(661)/`unionpower`(605)/
+  `mi_sw_sync`(418)/`mi_rmap_efficiency`(239)/`kylin_used_engine`(827)/
+  `oplus/kshrink_lruvecd`(405) 与自定义 early LSM
+  `security/r3_audit_lsm.c`（按文件名拦截 `binder_prio.ko`）——**均不引入**
+  （stock 已有 / 后端不同 / 属 ROM 策略）。同一作者的
+  `Xiaomi-13-Series_AutoBuild_HyperOS_Public`（ROM 移植构建）、
+  `HyperOS_AOD_AON_Fix`（用户态亮度守护）、
+  `NonGKI_Kernel_Build_2nd`（JackA1ltman 项目 fork）、
+  `Alipay-vulnerability-test-DreamKylin` **与本机无关**。
 - `bocchi810/mt6991-kernel-ci` — OnePlus Ace 5 Ultra MT6991 6.6.118 CI；
   `hybridswap_lpc` NULL-deref 的 kprobe 守卫思路（OPLUS hybridswap 后端，dash 不适用）。
 - `dongyanchen-dev/android_kernel_xiaomi_sm8850` — 小米 17/K90 Pro Max GKI 构建器，

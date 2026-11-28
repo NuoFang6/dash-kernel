@@ -51,6 +51,7 @@
 | [liudaoziwa/mainline-mt6991](https://github.com/liudaoziwa/mainline-mt6991) | Linux 7.3 主线 MT6991 支持（观察） | 382 GB 量级源码，不克隆 |
 | [localhosts-A/UniXNU-MT6991-Common](https://github.com/localhosts-A/UniXNU-MT6991-Common) | MT6991 硬件输入整理 `docs/hardware-inputs.md` + `dts/mt6991.dtsi`（XNU 方向） | 10 KB |
 | [SHuiTU68/android_kernel_oplus_common](https://github.com/SHuiTU68/android_kernel_oplus_common) | OPLUS F2FS 移植（`F2FS_FS_DEDUP`/`COMPRESS_FIXED_OUTPUT`/`lz4armv8` NEON），6.6.114 | 255 GB 量级，按文件比对 |
+| [DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public](https://github.com/DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public) | **唯一给出 `lz4asm`（EROFS LZ4 解压 NEON 加速）完整实现**：`drivers/module/xiaomi/lz4asm/` + `lib/lz4/lz4armv8/`；另有自建 kshrink_slabd/vip_sched/touch_boost/unionpower 与 `r3_audit` LSM | 2.5 GB；`--depth 1 --filter=blob:none` 仅 2.6 MB，稀疏取 `drivers/module lib/lz4` |
 
 > 详见 [FEATURES_SURVEY.md](../kernel/FEATURES_SURVEY.md) 末节与
 > [UPSTREAM_NOTES_REVIEW.md](../kernel/UPSTREAM_NOTES_REVIEW.md) §7.5。

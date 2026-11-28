@@ -2714,3 +2714,184 @@ blkio 私有权重仍需 stock 二进制/调用者契约及 ABI、行为测试�
   逐轮覆盖表。
 - `UPSTREAM_NOTES_REVIEW.md`：新增 §7.5。
 - **未新增子模块**（无遗漏的整仓入库需求）；`dash/versions.env`、`.gitmodules` 未改。
+
+## 54. KylinKernel 调查 + lz4asm/unionpower/touch_boost 真机复核（2026-11-28，真机）
+
+对象：`6.6.144-4k #1`（NoLTO 验证版），OS4.0.4.0.XPLCNXM，585 个模块加载。
+外部来源：`DreamLin114514/KylinKernel_android_GKI5.15_kernel_common_Public`
+（5.15.223，小米 13 系列；`--depth 1 --filter=blob:none` 克隆 2.6 MB，唯一 commit
+`6070aee add: drivers/module modules`）。本轮只读，未写设备节点、未刷机。
+
+### 1. lz4asm 的真实身份（订正此前误记）
+
+**不是 zram 加速，是 EROFS LZ4 解压的 NEON 加速模块。**
+
+- 源码 `drivers/module/xiaomi/lz4asm/lz4.c`（547 行，`Copyright (c) 2024 Xiaomi`）+
+  依赖 `lib/lz4/lz4armv8/{lz4armv8.S(312 行),lz4accel.c,lz4accel.h}`；
+  `config LZ4ASM tristate depends on ARM64 && KERNEL_MODE_NEON && CFI_CLANG`（默认 n）。
+- 机制：注册 `android_vh_lz4_decompress_bypass`，在 EROFS 解压前用
+  `_lz4_decompress_asm` 解前 `size - 128` 字节（`LZ4_FAST_MARGIN=128`），尾部交回 C
+  `__lz4_decompress_safe_partial`；结果与 `outlen` 不符则 `*bypass=false` 交还 EROFS。
+  A53 用 `_lz4_decompress_asm_noprfm`。CFI 通过 `__cfi_*` 包装函数再入函数指针表
+  `lz4_decompress_asm_fn[NR_CPUS]`（汇编无 kCFI hash，直接入表会被拦）。
+
+### 2. 前提条件真机核对（全部满足）
+
+- **hook 已在我们的内核**：`/proc/kallsyms` 有
+  `__traceiter_android_vh_lz4_decompress_bypass`、
+  `__probestub_android_vh_lz4_decompress_bypass`、
+  `__ksymtab___tracepoint_android_vh_lz4_decompress_bypass`；
+  源码侧 `drivers/android/vendor_hooks.c:221 EXPORT_TRACEPOINT_SYMBOL_GPL(...)`。
+- **已在实际解压路径调用**：`fs/erofs/decompressor.c:250`，参数序
+  `in,out,inlen,outlen,dip,ret,bypass`，与 Kylin 5.15 完全一致。
+- **EROFS 确实用 LZ4**：`/dev/block/dm-15`（/vendor）superblock 读
+  `available_compr_algs` = `0100 0000` → **bit0 = LZ4**；六个 erofs 挂载点：
+  `/`(dm-13)、`/mnt/vendor/mi_product`(dm-17)、`/mnt/vendor/mi_ext`(dm-18)、
+  `/system_ext`(dm-14)、`/vendor`(dm-15)、`/product`(dm-16)，均
+  `cache_strategy=readaround`。
+- **模块本机不存在**：`/system/lib/modules`(82 文件)、`/vendor/lib/modules`(289)、
+  `/vendor_dlkm/lib/modules`(289)、`/system_dlkm/lib/modules`(82) 中
+  `lz4asm` 文件名计数 **全 0**；`kallsyms` 无 `lz4asm` 符号。
+  ROM 侧只有 `init.rc:167 on property:persist.sys.stability.lz4asm=off →
+  modprobe -r lz4asm`，即"预留卸载口"，未随包提供模块。
+- **自包含可移植**：模块自带 `__lz4_decompress_safe_partial`，只 include `lib/lz4/*.h`；
+  我们 `lib/lz4/lz4_decompress.c:709-710` 已 `EXPORT_SYMBOL` 了
+  `LZ4_decompress_safe`/`LZ4_decompress_safe_partial`。
+  **但** 我们 `lib/lz4/` 无 `lz4armv8/`（stock AOSP 6.6 也没有），需连同
+  `lz4accel.c/h` + `lz4armv8.S` 与 `lib/lz4/Makefile` 一行一起引入。
+
+### 3. 模块加载实况（纠错：unionpower/touch_boost 是已加载）
+
+`su -c lsmod | grep -iE '^(lz4asm|kshrink|unionpower|touch_boost|vip_sched|mi_rmap|lruvecd)'`：
+
+```
+unionpower             24576  0
+touch_boost            40960  0
+vip_sched              69632  5 mi_game,task_turbo,scheduler,os_cpu_qs,os_cpu_qi,[permanent]
+```
+
+- `unionpower.ko`（33056 B，vendor_dlkm）**已加载**；`/proc/unionpower/ioctl` 存在；
+  `/sys/module/unionpower/parameters/`：
+  `FRAME_MONITOR_ENABLE=0`、`JANK_LIMIT=0`、`JANK_TIMEOUT=83000`、
+  `NICE_MORE_LIMIT=3`、`VSYNC_GAP=10000`、`VSYNC_TIMEOUT=10`。
+  `FRAME_MONITOR_ENABLE=0` → 当前**不采集帧事件，惰性**。
+  `dash.config` 对应 `CONFIG_MI_UNION_POWER=m`。
+- `touch_boost.ko`（66536 B，vendor_dlkm）**已加载**；依赖 `__tracepoint_touch_boost`，
+  tracefs 有 `touch_boost_trace_event/touch_boost`（`/sys/kernel/tracing/instances/{wifi,km}`）。
+- **未加载**：`lz4asm`、`kshrink_slabd`、`mi_rmap_efficiency`、`mi_sw_sync`、
+  `kshrink_lruvecd`。
+
+### 4. 文档变更
+
+- `FEATURES_SURVEY.md`：订正 `lz4asm` 行（zram → EROFS，并记机制/依赖/缺失状态）；
+  `unionpower` 行由"❌ 未加载"改为"已加载 + 参数实测"；新增 `touch_boost` 行；
+  新增「2026-11-28 KylinKernel(DreamLin114514) 调查」整节。
+- `OPEN_ISSUES.md`：F3 由「观察」升级为「未做」，并订正作用对象与前提齐备情况。
+- `UPSTREAM_NOTES_REVIEW.md` §7.5、`NAVIGATION.md` §1.1：登记该来源。
+
+### 5. binder_prio 真机事实（Kylin 的 r3_audit 与我们相反）
+
+Kylin 自定义 early LSM `r3_audit` 按文件名拦截 `binder_prio.ko`；我们真机实测恰好
+相反——**该模块在 dash 上是必要且正在工作的**：
+
+- `lsmod`：`binder_prio            32768  0`
+- `/proc/kallsyms` 中 `binder_prio` 符号数：**146**
+- 文件：`/vendor/lib/modules`、`/vendor_dlkm/lib/modules` 各 1 个
+  `binder_prio.ko`；`/system_dlkm`、`/system` 无
+- `vendor_dlkm/lib/modules/modules.dep:223` 有
+  `/vendor_dlkm/lib/modules/binder_prio.ko:` 登记
+- **被系统服务使用**：`android.hardware.graphics.composer@3.3-service.rc:8` 写
+  `/proc/sys/binder_prio/composer_pid`；
+  `android.hardware.graphics.allocator-V2-service-mediatek.rc:9` 写
+  `/proc/sys/binder_prio/gallocator_pid`
+
+→ 结论：**不引入 `r3_audit`**。拦截 `binder_prio.ko` 会直接破坏本机图形栈的
+composer/gallocator 优先级通路。
+
+## 55. KylinKernel 提交历史逐 commit 判定（2026-11-28，只读 API）
+
+方法：`gh api repos/.../commits`（100 条）+ 逐 sha 取 patch；源码侧仅
+`--depth 1 --filter=blob:none` + 稀疏检出 `drivers/module lib/lz4 include/linux
+security block kernel/sched drivers/android`。**未下载 2.5 GB 全树。**
+
+### 提交构成
+
+100 条中 **82 条是上游**（`UPSTREAM:`/`BACKPORT:`/`ANDROID:`，含 wrapfd 全集、
+DAMON、USB gadget UAF、f2fs、wifi/nl80211）；**18 条作者自写**，其中真正技术改动 6 条。
+
+### 对我们有效的 3 项核查（源码对照）
+
+1. **rtmutex `__waiter_prio()` fair clamp — 我们缺**
+   - 我们 `dash/src/aosp/common/kernel/locking/rtmutex.c:327-336`：
+     ```c
+     trace_android_vh_rtmutex_waiter_prio(task, &waiter_prio);
+     if (waiter_prio > 0) return waiter_prio;
+     return task->prio;          /* ← 无 rt_prio() 判断 */
+     ```
+   - Kylin `050a782f1` 修法：`prio = task->prio; if (!rt_prio(prio)) return DEFAULT_PRIO;`
+   - 机理（作者原文）：不 clamp 时每个 CFS waiter 的 nice 派生 prio 互不相同，
+     每次入队都翻转 top-waiter，把无关任务拖进 `rt_mutex_adjust_prio_chain()`
+     与 PI reweight 路径。
+2. **EROFS EOF bound — 我们已有**：`fs/erofs/zdata.c:1852` 已是
+   `while ((cur >= end) && (cur < i_size_read(inode)))`（上游 936aa701d82d）。
+3. **MGLRU retry — 我们已有正确形态**：`mm/vmscan.c:4674-4686` 只有
+   `if (inc_min_seq(...)) continue;` + `goto restart`，无那个把 min_seq 推进两次的
+   `while (!inc_min_seq())` 遗留循环。
+4. **schedutil 对齐 — 我们已是 6.6 行为**（Kylin 的 `a51df2c44`/`bd43e30e2`
+   是把 5.15 拉向 6.6，我们本来就在 6.6）：
+   - `cpufreq_schedutil.c:204` 用 `cpu_util_cfs_boost()`
+   - `:398` `!uclamp_rq_is_capped(cpu_rq(...)) && sugov_cpu_is_busy(...) && next_f < sg_policy->next_freq && !sg_policy->need_freq_update`
+   - `:56 saved_idle_calls` + `:337 sugov_cpu_is_busy()`（`CONFIG_NO_HZ_COMMON` 内）
+   - `include/linux/sched/cpufreq.h` 的 `map_util_perf()` 两边定义完全相同
+     （`util + (util >> 2)`）
+
+### HZ 核对（真机）
+
+- 我们：`dash/configs/stock.config:440 CONFIG_HZ_250=y`、`:443 CONFIG_HZ=250`；
+  真机 `su -c "zcat /proc/config.gz | grep ^CONFIG_HZ"` → `CONFIG_HZ_250=y`、
+  `CONFIG_HZ=250`。
+- Kylin：`3bcb468a6 perf(config): raise HZ to 300 after F1 boots on device`，
+  提交信息称 "HZ is the one compile-time constant that survives the prebuilt
+  vendor module ABI constraint"。
+
+### ★ 作者的关键工程结论（原文，直接适用于我们）
+
+`c50ba91ca fix(config): revert ABI-breaking knobs, keep KASAN and drop UBSAN only`：
+
+> On-device single-variable bisect from the merge baseline shows that any config
+> which changes a struct layout or a compile-time constant bricks boot:
+> `/vendor/lib/modules` ships 300 prebuilt, signed modules compiled against the
+> OEM layout, so they misread fields and die on the boot path.
+
+被作者试过又回滚的项：`CONFIG_SLUB_DEBUG`（off→改 slab 布局）、`CPU_FREQ_TIMES`、
+`SCHEDSTATS`；最终只保留 `HZ_300`。这与我们的硬门禁（RSEQ/SCHED_MM_CID/
+CGROUP_DEVICE/CGROUP_HUGETLB 必关、task_struct 4800B 不可动）完全同源。
+
+### `RMAP_RWSEM_HACK` 评估（不做）
+
+Kylin `8d95c18b1` 引入，`kernel/locking/rwsem.c` 内实现：
+- `struct rw_semaphore` 增加 `rmap_class` 字段，`task_struct` 增加 `rmap_rwsem_ctx`
+- rmap 读临界区走有界 `cpu_relax()` 自旋 + reader steal（`rmap_hack_spin_count=64`）
+- `/sys/kernel/rmap_rwsem_hack/{enabled,spin_count,defer_contended,stats}`，
+  每 CPU 计数器 `fast_ok/fast_fall/rsteal_ok/sleep_reader/sleep_writer/handoff_seen/...`
+- → **修改 struct 布局，直接破坏我们的 KABI 硬门禁**，不采用。
+
+### 未公开模块清单（作者明确说 not published）
+
+`23ece6238 cleanup: drop kylin/moon-specific hooks and dead module references` 原文：
+> The `kylin_fas`, `kylin_lb`, `kylin_mm_opt`, `kylin_rust_opt`, `mi_qos`,
+> `mi_mem_engine`, `mi_wmark`, `dynamic_readahead` and `moon` modules are not published.
+
+该 commit 实际 revert 了 `kylin_fas` 的 per-task uclamp util-floor hook
+（`include/linux/sched.h`、`kernel/sched/core.c`）、
+`android_vh_filemap_map_pages_range` launch-boost hook
+（`mm/filemap.c`、`include/trace/hooks/mm.h`、`vendor_hooks.c`），并删除
+`include/linux/kylin_mm_opt.h`。`8604d8518` 再把 `drivers/block/zram` 与
+`mm/zsmalloc` 恢复为 vanilla 5.15.223。→ **这些代码在公开树里已不存在**。
+
+### 另一条交叉印证
+
+Kylin `gki_defconfig` 保留 `CONFIG_MI_MEMORY_FREEZE=y` +
+`CONFIG_MEMORY_FREEZE_LEGACY=y` + `CONFIG_MIUI_ZRAM_MEMORY_TRACKING=y`
+—— 小米 13（SM8550/bixi 系）后端。**再次印证 MFZ 是 bixi 系特性，dash 用 XRING、用不到。**
+
